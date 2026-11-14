@@ -45,7 +45,7 @@ const Renderer = (() => {
       // Each player sees their own course: the main one, or the enchanted forest they're in
       const course = p.realm || world.level, other = world.players[1 - i];
       const mine = (list) => list.filter((e) => (e.level || world.level) === course);
-      const view = Object.assign(Object.create(world), { level: course, sawBits: mine(world.sawBits), wisps: mine(world.wisps), quakes: mine(world.quakes), builtPortals: mine(world.builtPortals), pushes: mine(world.pushes) });
+      const view = Object.assign(Object.create(world), { level: course, sawBits: mine(world.sawBits), wisps: mine(world.wisps), quakes: mine(world.quakes), builtPortals: mine(world.builtPortals), pushes: mine(world.pushes), stormBalls: mine(world.stormBalls), blasts: mine(world.blasts) });
       if (p.realm) Object.assign(view, { inForest: true, monsoon: null, missiles: [], bears: [], jaguars: [], decoys: [], arrows: [], vultures: [], hawks: [], sticks: [], burns: [], drones: [], hands: [], roots: [], bolts: [], monkeys: [], thrownSnowballs: [], grapples: [], vines: [], warps: [] });
       drawView(view, p, other && other.realm === p.realm && !other.dream ? other : null, camX);
       drawDream(p, camX, world.time);
@@ -94,6 +94,7 @@ const Renderer = (() => {
     drawTiles(world.level, camX, world.time);
     drawFireRows(world.level, camX, world.time);
     drawGearLasers(world.level, camX, world.time, false);
+    drawStormEngines(world.level, camX, world.time);
     drawTurretDust(world.level, camX, world.time);
     drawSawTracks(world.level, camX);
     drawPalms(world.level, player, camX);
@@ -156,6 +157,7 @@ const Renderer = (() => {
     drawTreeStrikes(world.level, camX, world.time);
     drawStones(world.level, camX);
     drawGearLasers(world.level, camX, world.time, true);
+    drawStormBalls(world, camX, world.time);
     for (const p of [player, other]) if (p) { drawAuroraLights(p, camX, world.time, p === other); drawTripRibbons(p, camX, world.time); }
     drawPushes(world, camX);
     drawCoconuts(world.level, player, camX, world.time); // falling (in front of the runners)
@@ -476,6 +478,123 @@ const Renderer = (() => {
       P(ES.edge, x - 1, y - 1, 3, 3); P("#1d6a60", x - 1, y, 3, 1); P("#1d6a60", x, y - 1, 1, 3);
       P(st.firing ? "#eafff8" : on ? RUNE : "#3fbfa8", x, y);
       drawGlowAt("aurora", 0, x, y, on ? 0.35 + 0.4 * fill : 0.12);
+    }
+  }
+
+  // ---- The storm engine: a carved stone engine with a cog in its window, glowing pipes up its sides, an iron yoke
+  // holding a gyroscope of two stone rings; and its balls of lightning ----
+
+  const SW = "#ffffff", SICE = "#d8f4ff", SCY = "#8fd8ff";
+  const SST = { edge: "#262e30", hi: "#c4cccc", light: "#a0aaaa", mid: "#828c8c", dark: "#646e6e", deep: "#4a5454" };
+  const SIRON = { d: "#2a3234", m: "#4c5658", l: "#7a8688" }, SMOSS = ["#4a8a3a", "#5aa83a", "#3f7a32"];
+  function stormBox(x, y, w, h) { P(SST.edge, x - 1, y - 1, w + 2, h + 2); P(SST.mid, x, y, w, h); P(SST.hi, x, y, w, 1); P(SST.light, x, y + 1, 1, h - 1); P(SST.dark, x + w - 1, y + 1, 1, h - 1); P(SST.deep, x + 1, y + h - 1, w - 2, 1); }
+  const rivet = (x, y) => { P(SIRON.d, x, y + 1); P(SIRON.l, x, y); };
+  function stormArc(x0, y0, x1, y1, seed, col, a = 1) { // a jagged arc of lightning
+    const n = Math.max(3, Math.round(Math.hypot(x1 - x0, y1 - y0) / 2));
+    let px = x0, py = y0;
+    for (let i = 1; i <= n; i++) {
+      const u = i / n, j = i === n ? 0 : (hash(seed, i) - 0.5) * 3;
+      const nx = x0 + (x1 - x0) * u - j * (y1 - y0) / n / 1.5, ny = y0 + (y1 - y0) * u + j * (x1 - x0) / n / 1.5;
+      const steps = Math.max(1, Math.ceil(Math.hypot(nx - px, ny - py)));
+      for (let s = 0; s < steps; s++) P(col, px + (nx - px) * s / steps, py + (ny - py) * s / steps, 1, 1, a);
+      px = nx; py = ny;
+    }
+  }
+  // the ball: k 0 (stable) .. 1 (about to blow). White light pulses through it, faster and harder as it destabilises; a
+  // 4-point star of light turns at its heart (a cousin of the eye-stone's star); arcs snap off it
+  function drawStormBall(cx, cy, k, seed, t) {
+    const pulse = 0.5 + 0.5 * Math.sin(t * (2 + k * 10) * Math.PI * 2), r = 4 + Math.round(k * 1.5 + pulse * (0.5 + k));
+    drawGlowAt(k > 0.7 && pulse > 0.6 ? "white" : "ice", k > 0.6 ? 3 : 2, cx, cy, 0.45 + 0.4 * pulse);
+    const wob = k * 1.4, fr = Math.floor(t * 20);
+    for (let yy = -r - 2; yy <= r + 2; yy++) for (let xx = -r - 2; xx <= r + 2; xx++) {
+      const a = Math.atan2(yy, xx), rr = r + (hash(fr * 7 + seed, Math.round(a * 4 + 9)) - 0.5) * wob * 2, d = Math.hypot(xx, yy);
+      if (d > rr) continue;
+      P(d > rr - 1 ? (pulse > 0.5 ? SICE : SCY) : d < rr * 0.55 ? SW : pulse > 0.6 || k > 0.8 ? SW : SICE, cx + xx, cy + yy);
+    }
+    const ang = t * (1 + k * 3), L = 3 + Math.round(pulse * (1 + k * 3));
+    for (let i = 0; i < 4; i++) { const a = ang + i * Math.PI / 2; for (let j = 1; j <= L + 2; j++) P(j > L ? SICE : SW, cx + Math.cos(a) * j, cy + Math.sin(a) * j, 1, 1, j > L ? 0.6 : 1); }
+    P(SW, cx - 1, cy - 1, 3, 3);
+    const arcs = Math.round(k * 7 + (pulse > 0.8 ? 2 : 0));
+    for (let i = 0; i < arcs; i++) { const a = hash(fr + seed, i + 50) * Math.PI * 2, Lr = r + 2 + hash(fr + seed, i + 60) * (3 + k * 12); stormArc(cx + Math.cos(a) * r * 0.6, cy + Math.sin(a) * r * 0.6, cx + Math.cos(a) * Lr, cy + Math.sin(a) * Lr, fr * 31 + seed * 7 + i, i % 2 ? SW : SICE, 0.9); }
+  }
+  function drawStormRings(cx, cy, spin, e, t, ballK) { // the gyroscope: back halves, the ball (charging), front halves
+    const R = 9;
+    for (let pass = 0; pass < 2; pass++) {
+      for (let a = 0; a < Math.PI * 2; a += 0.05) {
+        const rings = [[Math.cos(a) * R * Math.cos(spin), Math.sin(a) * R, Math.cos(a) * Math.sin(spin)], [Math.cos(a) * R, Math.sin(a) * R * Math.cos(spin * 0.8 + 1), Math.sin(a) * Math.sin(spin * 0.8 + 1)]];
+        for (const [x, y, z] of rings) {
+          if ((z > 0) !== (pass === 1)) continue;
+          const hot = e > 0.3 && hash(Math.round(a * 20), Math.floor(t * 14)) > 1 - e * 0.25;
+          P(SST.edge, cx + x, cy + y + 1); P(hot ? SW : z > 0 ? (y < 0 ? SST.hi : SST.light) : SST.dark, cx + x, cy + y);
+        }
+      }
+      if (pass === 0 && e > 0) drawStormBall(cx, cy, ballK, 7, t);
+    }
+    if (e > 0.5) for (let i = 0; i < 2; i++) { const a = t * 7 + i * 3; stormArc(cx, cy, cx + Math.cos(a) * 9, cy + Math.sin(a) * 9, 600 + i + Math.floor(t * 20), SW, 0.8); }
+  }
+  function drawStormEngines(level, camX, time) {
+    for (const s of level.storms) {
+      const cx = Math.round(s.x - camX), gy = s.gy;
+      if (cx < -40 || cx > VIEW_W + 40) continue;
+      const st = level.stormState(s, time), e = st.charge, cy = gy - STORM.rise;
+      // the base: a wide step on riveted iron feet, mossy
+      stormBox(cx - 13, gy - 4, 27, 4);
+      for (const x of [-12, 11]) { P(SIRON.d, cx + x - 1, gy - 6, 4, 6); P(SIRON.l, cx + x, gy - 6, 2, 1); rivet(cx + x, gy - 3); }
+      stormBox(cx - 11, gy - 9, 23, 4);
+      for (let i = 0; i < 23; i++) if (hash(i, s.id) > 0.35) P(SMOSS[i % 3], cx - 11 + i, gy - 10);
+      // the carved block, with a riveted window onto a cog that turns with the rings
+      stormBox(cx - 8, gy - 28, 17, 18);
+      for (let x = -7; x <= 7; x++) { P(x % 2 ? SST.deep : SST.light, cx + x, gy - 27); P(x % 2 ? SST.light : SST.deep, cx + x, gy - 12); }
+      P("#141c22", cx - 5, gy - 25, 11, 11);
+      const ang = st.spin * 0.7;
+      for (let yy = -5; yy <= 5; yy++) for (let xx = -5; xx <= 5; xx++) {
+        const d = Math.hypot(xx, yy), a = Math.atan2(yy, xx) - ang, tooth = Math.cos(a * 8) > 0.2;
+        if (d > (tooth ? 5.4 : 4.4)) continue;
+        P(d > 3.8 ? (tooth ? SIRON.m : SIRON.d) : d > 2.6 ? SIRON.l : d > 1.2 ? SIRON.m : e > 0 ? SCY : "#2a6a62", cx + xx, gy - 20 + yy);
+      }
+      for (let i = 0; i < 4; i++) { const a = ang + i * Math.PI / 2; P(SIRON.d, cx + Math.cos(a) * 3, gy - 20 + Math.sin(a) * 3); }
+      if (e > 0) drawGlowAt("ice", 1, cx, gy - 20, 0.3 + e * 0.5);
+      P(SIRON.d, cx - 6, gy - 26, 13, 1); P(SIRON.d, cx - 6, gy - 14, 13, 1); rivet(cx - 6, gy - 26); rivet(cx + 6, gy - 26); rivet(cx - 6, gy - 15); rivet(cx + 6, gy - 15);
+      P("#2a3234", cx + 5, gy - 13); P("#2a3234", cx + 6, gy - 12); // a little crack
+      P(SST.edge, cx - 10, gy - 31, 21, 3); P(SST.hi, cx - 9, gy - 31, 19, 1); P(SST.light, cx - 9, gy - 30, 19, 1); // cornice
+      // the energy pipes up its sides, light racing up them as it charges
+      for (const sd of [-1, 1]) {
+        const pts = [[9, 12], [10, 16], [10, 21], [10, 26], [9, 30], [7, 33], [5, 35]];
+        pts.forEach(([dx, dy], i) => { const u = i / (pts.length - 1), on = u < e; P("#1d3a3a", cx + sd * dx - 1, gy - dy, 3, 1); P(on ? (hash(i, Math.floor(time * 18)) > 0.4 ? SW : SCY) : "#2a6a62", cx + sd * dx, gy - dy); });
+      }
+      // the yoke: an iron fork with a riveted collar, holding the rings' pivots
+      const top = gy - 31;
+      P(SIRON.d, cx - 2, cy + 12, 5, top - cy - 12); P(SIRON.m, cx - 1, cy + 12, 3, top - cy - 12); P(SIRON.l, cx - 1, cy + 12, 1, top - cy - 12);
+      P(SIRON.d, cx - 3, top - 3, 7, 3); rivet(cx - 2, top - 2); rivet(cx + 2, top - 2);
+      for (let x = -12; x <= 12; x++) { const y = cy + 12 + Math.round(-Math.abs(x) / 8); P(SIRON.d, cx + x, y - 1, 1, 3); P(Math.abs(x) < 3 ? SIRON.l : SIRON.m, cx + x, y); }
+      for (const sd of [-1, 1]) { P(SIRON.d, cx + sd * 12 - 1, cy - 2, 3, 14); P(SIRON.m, cx + sd * 12, cy - 1, 1, 12); P(SIRON.d, cx + sd * 12 - 2, cy - 3, 5, 5); P(e > 0.85 ? SCY : "#2a6a62", cx + sd * 12, cy - 1); }
+      drawStormRings(cx, cy, st.spin, e, time, 0);
+    }
+  }
+  function drawStormBalls(world, camX, time) {
+    for (const b of world.stormBalls) {
+      const x = b.x - camX, k = Math.max(0, Math.min(1, (b.age - 0.3) / (STORM.life - 0.3)));
+      if (x < -60 || x > VIEW_W + 60) continue;
+      if (b.age > STORM.life - STORM.warn) { // the blast warning: a dashed ice line on the ground and a faint ring, as far as it'll reach
+        const g = world.level.groundTop(b.x), R = STORM.blast, a = 0.5 + 0.4 * Math.sin(time * 30);
+        if (g !== null) { for (let dx = -R; dx <= R; dx++) if ((dx + 99) % 3 !== 0) P(SICE, x + dx, g - 1, 1, 1, a); P(SW, x - R, g - 3, 1, 3, a); P(SW, x + R, g - 3, 1, 3, a); }
+        for (let an = 0; an < Math.PI * 2; an += 0.12) P(SICE, x + Math.cos(an) * R, b.y + Math.sin(an) * R, 1, 1, a * 0.45);
+      }
+      drawStormBall(x, b.y, k, b.seed, time);
+    }
+    for (const bl of world.blasts) { // the explosion: two flashes, two shockwaves, bolts lashing out, sparks and chips; then a scorch mark
+      const x = bl.x - camX, u = Math.min(1, bl.t / STORM.boom), fade = 1 - u, R = STORM.blast;
+      for (let dx = -R; dx <= R; dx++) if (hash(dx, 9) > 0.3) P("#1a2226", x + dx, bl.gy, 1, 1, 0.8 * (1 - Math.abs(dx) / R) * Math.min(1, 2.5 - bl.t * 2.5));
+      if (u >= 1) continue;
+      if (u < 0.12 || (u > 0.22 && u < 0.3)) drawGlowAt("white", 5, x, bl.y, 0.95);
+      for (const [lag, col] of [[0, SW], [0.18, SICE]]) {
+        const v = Math.max(0, u - lag) / (1 - lag), r = Math.round(R * (0.2 + Math.sqrt(v)));
+        if (v <= 0) continue;
+        for (let an = 0; an < Math.PI * 2; an += 0.04) { const rr = r + (hash(Math.round(an * 60), Math.floor(u * 20)) - 0.5) * 4; P(col, x + Math.cos(an) * rr, bl.y + Math.sin(an) * rr, 2, 1, (1 - v) * 0.95); }
+      }
+      drawGlowAt("white", 4, x, bl.y, fade);
+      for (let i = 0; i < 10; i++) { const an = hash(i, 5) * Math.PI * 2, len = R * (0.9 + hash(i, 6) * 0.7) * Math.min(1, u * 4); stormArc(x, bl.y, x + Math.cos(an) * len, bl.y + Math.sin(an) * len, 900 + i * 17 + Math.floor(u * 30), i % 3 ? SW : SICE, fade); }
+      for (let i = 0; i < 18; i++) { const an = hash(i, 7) * Math.PI * 2, d = R * (0.3 + 1.3 * u) * (0.6 + hash(i, 8) * 0.6); P(i % 4 ? SW : "#8a9494", x + Math.cos(an) * d, bl.y + Math.sin(an) * d + u * u * 20, i % 4 ? 1 : 2, 1, fade); }
     }
   }
 

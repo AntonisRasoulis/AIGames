@@ -89,6 +89,7 @@ class Level {
     this.ruinsOn = options.ruins !== false; // (the arcane ruins turned off in the biome picker: no ruins portal)
     this.ruinsGates = [];     // the ruins portal on the main course (one per race): { id, x, gy, state: off | on | broken, presses, openedAt, realm, burstAt, brokenAt }
     this.fireRows = [];       // ruins: rows of fire turrets (in place of spikes): { id, x0, n, gy, speed, kind, phase, second }
+    this.storms = [];         // ruins: storm engines { id, x, gy, period, phase }
     this.biomeGates = [];     // ruins: portals to a short stretch of another biome { x, gy, biome, forced }
     this.gearLasers = [];     // ruins: gear lasers { id, x (the post's middle), gy, cy (the gear's middle), fast, phase }
     this.stones = [];         // ruins, the last seconds: stones falling { x, t (seconds since its shadow appeared), w, hit }
@@ -331,6 +332,7 @@ class Level {
     if (this.trees.some((t) => Math.abs(t.x - (x + HITBOX_W / 2)) < ALIVE_TREE.grabReach + HITBOX_W + 8)) return true; // (no coming back where an alive tree strikes)
     if (this.onFire(x + HITBOX_W / 2, HITBOX_W / 2 + 4)) return true;
     if (this.fireRows.some((r) => x + HITBOX_W > r.x0 - 4 && x < r.x0 + r.n * TILE + 4)) return true; // (no waiting on a fire row)
+    if (this.storms.some((s) => Math.abs(x + HITBOX_W / 2 - s.x) < STORM.blast + 16)) return true; // (no coming back right by a storm engine)
     if (this.gearLasers.some((gl) => Math.abs(x + HITBOX_W / 2 - gl.x) < (gl.gy - gl.cy) / Math.tan((GEAR_LASER.below[0] * Math.PI) / 180) + 16)) return true; // (anywhere its beams can land)
     if (this.ruinsGates.some((g) => g.state !== "broken" && Math.abs(g.x - (x + HITBOX_W / 2)) < RUINS.grab + 8)) return true; // (not on its button, or in its grab)
     if (this.sleepShrooms.some((g) => Math.abs(g.x + SLEEP_SHROOM.lean - (x + HITBOX_W / 2)) < SLEEP_SHROOM.capW / 2 + SLEEP_SHROOM.drift * SLEEP_SHROOM.stem / SLEEP_SHROOM.fall + HITBOX_W)) return true; // (no waiting where its spores fall)
@@ -653,6 +655,14 @@ class Level {
     return s.beams;
   }
 
+  // A storm engine right now: { charge (0..1 while it spins up), k (how many balls it's fired), spin (how far its rings
+  // have turned: a slow turn, plus a burst of spin each charge-up) }. Worked out from the clock.
+  stormState(s, time) {
+    const T = time / s.period + s.phase, k = Math.floor(T), cyc = (T - k) * s.period;
+    const charge = Math.max(0, (cyc - (s.period - STORM.charge)) / STORM.charge), burst = (STORM.charge * 16) / 3;
+    return { charge, k, spin: time * 0.6 + k * burst + burst * charge ** 3 };
+  }
+
   // A gear laser right now: { ang (where its barrel points), phase: turn | hold | warn | fire, u (0..1 through
   // that phase), dir (the way it's locked), fires (false: a fake-out) }. Worked out from the clock.
   gearState(gl, time) {
@@ -850,7 +860,7 @@ class Level {
       Object.assign(weights, RUINS.mix);
       if (this.realmEnd === undefined) { // (the ruins as the main course, in a race that's all secret biomes: orbs too, and an easy start)
         if (orb) weights.orb = ORBS.weight.ruins;
-        if (this.col <= 60) for (const k of ["shooter", "saw", "gearLaser"]) delete weights[k];
+        if (this.col <= 60) for (const k of ["shooter", "saw", "gearLaser", "storm"]) delete weights[k];
       }
     }
     if (this.biome === "forest") { // (its own mix, so its own dangers and the usual ones all get their turn)
@@ -1384,6 +1394,13 @@ const SECTIONS = {
   },
 
   // The way into the arcane ruins: a portal of stacked rocks, switched off, its button in the ground under it
+  // The ruins' storm engine: on flat ground (its balls drift about, so it needs room round it)
+  storm() {
+    this.flat(7, false);
+    this.storms.push({ id: this.nextId++, x: this.col * TILE + TILE / 2, gy: this.groundRow * TILE, period: STORM.period[0] + this.rng() * (STORM.period[1] - STORM.period[0]), phase: this.rng() });
+    this.flat(8, false);
+  },
+
   // The ruins' biome portals: a forced one (a clean gateway on the path: running through it takes you in; the ruins
   // behind it is calm, as no one runs there) or an optional one (a small ring floating a jump up: jump in and make it
   // through its stretch for more time on your clock)

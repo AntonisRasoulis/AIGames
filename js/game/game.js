@@ -66,6 +66,8 @@ const Game = (() => {
       wisps: [],       // the magic trailing behind a loose saw: little glowing wisps drifting up and fading
       builtPortals: [], // brick portals you come out of: they build, open, close and rest again, never removed { level, x, gy, cy, style, state, t }
       pushes: [],       // the aurora's preservation: pushes spreading out { level, x, y, t }
+      stormBalls: [],   // the ruins' balls of lightning { level, x, y, angle, age }
+      blasts: [],       // ...and their explosions { level, x, y, t }
       nextCatchup: null, // when (world time) the next purple orb comes for whoever's fallen behind
       warps: [],       // portal gun: someone going into a portal and out of another one far ahead
       grapples: [],    // grapple hooks flying out to the leader, or reeling them back
@@ -161,12 +163,14 @@ const Game = (() => {
     updateTrips(dt);
     updateBuiltPortals(dt);
     for (const w of world.pushes) w.t += dt;
+    for (const bl of world.blasts) bl.t += dt;
+    world.blasts = world.blasts.filter((bl) => bl.t < STORM.boom + 0.5); // (its scorch mark lingers a moment)
     world.pushes = world.pushes.filter((w) => w.t < 0.4);
     updateRootWall(dt);
     // The main course's dangers only see who's on it: anyone off in a forest (or on their way) counts as out of the race
     onCourse(level, () => mainCourse(dt, inputs));
     for (const f of forests()) {
-      if (f.biome === "ruins") onCourse(f, () => { updateBridges(dt); updateRuins(f, dt); updateBiomeGates(f); levelSounds(); });
+      if (f.biome === "ruins") onCourse(f, () => { updateBridges(dt); updateRuins(f, dt); updateBiomeGates(f); updateStorms(dt); levelSounds(); });
       else if (f.leg) onCourse(f, () => { updateBridges(dt); updateFlytraps(dt); checkThinIce(); levelSounds(); updateLeg(f); });
       else onCourse(f, () => { updateBridges(dt); updateLooseSaws(dt); updateLooseMaces(dt); updateSpores(); updateLobbers(dt); updateAliveTrees(dt); levelSounds(); });
     }
@@ -196,6 +200,7 @@ const Game = (() => {
       updateSpores();
       updateLobbers(dt); // (a race that's all enchanted forest has them on the main course)
       updateAliveTrees(dt);
+      updateStorms(dt); // (a race that's all ruins has them on the main course)
     }
     updateMonkeys(dt);
     updateWarps(dt);
@@ -1663,6 +1668,57 @@ const Game = (() => {
   function ruinsLeft(f, p) { // (p: whose clock: an optional biome portal gives you more time)
     const R = f && f.parent ? f.parent : f, bonus = p ? p.ruinsBonus || 0 : 0;
     return (R && R.gate && R.gate.openedAt !== null ? RUINS.time - (world.time - R.gate.openedAt) : RUINS.time) + bonus;
+  }
+
+  // The ruins' storm engines: each fires a ball of lightning on its own timer (when someone's near); a ball bursts out,
+  // eases down to a drift after whoever's nearest, and blows up at the end of its life. Shared by everyone on the course.
+  function updateStorms(dt) {
+    const { level, players } = world, S = STORM;
+    const runners = players.filter((p) => !p.dead && !p.caught && !p.held && !p.trip);
+    const nearest = (x, y) => { let best = null, bd = Infinity; for (const p of runners) { const d = Math.hypot(p.x + HITBOX_W / 2 - x, p.y + HITBOX_H / 2 - y); if (d < bd) { bd = d; best = p; } } return best; };
+    for (const s of level.storms) {
+      const st = level.stormState(s, level.time);
+      if (s.lastK !== undefined && st.k !== s.lastK && runners.some((p) => Math.abs(p.x - s.x) < S.sense)) {
+        const y = s.gy - S.rise, p = nearest(s.x, y);
+        world.stormBalls.push({ level, x: s.x, y, angle: p ? Math.atan2(p.y + HITBOX_H / 2 - y, p.x + HITBOX_W / 2 - s.x) : -Math.PI / 2, age: 0, seed: Math.floor(Math.random() * 1000) });
+        Sound.play("stormFire");
+      }
+      if (st.charge > 0 && !s.whirring && runners.some((p) => Math.abs(p.x - s.x) < VIEW_W * 0.6)) { s.whirring = true; Sound.play("stormCharge"); }
+      if (st.charge === 0) s.whirring = false;
+      s.lastK = st.k;
+    }
+    for (const b of world.stormBalls) {
+      if (b.level !== level || b.done) continue;
+      b.age += dt;
+      const p = nearest(b.x, b.y);
+      if (p && b.age >= STORM.boost) { // (its burst out of the engine flies straight, where it was aimed: dodge it) then it turns towards them, a little at a time
+        const want = Math.atan2(p.y + HITBOX_H / 2 - b.y, p.x + HITBOX_W / 2 - b.x);
+        let d = want - b.angle; d = Math.atan2(Math.sin(d), Math.cos(d));
+        b.angle += Math.max(-S.turn * dt, Math.min(S.turn * dt, d));
+      }
+      const speed = b.age < S.boost ? S.speed + (S.launch - S.speed) * (1 - b.age / S.boost) ** 2 : S.speed; // (the burst out of the engine)
+      b.x += Math.cos(b.angle) * speed * dt;
+      b.y += Math.sin(b.angle) * speed * dt;
+      const g = level.groundTop(b.x);
+      if (g !== null && b.y > g - 7) b.y = g - 7; // (it skims the ground, never sinks into it)
+      if (b.y < 8) b.y = 8;
+      for (const q of runners) { // touching it zaps you
+        const nx = Math.max(q.x, Math.min(b.x, q.x + HITBOX_W)), ny = Math.max(q.y, Math.min(b.y, q.y + HITBOX_H));
+        if (Math.hypot(b.x - nx, b.y - ny) < S.touch) q.die("ZAPPED!");
+      }
+      if (b.age >= S.life) { // it blows up: anyone in reach is caught in it
+        b.done = true;
+        for (const q of runners) {
+          if (q.dead) continue;
+          const nx = Math.max(q.x, Math.min(b.x, q.x + HITBOX_W)), ny = Math.max(q.y, Math.min(b.y, q.y + HITBOX_H));
+          if (Math.hypot(b.x - nx, b.y - ny) < S.blast) q.die("BLASTED!");
+        }
+        world.blasts.push({ level, x: b.x, y: b.y, gy: g !== null ? g : b.y + 20, t: 0 });
+        world.quakes.push({ level, x: b.x, t: S.boom });
+        Sound.play("stormBoom");
+      }
+    }
+    world.stormBalls = world.stormBalls.filter((b) => !b.done);
   }
 
   // Inside the ruins: the exit portal, the clock running out, and (in the last seconds) stones falling

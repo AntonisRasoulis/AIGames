@@ -505,7 +505,7 @@ const RUINS = {
   stoneEvery: 0.7,     // last 4 s: a stone falls near each runner about this often (seconds)
   stoneWarn: 0.6,      // ...its shadow grows on the ground this long first
   stoneFall: 0.35,     // ...then it drops this fast (seconds from the top to the ground)
-  mix: { flat: 1, step: 3, spikes: 7, gap: 4, floating: 3, moving: 2, falling: 2, mace: 3, saw: 3, shooter: 5, gearLaser: 5 }, // the ruins' sections (spikes are its fire turrets, shooters its laser eye-stones)
+  mix: { flat: 1, step: 3, spikes: 7, gap: 4, floating: 3, moving: 2, falling: 2, mace: 3, saw: 3, shooter: 5, gearLaser: 5, storm: 3 }, // the ruins' sections (spikes are its fire turrets, shooters its laser eye-stones)
   gap: 1,              // flat tiles between its sections: 0 to this
   // biome portals: each visit has two, one on the path (forced: a clean gateway you run through) and one optional
   // (a small floating ring of stones you jump into), each sending you through a short, packed stretch of a biome
@@ -556,6 +556,25 @@ const GEAR_LASER = {
                        // the right (on a circle: 220-250 and 290-320 degrees; never straight down along its own post)
   minTurn: 30,         // degrees: a new aim closer than this to the last one spins it right round instead
   backChance: 0.5,     // each turn: the chance it turns anticlockwise instead of clockwise
+};
+
+// The ruins' storm engine: a carved stone engine with a cog in its window and a gyroscope of two stone rings on an iron
+// yoke. On its own timer it spins the rings up and fires a ball of lightning that drifts after the nearest runner,
+// pulsing and growing more unstable, until it blows up. Touching the ball zaps you; the blast catches anyone near.
+const STORM = {
+  period: [3.2, 4.2],  // seconds between balls (each engine its own; balls can overlap)
+  charge: 1.2,         // ...the last this-many of them spinning up (the cog, pipes and rings show it)
+  life: 3,             // a ball lasts this long, then blows up
+  warn: 0.6,           // ...the blast line showing for its last this-many seconds
+  blast: 40,           // the blast reaches this far from the ball (pixels: 5 tiles)
+  speed: 48,           // a ball drifts after the nearest runner at this speed (half yours)...
+  launch: 140,         // ...after a burst out of the engine, straight at where they were, starting this fast...
+  boost: 1,            // ...and easing down over this long
+  turn: 2.4,           // how fast it can turn towards its runner (radians a second)
+  touch: 5,            // touching it (within this many pixels of the ball's middle) zaps you
+  rise: 50,            // where the ball forms: this high above the ground
+  sense: 300,          // it only fires with a runner this close (so balls don't pile up with no one near)
+  boom: 0.35,          // the explosion lasts this long
 };
 
 // The ruins' gift: the aurora's preservation. Aurora lights circle round you: they block one death (anything
