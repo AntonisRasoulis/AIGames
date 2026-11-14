@@ -887,6 +887,13 @@ class Player {
       if (overlaps(this.x, this.y, HITBOX_W, HITBOX_H, st.x - st.w / 2, y - 6, st.w, 6)) return this.die("CRUSHED!");
     }
 
+    // The ruins' laser gates: the beam, while it's on
+    for (const g of level.laserGates) {
+      if (this.x + HITBOX_W < g.x0 || this.x > g.x1) continue;
+      const st = level.laserState(g, level.time);
+      if (st.on && st.y + LASER_GATE.thick / 2 > this.y && st.y - LASER_GATE.thick / 2 < this.y + HITBOX_H) return this.die("ZAPPED!");
+    }
+
     // Icicles: hanging or falling, touching one hurts
     for (const ic of level.icicles) {
       if (Math.abs(ic.x - cx) > 16) continue;

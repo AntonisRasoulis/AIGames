@@ -89,6 +89,7 @@ class Level {
     this.ruinsOn = options.ruins !== false; // (the arcane ruins turned off in the biome picker: no ruins portal)
     this.ruinsGates = [];     // the ruins portal on the main course (one per race): { id, x, gy, state: off | on | broken, presses, openedAt, realm, burstAt, brokenAt }
     this.fireRows = [];       // ruins: rows of fire turrets (in place of spikes): { id, x0, n, gy, speed, kind, phase, second }
+    this.laserGates = [];     // ruins: laser gates { id, x0, x1 (the emitters), gy, style, rhythm, phase, sway, swayPhase }
     this.storms = [];         // ruins: storm engines { id, x, gy, period, phase }
     this.biomeGates = [];     // ruins: portals to a short stretch of another biome { x, gy, biome, forced }
     this.gearLasers = [];     // ruins: gear lasers { id, x (the post's middle), gy, cy (the gear's middle), fast, phase }
@@ -332,6 +333,7 @@ class Level {
     if (this.trees.some((t) => Math.abs(t.x - (x + HITBOX_W / 2)) < ALIVE_TREE.grabReach + HITBOX_W + 8)) return true; // (no coming back where an alive tree strikes)
     if (this.onFire(x + HITBOX_W / 2, HITBOX_W / 2 + 4)) return true;
     if (this.fireRows.some((r) => x + HITBOX_W > r.x0 - 4 && x < r.x0 + r.n * TILE + 4)) return true; // (no waiting on a fire row)
+    if (this.laserGates.some((g) => x + HITBOX_W > g.x0 - 4 && x < g.x1 + 4)) return true; // (not under a laser gate)
     if (this.storms.some((s) => Math.abs(x + HITBOX_W / 2 - s.x) < STORM.blast + 16)) return true; // (no coming back right by a storm engine)
     if (this.gearLasers.some((gl) => Math.abs(x + HITBOX_W / 2 - gl.x) < (gl.gy - gl.cy) / Math.tan((GEAR_LASER.below[0] * Math.PI) / 180) + 16)) return true; // (anywhere its beams can land)
     if (this.ruinsGates.some((g) => g.state !== "broken" && Math.abs(g.x - (x + HITBOX_W / 2)) < RUINS.grab + 8)) return true; // (not on its button, or in its grab)
@@ -655,6 +657,14 @@ class Level {
     return s.beams;
   }
 
+  // A laser gate right now: { y (the beam's height, pixels), on, warn (0..1 as it's about to come on) }. From the clock.
+  laserState(g, time) {
+    const G = LASER_GATE, on = G.on * g.rhythm, off = G.off * g.rhythm, T = on + off, u = ((time / T + g.phase) % 1) * T;
+    const s = 0.5 - 0.5 * Math.cos(((time / g.sway + g.swayPhase) % 1) * Math.PI * 2);
+    const y = g.gy - (G.low + (G.high - G.low) * s);
+    return { y, on: u >= off, warn: u < off && u > off - G.warn * g.rhythm ? 1 - (off - u) / (G.warn * g.rhythm) : 0 };
+  }
+
   // A storm engine right now: { charge (0..1 while it spins up), k (how many balls it's fired), spin (how far its rings
   // have turned: a slow turn, plus a burst of spin each charge-up) }. Worked out from the clock.
   stormState(s, time) {
@@ -885,7 +895,7 @@ class Level {
       Object.assign(weights, RUINS.mix);
       if (this.realmEnd === undefined) { // (the ruins as the main course, in a race that's all secret biomes: orbs too, and an easy start)
         if (orb) weights.orb = ORBS.weight.ruins;
-        if (this.col <= 60) for (const k of ["shooter", "saw", "gearLaser", "storm"]) delete weights[k];
+        if (this.col <= 60) for (const k of ["shooter", "saw", "gearLaser", "storm", "laserGate"]) delete weights[k];
       }
     }
     if (this.biome === "forest") { // (its own mix, so its own dangers and the usual ones all get their turn)
@@ -1427,6 +1437,16 @@ const SECTIONS = {
   },
 
   // The way into the arcane ruins: a portal of stacked rocks, switched off, its button in the ground under it
+  // The ruins' laser gate: two emitters on flat ground, the laser between them
+  laserGate() {
+    const G = LASER_GATE, w = this.rand(G.width[0], G.width[1]);
+    this.flat(3, false);
+    const x0 = this.col * TILE + 4;
+    this.flat(w + 1, false);
+    this.laserGates.push({ id: this.nextId++, x0, x1: x0 + w * TILE + TILE, gy: this.groundRow * TILE, style: this.rng() < 0.5 ? "pillars" : "gantry", rhythm: G.rhythm[0] + this.rng() * (G.rhythm[1] - G.rhythm[0]), phase: this.rng(), sway: G.sway[0] + this.rng() * (G.sway[1] - G.sway[0]), swayPhase: this.rng() });
+    this.flat(3, false);
+  },
+
   // The ruins' storm engine: on flat ground (its balls drift about, so it needs room round it)
   storm() {
     this.flat(7, false);

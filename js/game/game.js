@@ -275,6 +275,12 @@ const Game = (() => {
       if (was !== "fire" && st.phase === "fire") Sound.play("laserFire");
       gl.lastPhase = st.phase;
     }
+    for (const g of level.laserGates) { // the ruins' laser gates: a buzz as each comes on
+      if (!near(g.x0)) continue;
+      const on = level.laserState(g, level.time).on;
+      if (on && g.wasOn === false) Sound.play("gateOn");
+      g.wasOn = on;
+    }
     for (const m of level.maces) {
       if (!near(m.x) || m.loose) continue;
       const half = Math.floor(2 * (level.time / m.period + m.phase)); // changes as it swings through the bottom

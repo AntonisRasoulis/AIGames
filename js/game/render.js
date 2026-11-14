@@ -95,6 +95,7 @@ const Renderer = (() => {
     drawFireRows(world.level, camX, world.time);
     drawGearLasers(world.level, camX, world.time, false);
     drawStormEngines(world.level, camX, world.time);
+    drawLaserGates(world.level, camX, world.time, false);
     drawTurretDust(world.level, camX, world.time);
     drawSawTracks(world.level, camX);
     drawPalms(world.level, player, camX);
@@ -160,6 +161,7 @@ const Renderer = (() => {
     drawStones(world.level, camX);
     drawGearLasers(world.level, camX, world.time, true);
     drawStormBalls(world, camX, world.time);
+    drawLaserGates(world.level, camX, world.time, true);
     for (const p of [player, other]) if (p) { drawAuroraLights(p, camX, world.time, p === other); drawTripRibbons(p, camX, world.time); }
     drawCoconuts(world.level, player, camX, world.time); // falling (in front of the runners)
     for (const p of [player, other]) if (p && p.dizzy > 0 && !p.dead) drawDizzy(p, camX, world.time, p === other);
@@ -596,6 +598,46 @@ const Renderer = (() => {
       drawGlowAt("white", 4, x, bl.y, fade);
       for (let i = 0; i < 10; i++) { const an = hash(i, 5) * Math.PI * 2, len = R * (0.9 + hash(i, 6) * 0.7) * Math.min(1, u * 4); stormArc(x, bl.y, x + Math.cos(an) * len, bl.y + Math.sin(an) * len, 900 + i * 17 + Math.floor(u * 30), i % 3 ? SW : SICE, fade); }
       for (let i = 0; i < 18; i++) { const an = hash(i, 7) * Math.PI * 2, d = R * (0.3 + 1.3 * u) * (0.6 + hash(i, 8) * 0.6); P(i % 4 ? SW : "#8a9494", x + Math.cos(an) * d, bl.y + Math.sin(an) * d + u * u * 20, i % 4 ? 1 : 2, 1, fade); }
+    }
+  }
+
+  // ---- The laser gate: two emitters (twin rune pillars, or an iron gantry), a laser strung between them sliding up
+  // and down and blinking on and off ----
+
+  function drawLaserGates(level, camX, time, front) { // front: just the beam and its warning (in front of the runners)
+    const G = LASER_GATE;
+    for (const g of level.laserGates) {
+      const a = g.x0 - camX, z = g.x1 - camX;
+      if (z < -20 || a > VIEW_W + 20) continue;
+      const st = level.laserState(g, time), y = Math.round(st.y), top = g.gy - G.high - 8;
+      if (front) {
+        if (st.warn > 0) for (let x = a + 3; x < z - 3; x++) if ((x + Math.floor(time * 20)) % 4 < 2) P(RUNE, x, y, 1, 1, 0.35 + 0.4 * st.warn);
+        if (!st.on) continue;
+        const fr = Math.floor(time * 30);
+        for (let x = a + 3; x < z - 3; x++) {
+          const w = hash(fr, x >> 2) > 0.55 ? 1 : 0;
+          P("#2fbfa8", x, y - 1 - w, 1, 3 + 2 * w, 0.5); P(RUNE, x, y - 1, 1, 3, 0.8);
+          P(((x - time * 300) % 16 + 16) % 16 < 3 ? "#ffffff" : "#eafff8", x, y);
+        }
+        for (const ex of [a + 3, z - 3]) drawGlowAt("aurora", 1, ex, y, 0.8);
+        continue;
+      }
+      for (const ex of [a, z]) {
+        if (g.style === "pillars") { // a tall carved pillar, a crystal sliding up and down a lit groove
+          for (let yy = top; yy < g.gy; yy++) { P("#262e30", ex - 4, yy, 9, 1); P(yy % 7 === 0 ? "#4a5454" : "#828c8c", ex - 3, yy, 7, 1); P("#c4cccc", ex - 3, yy, 1, 1); P("#646e6e", ex + 3, yy, 1, 1); }
+          P("#262e30", ex - 5, top - 3, 11, 3); P("#c4cccc", ex - 4, top - 3, 9, 1); P("#262e30", ex - 5, g.gy - 3, 11, 3); P("#a0aaaa", ex - 4, g.gy - 3, 9, 1);
+          P("#141c22", ex, top + 2, 1, g.gy - top - 6); for (let yy = top + 2; yy < g.gy - 4; yy += 3) P("#2fbfa8", ex, yy, 1, 1, 0.5);
+          P("#262e30", ex - 2, y - 2, 5, 5); P(st.on ? "#ffffff" : RUNE, ex - 1, y - 1, 3, 3); P("#ffffff", ex, y);
+        } else { // an iron gantry on a stone foot, a lens carriage riding a geared track
+          P("#262e30", ex - 6, g.gy - 4, 13, 4); P("#828c8c", ex - 5, g.gy - 4, 11, 3); P("#c4cccc", ex - 5, g.gy - 4, 11, 1);
+          for (const sx of [-3, 3]) { P("#2a3234", ex + sx - 1, top, 3, g.gy - top - 4); P("#4c5658", ex + sx, top, 1, g.gy - top - 4); }
+          for (let yy = top + 2; yy < g.gy - 4; yy += 4) { P("#7a8688", ex - 3, yy, 7, 1); P("#2a3234", ex - 2, yy + 1); P("#2a3234", ex + 2, yy + 1); }
+          for (let yy = top; yy < g.gy - 4; yy += 2) P("#7a8688", ex, yy + (Math.floor(time * 8) % 2), 1, 1, 0.6);
+          P("#2a3234", ex - 4, top - 2, 9, 2); P("#7a8688", ex - 4, top - 2, 9, 1);
+          P("#2a3234", ex - 3, y - 3, 7, 6); P("#7a8688", ex - 3, y - 3, 7, 1); P("#262e30", ex - 1, y - 1, 3, 3); P(st.on ? "#ffffff" : RUNE, ex, y);
+        }
+        drawGlowAt("aurora", 0, ex, y, st.on ? 0.9 : 0.35);
+      }
     }
   }
 

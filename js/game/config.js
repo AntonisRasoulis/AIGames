@@ -505,7 +505,7 @@ const RUINS = {
   stoneEvery: 0.7,     // last 4 s: a stone falls near each runner about this often (seconds)
   stoneWarn: 0.6,      // ...its shadow grows on the ground this long first
   stoneFall: 0.35,     // ...then it drops this fast (seconds from the top to the ground)
-  mix: { flat: 1, step: 3, spikes: 7, gap: 4, floating: 3, moving: 2, falling: 2, mace: 3, saw: 3, shooter: 5, gearLaser: 5, storm: 3 }, // the ruins' sections (spikes are its fire turrets, shooters its laser eye-stones)
+  mix: { flat: 1, step: 3, spikes: 7, gap: 4, floating: 3, moving: 2, falling: 2, mace: 3, saw: 3, shooter: 5, gearLaser: 5, storm: 3, laserGate: 4 }, // the ruins' sections (spikes are its fire turrets, shooters its laser eye-stones)
   gap: 1,              // flat tiles between its sections: 0 to this
   // biome portals: each visit has two, one on the path (forced: a clean gateway you run through) and one optional
   // (a small floating ring of stones you jump into), each sending you through a short, packed stretch of a biome
@@ -583,6 +583,20 @@ const STORM = {
   rise: 50,            // where the ball forms: this high above the ground
   sense: 300,          // it only fires with a runner this close (so balls don't pile up with no one near)
   boom: 0.35,          // the explosion lasts this long
+};
+
+// The ruins' laser gate: two emitters (twin rune pillars, or an iron gantry) with a laser strung between them that
+// slides up and down the whole time and blinks on and off. Time it, and jump it or run under it.
+const LASER_GATE = {
+  width: [4, 12],      // tiles between the two emitters
+  on: 0.6,             // seconds the beam's on...
+  off: 0.6,            // ...and off (each gate's rhythm is stretched a little, below)
+  rhythm: [0.85, 1.2], // ...by this much, its own
+  warn: 0.3,           // a dotted line shows where it is for the last this-many seconds before it comes on
+  low: 4,              // the beam slides between this high above the ground (at your feet)...
+  high: 46,            // ...and this high (above any jump)
+  sway: [2.2, 3.6],    // seconds for one trip down and back up (each gate its own)
+  thick: 3,            // how thick the beam is (pixels)
 };
 
 // The ruins' gift: the aurora's preservation. Aurora lights circle round you: they block one death (anything
