@@ -18,7 +18,7 @@ costs ground to the fire. 1 Player: one big view, race the fire for distance (be
 - Repo: `AntonisRasoulis/VibeCodingPractice`. Development branch: `claude/nice-meitner-muga6l`
   (a fresh chat may be given a different branch: use the one you're told).
 - Published as a claude.ai Artifact (a single bundled HTML file):
-  **https://claude.ai/artifact/Uh5CKSPymdWERadhojnY7P** (Version 121 at the time of writing). Always
+  **https://claude.ai/artifact/Uh5CKSPymdWERadhojnY7P** (Version 122 at the time of writing). Always
   republish to this same URL (pass it as `url`); never create a new artifact for the game.
 
 ## Style
@@ -205,7 +205,8 @@ Scripts load in this order (all globals, no modules), each with a `?v=` cache-bu
     special creatures: bears, jaguars, ...) and the other player too. So: a shield and an attack that
     never run out, but share one recharge. Settled details:
     - The shield blocks **everything that would kill you except the fire and falling into a pit**.
-    - The push is on **S / Down when you're holding no power** (holding one, S / Down uses the power).
+    - **v7.16: the push was taken away: it's just the shield.** Its look (chosen A): three light spirits with shimmering tails
+      weaving round you, bursting out in rings when they block, fading back in.
     - The other player is just **pushed back a bit** (no stun).
     - **Alone**, the push also **shoves the fire back a little**.
     - It **stacks** with the forest's gifts (magic feet, the roots): one player can have all of them.
@@ -285,6 +286,10 @@ Scripts load in this order (all globals, no modules), each with a `?v=` cache-bu
       edge, a glow; sparks and a scorch mark where it hits the ground), held for **0.5 s**, then fading. Beams
       stop only at the ground, walls and the screen's edge: they **go straight through players** (one beam
       can hit both). Fairness: test there's always a safe spot and time to get out of the lines.
+  - **The storm engine** (v7.16, chosen after many mockups: the arcane engine base with the clockwork tower's cog, a gyroscope
+    of two stone rings on an iron yoke): fires a ball of lightning on its own timer; the ball bursts straight out (1 s), then
+    drifts after whoever is nearest at half your speed, pulsing white (a turning 4-point star at its heart, no purple) and
+    blows up after 3 s (5 tiles; fast, violent, white; blast line for the last 0.6 s). Touching it zaps you. `STORM`, `storms`.
   - **The gear laser** (a new ruins danger of its own; mocked up): a tall stone post (heights **vary**: 6 sizes, 5 to 10
     tiles; v7.4: 3 and 4 were too small) with iron bands and a pipe of teal energy, a housing on top, and a **big toothed gear** (rim, spokes,
     bolts, a rune at the hub) turned by a small drive gear, carrying a **sleek laser emitter** (pale metal,
