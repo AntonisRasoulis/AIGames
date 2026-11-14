@@ -129,12 +129,14 @@ const Renderer = (() => {
     // (someone hiding in a bush can't be seen, on either screen)
     const hiddenTrip = (p) => p.trip && p.trip.stage === "build"; // (inside a portal that's still building itself)
     if (other && !other.dead && !other.caught && !other.hiddenIn && !other.eatenBy && !hiddenTrip(other)) {
+      drawAuroraLights(other, camX, world.time, true, true); // (its lights behind them)
       b.globalAlpha = 0.35; // the other runner shows as a ghost
       drawRunner(other, camX);
       b.globalAlpha = 1;
     }
     if (!player.dead && !player.caught && !player.hiddenIn && !player.eatenBy && !hiddenTrip(player) && !(player.blink > 0 && Math.floor(player.blink * 12) % 2)) {
       drawDashEffects(player, camX, world.time);
+      drawAuroraLights(player, camX, world.time, false, true); // (the aurora's lights passing behind you)
       drawRunner(player, camX);
       if (player.frozen > 0) drawIce(player, camX);
       if (player.honey > 0) drawHoney(player, camX, world.time);
@@ -880,16 +882,30 @@ const Renderer = (() => {
       P("#3a4444", x - st.w / 2 - 1, y - 7, st.w + 2, 7); P("#6a7676", x - st.w / 2, y - 6, st.w, 5); P("#8a9696", x - st.w / 2, y - 6, st.w - 1, 1);
     }
   }
-  function drawAuroraLights(p, camX, time, ghost) { // three little aurora lights circling you while they're ready
+  // The aurora's preservation: three little light spirits (green, teal, blue) with long shimmering tails, weaving round
+  // you, in front and behind (back: just the parts behind you, drawn before the runner). When they take a hit they
+  // burst out in rings of aurora light; they fade back in as they return.
+  function drawAuroraLights(p, camX, time, ghost, back = false) {
     if (!p.aurora || p.dead || p.caught || p.trip) return;
-    const ready = p.aurora.back <= 0, cx = p.x + HITBOX_W / 2 - camX, cy = p.y + HITBOX_H / 2;
-    if (!ready) return;
-    const alpha = ghost ? 0.35 : 1;
-    for (let k = 0; k < 3; k++) for (let j = 0; j < 5; j++) {
-      const a = time * 2.4 + k * 2.09 - j * 0.16, x = cx + Math.cos(a) * 9, y = cy + Math.sin(a) * 6;
-      P(["#4af0a0", RUNE, "#4ab0f0"][k], x, y, 1, 1, alpha * (1 - j / 5));
+    const cx = p.x + HITBOX_W / 2 - camX, cy = p.y + HITBOX_H / 2, base = ghost ? 0.35 : 1;
+    if (!back && p.aurora.burst > 0) { // the block: rings of aurora light bursting out
+      const u = 1 - p.aurora.burst / 0.5;
+      for (let a = 0; a < Math.PI * 2; a += 0.08) { const rr = 4 + u * 18, k = Math.floor(a * 4) % 3; P(["#4af0a0", RUNE, "#4ab0f0"][k], cx + Math.cos(a) * rr, cy + Math.sin(a) * rr * 0.8, 2, 1, base * (1 - u)); }
+      drawGlowAt("aurora", 2, cx, cy, base * (1 - u));
     }
-    drawGlowAt("aurora", 0, cx, cy, 0.15 * alpha);
+    const fadeIn = p.aurora.back <= 0 ? 1 : p.aurora.back < 0.5 ? 1 - p.aurora.back / 0.5 : 0;
+    if (fadeIn <= 0) return;
+    const alpha = base * fadeIn;
+    for (let k = 0; k < 3; k++) {
+      const col = ["#4af0a0", RUNE, "#4ab0f0"][k];
+      for (let j = 14; j >= 0; j--) {
+        const a = time * 2.6 + k * 2.09 - j * 0.11, z = Math.sin(a);
+        if ((z < 0) !== back) continue;
+        const x = cx + Math.cos(a) * 10, y = cy + Math.sin(a * 2 + k) * 3 + Math.sin(a) * 3 + Math.sin(time * 8 + j) * 0.6;
+        P(col, x, y, 1, 1, alpha * (1 - j / 15) * (z < 0 ? 0.5 : 1));
+        if (j === 0) { P("#ffffff", x, y, 1, 1, alpha); drawGlowAt("aurora", 0, x, y, 0.5 * alpha); if (hash(Math.floor(time * 12), k) > 0.7) P("#ffffff", x - Math.cos(a) * 2, y + 2, 1, 1, 0.7 * alpha); }
+      }
+    }
   }
   function drawTripRibbons(p, camX, time) { // the aurora wrapped round someone being taken across
     const tr = p.trip;

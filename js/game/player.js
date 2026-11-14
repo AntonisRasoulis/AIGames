@@ -147,6 +147,7 @@ class Player {
     if (this.hitTextTime > 0) this.hitTextTime -= dt;
     if (this.shieldGrace > 0) this.shieldGrace -= dt;
     if (this.warpFlash > 0) this.warpFlash -= dt;
+    if (this.aurora && this.aurora.burst > 0) this.aurora.burst -= dt;
     if (this.aurora && this.aurora.back > 0) { this.aurora.back -= dt; if (this.aurora.back <= 0) { this.aurora.back = 0; Sound.play("auroraBack"); } }
     if (this.caught) return;
     if (this.knock && !this.dead) { // shoved by an aurora push: slid back along a little hop, then on our feet again
@@ -1162,6 +1163,7 @@ class Player {
       this.floatAway = 0; // (it undoes whatever was killing us: a Lobber's float, its poison)
       if (this.poisonLethal) { this.poisonLethal = false; this.poison = 0; }
       this.shieldGrace = AURORA.grace;
+      this.aurora.burst = 0.5; // (its lights burst out in rings)
       this.showHit("SAVED!", "#7af0d8");
       this.sparkle("#7af0d8");
       Sound.play("auroraBlock");
