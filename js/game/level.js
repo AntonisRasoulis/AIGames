@@ -849,10 +849,9 @@ class Level {
     if (this.biome === "desert" && this.col > 60) weights.sinkhole = 3;
     if (this.biome === "jungle" && this.col > 40) weights.river = 4;
     if (this.biome === "jungle" && this.col > 60) Object.assign(weights, { flytrap: 7, turret: 5 });
-    if (this.leg) { // a biome portal's stretch: that biome's dangers packed in (none that need a lot of room or the main course)
-      for (const k of ["orb", "portal", "river", "thinIce", "turret", "bush", "flat"]) delete weights[k];
-      if (this.biome === "prairie") weights.trap = 4;
-      if (this.biome === "snow") weights.icicles = 7;
+    if (this.leg) { // a biome portal's stretch: mostly that biome's own dangers, packed in
+      for (const k in weights) delete weights[k];
+      Object.assign(weights, RUINS.legMix[this.biome]);
     }
     if (this.biome === "ruins") { // (its own mix: no portals)
       const orb = weights.orb;

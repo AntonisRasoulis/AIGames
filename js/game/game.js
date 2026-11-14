@@ -1611,7 +1611,7 @@ const Game = (() => {
       // the ruins left for it, wherever that ended up)
       if (!g.forced) f.ensure(g.landCol * TILE + 40 * TILE);
       const c0 = Math.floor(g.x / TILE), endCol = g.forced || g.calmX === undefined ? c0 + 3 + g.L : Math.round(g.calmX / TILE) + 1;
-      const leg = new Level(Math.floor(Math.random() * 1e9), g.biome, { solo: world.solo, biomes: false, wild: world.wild, leg: true, realmEnd: endCol * TILE });
+      const leg = new Level(Math.floor(Math.random() * 1e9), g.biome, { solo: world.solo, biomes: false, wild: world.wild || RUINS.legWild, leg: true, realmEnd: endCol * TILE });
       leg.flat(Math.max(1, c0 - leg.col), false);
       leg.flat(3, false);
       leg.parent = f; leg.gate = f.gate; leg.biomeGate = g; leg.startX = f.startX;

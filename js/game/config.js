@@ -1,7 +1,7 @@
 // The game's version, shown left of the logo. The first number goes up for big updates (a new biome, a new
 // secret world...), the second for smaller additions and fixes (back to 0 with each big update): 6.16 means
 // the 6th big update (the enchanted forest), 16 small ones since. (7: the arcane ruins.)
-const GAME_VERSION = "7.16";
+const GAME_VERSION = "7.17";
 
 // Tunable numbers for the game. Change these to adjust how it feels.
 // Distances are in game pixels; one tile is 8 pixels (about "1 meter").
@@ -514,6 +514,13 @@ const RUINS = {
   forcedAt: [4, 10],   // tiles after the calm arrival from which the forced one comes next (it waits for the section in hand: usually 10-35 in)
   optionalAfter: [2, 6], // ...and the optional one, this many tiles after you're back from the forced one's stretch
   legGap: 1,           // flat tiles between a stretch's sections (packed closer than usual, 1-3, but always somewhere to stand)
+  legWild: true,       // a stretch is built the Wild way: its dangers faster and nastier (v7.17: much harder)
+  legMix: {            // what a stretch is made of: mostly that biome's own dangers (v7.17)
+    prairie: { trap: 9, spikes: 3, gap: 2, mace: 2, saw: 2, shooter: 2 },
+    snow: { icicles: 8, snowball: 7, ice: 5, spikes: 2, gap: 2 },
+    desert: { quicksand: 8, tumbleweed: 7, sinkhole: 6, spikes: 2, gap: 2 },
+    jungle: { flytrap: 9, spikes: 6, gap: 2, saw: 1 },
+  },
 };
 
 // The ruins' fire turrets (in place of spikes): stone vents in the ground with a teal flame running along the
