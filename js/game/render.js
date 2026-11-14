@@ -45,7 +45,7 @@ const Renderer = (() => {
       // Each player sees their own course: the main one, or the enchanted forest they're in
       const course = p.realm || world.level, other = world.players[1 - i];
       const mine = (list) => list.filter((e) => (e.level || world.level) === course);
-      const view = Object.assign(Object.create(world), { level: course, sawBits: mine(world.sawBits), wisps: mine(world.wisps), quakes: mine(world.quakes), builtPortals: mine(world.builtPortals), pushes: mine(world.pushes), stormBalls: mine(world.stormBalls), blasts: mine(world.blasts) });
+      const view = Object.assign(Object.create(world), { level: course, sawBits: mine(world.sawBits), wisps: mine(world.wisps), quakes: mine(world.quakes), builtPortals: mine(world.builtPortals), stormBalls: mine(world.stormBalls), blasts: mine(world.blasts) });
       if (p.realm) Object.assign(view, { inForest: true, monsoon: null, missiles: [], bears: [], jaguars: [], decoys: [], arrows: [], vultures: [], hawks: [], sticks: [], burns: [], drones: [], hands: [], roots: [], bolts: [], monkeys: [], thrownSnowballs: [], grapples: [], vines: [], warps: [] });
       drawView(view, p, other && other.realm === p.realm && !other.dream ? other : null, camX);
       drawDream(p, camX, world.time);
@@ -159,7 +159,6 @@ const Renderer = (() => {
     drawGearLasers(world.level, camX, world.time, true);
     drawStormBalls(world, camX, world.time);
     for (const p of [player, other]) if (p) { drawAuroraLights(p, camX, world.time, p === other); drawTripRibbons(p, camX, world.time); }
-    drawPushes(world, camX);
     drawCoconuts(world.level, player, camX, world.time); // falling (in front of the runners)
     for (const p of [player, other]) if (p && p.dizzy > 0 && !p.dead) drawDizzy(p, camX, world.time, p === other);
     for (const p of [player, other]) if (p && p.asleep > 0 && !p.dead && !p.hiddenIn) drawSleep(p, camX, world.time, p === other);
@@ -870,7 +869,7 @@ const Renderer = (() => {
     drawBrickPortal(bp.style, bp.x - camX, bp.gy, bp.cy, k, fall, open, time);
   }
 
-  // ---- Falling stones (the last seconds), the aurora's preservation, pushes ----
+  // ---- Falling stones (the last seconds), the aurora's preservation ----
 
   function drawStones(level, camX) {
     for (const st of level.stones) {
@@ -891,12 +890,6 @@ const Renderer = (() => {
       P(["#4af0a0", RUNE, "#4ab0f0"][k], x, y, 1, 1, alpha * (1 - j / 5));
     }
     drawGlowAt("aurora", 0, cx, cy, 0.15 * alpha);
-  }
-  function drawPushes(world, camX) {
-    for (const w of world.pushes) {
-      const u = w.t / 0.4, r = 6 + u * AURORA.push;
-      for (let a = 0; a < Math.PI * 2; a += 0.12) P(Math.floor(a * 3) % 2 ? "#4af0a0" : RUNE, w.x - camX + Math.cos(a) * r, w.y + Math.sin(a) * r * 0.7, 2, 1, 1 - u);
-    }
   }
   function drawTripRibbons(p, camX, time) { // the aurora wrapped round someone being taken across
     const tr = p.trip;

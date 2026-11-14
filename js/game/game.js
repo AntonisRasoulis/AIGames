@@ -65,7 +65,6 @@ const Game = (() => {
       quakes: [],      // the ground shaking where one slams down: { x, t }
       wisps: [],       // the magic trailing behind a loose saw: little glowing wisps drifting up and fading
       builtPortals: [], // brick portals you come out of: they build, open, close and rest again, never removed { level, x, gy, cy, style, state, t }
-      pushes: [],       // the aurora's preservation: pushes spreading out { level, x, y, t }
       stormBalls: [],   // the ruins' balls of lightning { level, x, y, angle, age }
       blasts: [],       // ...and their explosions { level, x, y, t }
       nextCatchup: null, // when (world time) the next purple orb comes for whoever's fallen behind
@@ -157,15 +156,11 @@ const Game = (() => {
 
     const inputs = players.map((p, i) => readInput(i));
     players.forEach((p, i) => p.update(dt, inputs[i], p.realm || level)); // (each on their own course: the main one, or a forest)
-    // The ruins' gift: with no power to use, S / Down sends the aurora's lights out in a push
-    players.forEach((p, i) => { if (inputs[i].firePressed && !p.power && p.aurora && p.aurora.back <= 0 && !p.dead && !p.caught && !p.held) { auroraPush(p); inputs[i].firePressed = false; } });
     updateDreams(dt);
     updateTrips(dt);
     updateBuiltPortals(dt);
-    for (const w of world.pushes) w.t += dt;
     for (const bl of world.blasts) bl.t += dt;
     world.blasts = world.blasts.filter((bl) => bl.t < STORM.boom + 0.5); // (its scorch mark lingers a moment)
-    world.pushes = world.pushes.filter((w) => w.t < 0.4);
     updateRootWall(dt);
     // The main course's dangers only see who's on it: anyone off in a forest (or on their way) counts as out of the race
     onCourse(level, () => mainCourse(dt, inputs));
@@ -1837,31 +1832,6 @@ const Game = (() => {
     if (tr.stage === "pull") return Math.max(0, (tr.t - RUINS.pullTime * 0.55) / (RUINS.pullTime * 0.45));
     if (tr.stage === "build") return Math.max(0, 1 - tr.t / 0.35);
     return 0;
-  }
-
-  // The aurora's preservation, used: its lights burst out in a ring, shoving away the other player and any
-  // creature close by (alone: the fire too); then they're gone until they come back
-  function auroraPush(p) {
-    p.aurora.back = AURORA.recharge;
-    const course = p.realm || world.level, cx = p.x + HITBOX_W / 2, cy = p.y + HITBOX_H / 2;
-    world.pushes.push({ level: course, x: cx, y: cy, t: 0 });
-    Sound.play("auroraPush");
-    for (const q of world.players) {
-      if (q === p || !freeRunner(q) || (q.realm || world.level) !== course || Math.abs(q.x + HITBOX_W / 2 - cx) > AURORA.push || Math.abs(q.y - p.y) > AURORA.push) continue;
-      const dir = Math.sign(q.x - p.x) || 1;
-      // back a bit, onto ground (never off an edge)
-      let to = null;
-      for (let d = AURORA.shove; d >= 0 && to === null; d -= 4) {
-        const x = q.x + dir * d, g = course.groundTop(x + 1);
-        if (g !== null && course.groundTop(x + HITBOX_W - 1) === g && g >= q.y + HITBOX_H - 8) to = { x, y: g - HITBOX_H };
-      }
-      if (to) { q.knock = { fromX: q.x, toX: to.x, y: to.y, t: 0 }; q.showHit("PUSHED!", "#7af0d8"); }
-    }
-    if (course === world.level) {
-      for (const bear of world.bears) if (Math.abs(bear.x - cx) < AURORA.push + 16 && bear.state !== "leave") { bear.state = "leave"; bear.x += (Math.sign(bear.x - cx) || -1) * 24; }
-      for (const j of world.jaguars) if (Math.abs(j.x - cx) < AURORA.push + 16) { j.x += (Math.sign(j.x - cx) || -1) * 24; j.attacks = 0; }
-      if (world.solo && p.trackX - world.fire.x < VIEW_W * 0.6) world.fire.x -= AURORA.fireShove; // (alone: it shoves the fire back)
-    }
   }
 
   // ---- The enchanted forest's gift: magic feet ----

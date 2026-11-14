@@ -307,7 +307,6 @@ const Sound = (() => {
     gearClick: () => { noise({ filter: "highpass", f: 2500, dur: 0.03, vol: 0.18 }); tone({ f: 900, to: 500, dur: 0.04, type: "square", vol: 0.05 }); },
     auroraBlock: () => { tone({ f: 880, to: 1320, dur: 0.25, type: "triangle", vol: 0.14 }); tone({ f: 1320, to: 1760, dur: 0.3, type: "sine", vol: 0.08, at: 0.08 }); },
     auroraBack: () => tone({ f: 660, to: 990, dur: 0.2, type: "sine", vol: 0.06 }),
-    auroraPush: () => { noise({ filter: "bandpass", f: 600, to: 2400, q: 1.5, dur: 0.35, vol: 0.3 }); tone({ f: 220, to: 660, dur: 0.3, type: "triangle", vol: 0.12 }); },
     auroraGift: () => { [0, 0.1, 0.2, 0.3].forEach((at, i) => tone({ f: [523, 659, 784, 1047][i], dur: 0.3, type: "triangle", vol: 0.1, at })); },
     maceSwoosh: () => noise({ filter: "bandpass", f: 400, to: 900, q: 2, dur: 0.28, vol: 0.4, attack: 0.1 }),
   };

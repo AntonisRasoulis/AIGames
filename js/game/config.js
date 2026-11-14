@@ -578,14 +578,10 @@ const STORM = {
 };
 
 // The ruins' gift: the aurora's preservation. Aurora lights circle round you: they block one death (anything
-// but the fire or a pit), then fade and come back after `recharge`. With no power held, S / Down sends them out
-// in a push instead (same recharge): it shoves away the other player and creatures near you (alone: the fire too).
+// but the fire or a pit), then fade and come back after `recharge`. (Just a shield: v7.16 took its push away.)
 const AURORA = {
   recharge: 5,         // seconds until the lights are back
   grace: 0.8,          // after blocking a death, nothing can hurt you for this long (to get clear)
-  push: 44,            // the push reaches this far (pixels)
-  shove: 28,           // ...and shoves the other player back this far
-  fireShove: 70,       // alone: it shoves the fire back this far
 };
 
 // The enchanted forest's gift: whoever makes it out has magic feet for the rest of the race. Magic holds
