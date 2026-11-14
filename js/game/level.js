@@ -800,12 +800,20 @@ class Level {
   // ---- Sections ----
 
   addSection() {
-    if (this.biome === "ruins" && this.realmEnd !== undefined) { // the ruins' biome portals (see makeRuins)
-      if (this.landingFor && this.col >= this.landingFor.landCol - 2) { // where an optional one's stretch lets you out: calm ground
-        this.landingFor.calmX = this.col * TILE;
-        this.landingFor = null;
-        return this.flat(16, false);
+    if (this.biome === "ruins" && this.landingFor && this.col >= this.landingFor.landCol - 2) { // where an optional biome portal's stretch lets you out: calm ground
+      this.landingFor.calmX = this.col * TILE;
+      this.landingFor = null;
+      return this.flat(16, false);
+    }
+    if (this.biome === "ruins" && this.realmEnd === undefined && !this.leg && this.col >= RUINS.from) { // the ruins as the main course (a race that's all ruins): biome portals now and then, forced and optional in turn
+      if (this.nextLegAt === undefined) this.nextLegAt = this.col + this.rand(10, 40);
+      if (this.col >= this.nextLegAt) {
+        this.legForced = !this.legForced;
+        this.nextLegAt = this.col + this.rand(60, 110);
+        return SECTIONS.biomeGate.call(this, this.legForced);
       }
+    }
+    if (this.biome === "ruins" && this.realmEnd !== undefined) { // the ruins' biome portals (see makeRuins)
       if (this.forcedAt !== undefined && this.col >= this.forcedAt) { this.forcedAt = undefined; return SECTIONS.biomeGate.call(this, true); }
       const lastChance = this.realmEnd / TILE - (RUINS.legLength[1] + 30); // (it, its stretch and the calm after it have to fit before the exit)
       if (this.optionalAt !== undefined && this.forcedAt === undefined && (this.col >= this.optionalAt || this.col >= lastChance)) { this.optionalAt = undefined; return SECTIONS.biomeGate.call(this, false); }
@@ -1405,8 +1413,8 @@ const SECTIONS = {
   // through its stretch for more time on your clock)
   biomeGate(forced) {
     let L = this.rand(RUINS.legLength[0], RUINS.legLength[1]);
-    const biome = forced ? this.legBiomes[0] : this.legBiomes[1];
-    if (!forced) { // (it, its stretch and the calm where you come out have to fit before the exit: a shorter stretch if need be, or none)
+    const biome = this.legBiomes ? (forced ? this.legBiomes[0] : this.legBiomes[1]) : this.pickFrom(BIOMES); // (the main course's: any biome)
+    if (!forced && this.realmEnd !== undefined) { // (it, its stretch and the calm where you come out have to fit before the exit: a shorter stretch if need be, or none)
       L = Math.min(L, Math.floor(this.realmEnd / TILE) - 8 - (this.col + 8) - 20);
       if (L < 8) return this.flat(4, false);
     }
@@ -1415,7 +1423,7 @@ const SECTIONS = {
     this.biomeGates.push(g);
     if (forced) { // (no one runs the ruins behind it: calm, and you come back out somewhere along here)
       this.flat(L + 16, false);
-      this.optionalAt = this.col + this.rand(RUINS.optionalAfter[0], RUINS.optionalAfter[1]);
+      if (this.realmEnd !== undefined) this.optionalAt = this.col + this.rand(RUINS.optionalAfter[0], RUINS.optionalAfter[1]);
       return;
     }
     // (an optional one: the ruins carry on as usual for anyone who runs past it, with a calm patch where its stretch lets you out)

@@ -4011,7 +4011,7 @@ const Renderer = (() => {
       if (p.rootGuard) effects.unshift(["roots", "ROOTS"]);       // (alone: the roots guarding you from the fire, till they're used)
       if (p.magicFeet) effects.unshift(["magic", "MAGIC FEET"]); // (the enchanted forest's gift: for good, so no countdown)
       if (p.aurora) effects.unshift(["aurora", p.aurora.back > 0 ? `AURORA ${Math.ceil(p.aurora.back)}` : "AURORA"]); // (the ruins' gift)
-      const ruinsOf = p.realm && (p.realm.biome === "ruins" ? p.realm : p.realm.parent); // (a biome portal's stretch: its ruins' clock still runs)
+      const ruinsOf = p.realm && (p.realm.biome === "ruins" ? p.realm : p.realm.parent && p.realm.parent.realmEnd !== undefined ? p.realm.parent : null); // (a biome portal's stretch: its ruins' clock still runs)
       if (ruinsOf && !p.caught) { // the ruins' clock (red near the end) and how far the exit is
         const R = ruinsOf, left = Math.max(0, Game.ruinsLeft(R, p)), red = left <= RUINS.collapse[2];
         const pulse = red ? 0.6 + 0.4 * Math.abs(Math.sin(world.time * 6)) : 1;

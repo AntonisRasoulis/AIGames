@@ -18,7 +18,7 @@ costs ground to the fire. 1 Player: one big view, race the fire for distance (be
 - Repo: `AntonisRasoulis/VibeCodingPractice`. Development branch: `claude/nice-meitner-muga6l`
   (a fresh chat may be given a different branch: use the one you're told).
 - Published as a claude.ai Artifact (a single bundled HTML file):
-  **https://claude.ai/artifact/Uh5CKSPymdWERadhojnY7P** (Version 123 at the time of writing). Always
+  **https://claude.ai/artifact/Uh5CKSPymdWERadhojnY7P** (Version 124 at the time of writing). Always
   republish to this same URL (pass it as `url`); never create a new artifact for the game.
 
 ## Style
@@ -319,7 +319,7 @@ Scripts load in this order (all globals, no modules), each with a `?v=` cache-bu
     `drawGateway`, `world.builtPortals` with `state` rest / build / open / close (never removed), `f.arriveGate`.
   - **Biome portals inside the ruins (built v7.13):** **exactly 2 per visit: one forced (the clean gateway, run through it), one
     optional (a small floating ring of stones, jump in; v7.15: make it through and your clock gets +2 s, `RUINS.timeBonus`,
-    `p.ruinsBonus`; it no longer moves you further on)**; stretches 20-25 tiles, v7.17: much harder (Wild, `RUINS.legMix`: mostly the biome's own dangers); ruins 144 tiles so one death is fine, two too many. Code: `Level.biomeGates`, `SECTIONS.biomeGate`, `leg` levels, `enterLeg`,
+    `p.ruinsBonus`; it no longer moves you further on)**; stretches 20-25 tiles, v7.17: much harder (Wild, `RUINS.legMix`: mostly the biome's own dangers); v7.18: an all-ruins race has them on the main course too (from 400 m, `nextLegAt`; `world.mainCourse` set in `onCourse` so `moveTo` knows the way back); ruins 144 tiles so one death is fine, two too many. Code: `Level.biomeGates`, `SECTIONS.biomeGate`, `leg` levels, `enterLeg`,
     `updateBiomeGates`, `updateLeg`, `drawBiomeGates`, `VORTEX` tints. Older plan: each sending you into a **ramped-up stretch of
     another biome** for a while, then back into the ruins. Settled:
     - **Some optional, some forced** (a mix: some you choose to jump into, some sit right on the path).

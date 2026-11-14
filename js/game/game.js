@@ -176,6 +176,7 @@ const Game = (() => {
     world.players.forEach((p, i) => { if (inputs[i].firePressed) usePower(p, i); });
     updateSleepShrooms();
     updateRuinsGates();
+    updateBiomeGates(world.level); // (a race that's all ruins has biome portals on the main course)
     updateBridges(dt);
     updateMonsoon(dt);
     const flooded = world.monsoon !== null; // (while it's flooded, every danger waits)
@@ -1422,8 +1423,10 @@ const Game = (() => {
     const main = world.level, off = world.players.filter((p) => (p.realm || main) !== course || p.dream);
     for (const p of off) { p.wasCaught = p.caught; p.caught = true; }
     world.level = course;
+    world.mainCourse = main; // (so moving someone back to the main course knows where that is)
     try { f(); } finally {
       world.level = main;
+      world.mainCourse = null;
       for (const p of off) p.caught = p.wasCaught;
     }
   }
@@ -1519,7 +1522,8 @@ const Game = (() => {
 
   // Put someone on a course (realm: a forest, or null for the main course) at x, on safe ground near there
   function moveTo(p, realm, x) {
-    const course = realm || world.level;
+    if (realm && realm === (world.mainCourse || world.level)) realm = null; // (back onto the main course: no realm)
+    const course = realm || world.mainCourse || world.level;
     course.ensure(x + VIEW_W * 2);
     const g = course.groundTop(x + HITBOX_W / 2);
     let spot = g !== null && course.groundTop(x + 1) === g && course.groundTop(x + HITBOX_W - 1) === g && !course.threatened(x, g - HITBOX_H) ? { x, y: g - HITBOX_H } : null;
@@ -1631,7 +1635,7 @@ const Game = (() => {
   // In the ruins: run through a forced one, or jump into an optional one
   function updateBiomeGates(f) {
     for (const g of f.biomeGates) for (const p of world.players) {
-      if (p.realm !== f || !freeRunner(p) || (g.went && g.went.includes(p))) continue; // (each takes you through once)
+      if ((p.realm || world.mainCourse || world.level) !== f || !freeRunner(p) || (g.went && g.went.includes(p))) continue; // (each takes you through once)
       if (g.forced ? p.x + HITBOX_W / 2 >= g.x : touchesHole(p, g.x, g.gy - 22)) { (g.went = g.went || []).push(p); enterLeg(p, g, f); }
     }
   }
@@ -1650,7 +1654,7 @@ const Game = (() => {
       if (freeRunner(p) && leg.realmExit !== undefined && p.x >= leg.realmExit + TILE) {
         moveTo(p, f, g.outX !== undefined ? g.outX : p.x);
         legFlash(p, "ruins");
-        if (!g.forced) { // through an optional one: more time on your clock
+        if (!g.forced && f.gate) { // through an optional one: more time on your clock (in the ruins you reach by portal)
           p.ruinsBonus = (p.ruinsBonus || 0) + RUINS.timeBonus;
           p.showHit(`+${RUINS.timeBonus} SECONDS!`, "#7af0d8");
           Sound.play("auroraBack");
