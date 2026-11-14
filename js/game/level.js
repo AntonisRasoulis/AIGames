@@ -770,7 +770,25 @@ class Level {
   }
 
   flat(n, icy = this.iceBias) {
+    if (this.squeeze) { // (a ruins biome stretch: a section's run-up squeezed tight; its spacing inside is left alone)
+      if (this.squeezeCalls++ === 0) n = Math.min(n, this.squeeze);
+      this.lastFlat = { start: this.col, n, things: this.thingCount() };
+    }
     for (let i = 0; i < n; i++) this.column(this.groundRow, icy);
+  }
+
+  // How many things (dangers, platforms, spots...) the course has: to tell whether a section put any after its last flat ground
+  thingCount() {
+    let n = 0;
+    for (const k in this) { const v = this[k]; if (Array.isArray(v) && !["cols", "colBiome", "ice", "quick", "spikeKind"].includes(k)) n += v.length; }
+    return n;
+  }
+
+  // ...and once it's built, its empty landing ground cut back to the squeeze too (only plain flat ground, nothing on it)
+  trimLanding() {
+    const f = this.lastFlat;
+    if (!f || f.start + f.n !== this.col || f.n <= this.squeeze || this.thingCount() !== f.things) return;
+    for (let i = 0; i < f.n - this.squeeze; i++) { this.cols.pop(); this.colBiome.pop(); this.ice.pop(); this.quick.pop(); this.spikeKind.pop(); }
   }
 
   empty(n) {
@@ -818,7 +836,7 @@ class Level {
       const lastChance = this.realmEnd / TILE - (RUINS.legLength[1] + 30); // (it, its stretch and the calm after it have to fit before the exit)
       if (this.optionalAt !== undefined && this.forcedAt === undefined && (this.col >= this.optionalAt || this.col >= lastChance)) { this.optionalAt = undefined; return SECTIONS.biomeGate.call(this, false); }
     }
-    if (this.leg && this.col * TILE < this.realmEnd && this.realmEnd / TILE - this.col < 12) return this.flat(Math.ceil(this.realmEnd / TILE - this.col), false); // (a stretch: nothing long right at its end)
+    if (this.leg && this.col * TILE < this.realmEnd && this.realmEnd / TILE - this.col < 3) return this.flat(Math.ceil(this.realmEnd / TILE - this.col), false); // (a stretch: dangers right up to its end)
     if (this.realmEnd !== undefined && this.col * TILE >= this.realmEnd) {
       // The forest's over: calm ground from here on, and the fireflies come once you reach it. (The last
       // section can run a little past realmEnd, so this is where they come, not realmEnd itself: never mid-obstacle.)
@@ -882,7 +900,15 @@ class Level {
       const have = this.ponds.filter((p) => p.x0 >= this.biomeStart * TILE).length + this.pending.filter((w) => w.kind === "pond" && w.c >= this.biomeStart).length;
       if (have < this.pondTarget && this.biomeEnd - this.col < (this.pondTarget - have) * 40 + 30) type = "thinIce";
     }
+    if (this.leg) { // (a biome stretch: never the same danger twice running, and no room to breathe)
+      if (type === this.lastLegType && Object.keys(weights).length > 1) { delete weights[type]; type = this.pickWeighted(weights); }
+      this.lastLegType = type;
+      this.squeeze = RUINS.legSqueeze[type] ?? RUINS.legSqueeze.default;
+      this.squeezeCalls = 0; this.lastFlat = null;
+    }
     SECTIONS[type].call(this, this.difficulty());
+    if (this.squeeze) this.trimLanding();
+    this.squeeze = 0;
     this.flat(this.leg ? RUINS.legGap : this.biome === "forest" ? this.rand(0, FOREST.gap) : this.biome === "ruins" ? this.rand(0, RUINS.gap) : this.rand(1, 3), false); // breathing room between sections (never icy; less in the forest and the ruins: they crowd in on you)
     this.scatter();
   }

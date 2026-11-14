@@ -1,7 +1,7 @@
 // The game's version, shown left of the logo. The first number goes up for big updates (a new biome, a new
 // secret world...), the second for smaller additions and fixes (back to 0 with each big update): 6.16 means
 // the 6th big update (the enchanted forest), 16 small ones since. (7: the arcane ruins.)
-const GAME_VERSION = "7.18";
+const GAME_VERSION = "7.19";
 
 // Tunable numbers for the game. Change these to adjust how it feels.
 // Distances are in game pixels; one tile is 8 pixels (about "1 meter").
@@ -494,7 +494,7 @@ const RUINS = {
   gateUp: 33,          // the ruins' clean gateways: how high their ring's middle is above the ground
   hole: 11,            // ...and the swirl's: you go in by touching it
   time: 20,            // seconds to reach the exit portal (from when the portal opened)
-  length: 144,         // tiles from where you arrive to the exit portal, with its two biome portals on the way (sized so you can die once and still make it, but not twice: about 17 s clean)
+  length: 133,         // tiles from where you arrive to the exit portal, with its two biome portals on the way (sized so you can die once and still make it, but not twice: about 17 s clean)
   arrive: 12,          // calm tiles where you arrive
   failBack: 80,        // time's up: thrown back out this many pixels behind where you'd got to
   pullTime: 0.8,       // seconds the aurora takes to pull you in (and the screen to fade)
@@ -514,12 +514,13 @@ const RUINS = {
   forcedAt: [4, 10],   // tiles after the calm arrival from which the forced one comes next (it waits for the section in hand: usually 10-35 in)
   optionalAfter: [2, 6], // ...and the optional one, this many tiles after you're back from the forced one's stretch
   legGap: 1,           // flat tiles between a stretch's sections (packed closer than usual, 1-3, but always somewhere to stand)
+  legSqueeze: { default: 2, gap: 4, shooter: 3, flytrap: 11, sinkhole: 5, snowball: 4, quicksand: 3, tumbleweed: 8 }, // ...each section's run-up and landing cut to this many tiles (flytraps need room to bait them, sinkholes and snowballs a little to read them)
   legWild: true,       // a stretch is built the Wild way: its dangers faster and nastier (v7.17: much harder)
-  legMix: {            // what a stretch is made of: mostly that biome's own dangers (v7.17)
-    prairie: { trap: 9, spikes: 3, gap: 2, mace: 2, saw: 2, shooter: 2 },
-    snow: { icicles: 8, snowball: 7, ice: 5, spikes: 2, gap: 2 },
-    desert: { quicksand: 8, tumbleweed: 7, sinkhole: 6, spikes: 2, gap: 2 },
-    jungle: { flytrap: 9, spikes: 6, gap: 2, saw: 1 },
+  legMix: {            // what a stretch is made of: mostly that biome's own dangers, plus compact traps, so it's packed (v7.19)
+    prairie: { trap: 6, spikes: 4, mace: 3, saw: 3, shooter: 3, gap: 3 },
+    snow: { icicles: 6, snowball: 4, ice: 4, spikes: 4, gap: 3, mace: 1, saw: 1 },
+    desert: { quicksand: 6, spikes: 5, tumbleweed: 3, gap: 4, saw: 2, sinkhole: 1 },
+    jungle: { spikes: 7, gap: 4, saw: 3, mace: 3, shooter: 2, flytrap: 1 }, // (flytraps and sinkholes need lots of calm ground round them, so they're rare in here)
   },
 };
 
