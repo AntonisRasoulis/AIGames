@@ -90,6 +90,7 @@ class Level {
     this.ruinsGates = [];     // the ruins portal on the main course (one per race): { id, x, gy, state: off | on | broken, presses, openedAt, realm, burstAt, brokenAt }
     this.fireRows = [];       // ruins: rows of fire turrets (in place of spikes): { id, x0, n, gy, speed, kind, phase, second }
     this.laserGates = [];     // ruins: laser gates { id, x0, x1 (the emitters), gy, rhythm, phase, sway, swayPhase }
+    this.mortars = [];        // ruins: lightning mortars { id, x, gy, phase }
     this.storms = [];         // ruins: storm engines { id, x, gy, period, phase }
     this.biomeGates = [];     // ruins: portals to a short stretch of another biome { x, gy, biome, forced }
     this.gearLasers = [];     // ruins: gear lasers { id, x (the post's middle), gy, cy (the gear's middle), fast, phase }
@@ -665,6 +666,14 @@ class Level {
     return { y, on: u >= off, warn: u < off && u > off - G.warn * g.rhythm ? 1 - (off - u) / (G.warn * g.rhythm) : 0 };
   }
 
+  // A lightning mortar right now: { k (how many shots it's fired), u (seconds into this shot's cycle), turning (0..1
+  // while it turns to face its runner), charge (0..1 while it glows, about to fire) }. Worked out from the clock.
+  mortarState(m, time) {
+    const M = MORTAR, T = time / M.period + m.phase, k = Math.floor(T), u = (T - k) * M.period;
+    const turnAt = M.period - M.charge - M.turn;
+    return { k, u, turning: u >= turnAt && u < turnAt + M.turn ? (u - turnAt) / M.turn : u >= turnAt + M.turn ? 1 : 0, charge: Math.max(0, (u - (M.period - M.charge)) / M.charge) };
+  }
+
   // A storm engine right now: { charge (0..1 while it spins up), k (how many balls it's fired), spin (how far its rings
   // have turned: a slow turn, plus a burst of spin each charge-up) }. Worked out from the clock.
   stormState(s, time) {
@@ -895,7 +904,7 @@ class Level {
       Object.assign(weights, RUINS.mix);
       if (this.realmEnd === undefined) { // (the ruins as the main course, in a race that's all secret biomes: orbs too, and an easy start)
         if (orb) weights.orb = ORBS.weight.ruins;
-        if (this.col <= 60) for (const k of ["shooter", "saw", "gearLaser", "storm", "laserGate"]) delete weights[k];
+        if (this.col <= 60) for (const k of ["shooter", "saw", "gearLaser", "storm", "laserGate", "mortar"]) delete weights[k];
       }
     }
     if (this.biome === "forest") { // (its own mix, so its own dangers and the usual ones all get their turn)
@@ -1445,6 +1454,13 @@ const SECTIONS = {
     this.flat(w + 1, false);
     this.laserGates.push({ id: this.nextId++, x0, x1: x0 + w * TILE + TILE, gy: this.groundRow * TILE, rhythm: G.rhythm[0] + this.rng() * (G.rhythm[1] - G.rhythm[0]), phase: this.rng(), sway: G.sway[0] + this.rng() * (G.sway[1] - G.sway[0]), swayPhase: this.rng() });
     this.flat(3, false);
+  },
+
+  // The ruins' lightning mortar: on flat ground, with room round it
+  mortar() {
+    this.flat(6, false);
+    this.mortars.push({ id: this.nextId++, x: this.col * TILE + TILE / 2, gy: this.groundRow * TILE, phase: this.rng() });
+    this.flat(7, false);
   },
 
   // The ruins' storm engine: on flat ground (its balls drift about, so it needs room round it)

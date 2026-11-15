@@ -305,6 +305,8 @@ const Sound = (() => {
     stormCharge: () => { tone({ f: 120, to: 900, dur: 1.2, type: "sawtooth", vol: 0.035 }); tone({ f: 60, to: 450, dur: 1.2, type: "square", vol: 0.02 }); },
     stormFire: () => { noise({ filter: "highpass", f: 3000, dur: 0.12, vol: 0.25 }); tone({ f: 900, to: 300, dur: 0.25, type: "sawtooth", vol: 0.06 }); },
     stormBoom: () => { noise({ filter: "lowpass", f: 4000, to: 120, dur: 0.6, vol: 0.7 }); noise({ filter: "highpass", f: 2500, dur: 0.15, vol: 0.4 }); tone({ f: 90, to: 30, dur: 0.5, type: "sine", vol: 0.4 }); },
+    mortarFire: () => { noise({ filter: "lowpass", f: 700, to: 90, dur: 0.35, vol: 0.55 }); tone({ f: 130, to: 45, dur: 0.3, type: "sine", vol: 0.35 }); noise({ filter: "bandpass", f: 1800, to: 600, q: 3, dur: 0.5, vol: 0.12, at: 0.05 }); },
+    mortarBoom: () => { noise({ filter: "lowpass", f: 3500, to: 70, dur: 1.2, vol: 0.9 }); tone({ f: 75, to: 24, dur: 1, type: "sine", vol: 0.5 }); noise({ filter: "highpass", f: 2500, dur: 0.22, vol: 0.4 }); noise({ filter: "lowpass", f: 400, to: 60, dur: 0.9, vol: 0.4, at: 0.12 }); },
     gearClick: () => { noise({ filter: "highpass", f: 2500, dur: 0.03, vol: 0.18 }); tone({ f: 900, to: 500, dur: 0.04, type: "square", vol: 0.05 }); },
     auroraBlock: () => { tone({ f: 880, to: 1320, dur: 0.25, type: "triangle", vol: 0.14 }); tone({ f: 1320, to: 1760, dur: 0.3, type: "sine", vol: 0.08, at: 0.08 }); },
     auroraBack: () => tone({ f: 660, to: 990, dur: 0.2, type: "sine", vol: 0.06 }),

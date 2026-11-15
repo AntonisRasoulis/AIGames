@@ -45,7 +45,7 @@ const Renderer = (() => {
       // Each player sees their own course: the main one, or the enchanted forest they're in
       const course = p.realm || world.level, other = world.players[1 - i];
       const mine = (list) => list.filter((e) => (e.level || world.level) === course);
-      const view = Object.assign(Object.create(world), { level: course, sawBits: mine(world.sawBits), wisps: mine(world.wisps), quakes: mine(world.quakes), builtPortals: mine(world.builtPortals), stormBalls: mine(world.stormBalls), blasts: mine(world.blasts) });
+      const view = Object.assign(Object.create(world), { level: course, sawBits: mine(world.sawBits), wisps: mine(world.wisps), quakes: mine(world.quakes), builtPortals: mine(world.builtPortals), stormBalls: mine(world.stormBalls), blasts: mine(world.blasts), mortarBombs: mine(world.mortarBombs), booms: mine(world.booms) });
       if (p.realm) Object.assign(view, { inForest: true, monsoon: null, missiles: [], bears: [], jaguars: [], decoys: [], arrows: [], vultures: [], hawks: [], sticks: [], burns: [], drones: [], hands: [], roots: [], bolts: [], monkeys: [], thrownSnowballs: [], grapples: [], vines: [], warps: [] });
       drawView(view, p, other && other.realm === p.realm && !other.dream ? other : null, camX);
       drawDream(p, camX, world.time);
@@ -95,6 +95,7 @@ const Renderer = (() => {
     drawFireRows(world.level, camX, world.time);
     drawGearLasers(world.level, camX, world.time, false);
     drawStormEngines(world.level, camX, world.time);
+    drawMortars(world.level, camX, world.time);
     drawLaserGates(world.level, camX, world.time, false);
     drawTurretDust(world.level, camX, world.time);
     drawSawTracks(world.level, camX);
@@ -161,6 +162,7 @@ const Renderer = (() => {
     drawStones(world.level, camX);
     drawGearLasers(world.level, camX, world.time, true);
     drawStormBalls(world, camX, world.time);
+    drawMortarBombs(world, camX, world.time);
     drawLaserGates(world.level, camX, world.time, true);
     for (const p of [player, other]) if (p) { drawAuroraLights(p, camX, world.time, p === other); drawTripRibbons(p, camX, world.time); }
     drawCoconuts(world.level, player, camX, world.time); // falling (in front of the runners)
@@ -598,6 +600,153 @@ const Renderer = (() => {
       drawGlowAt("white", 4, x, bl.y, fade);
       for (let i = 0; i < 10; i++) { const an = hash(i, 5) * Math.PI * 2, len = R * (0.9 + hash(i, 6) * 0.7) * Math.min(1, u * 4); stormArc(x, bl.y, x + Math.cos(an) * len, bl.y + Math.sin(an) * len, 900 + i * 17 + Math.floor(u * 30), i % 3 ? SW : SICE, fade); }
       for (let i = 0; i < 18; i++) { const an = hash(i, 7) * Math.PI * 2, d = R * (0.3 + 1.3 * u) * (0.6 + hash(i, 8) * 0.6); P(i % 4 ? SW : "#8a9494", x + Math.cos(an) * d, bl.y + Math.sin(an) * d + u * u * 20, i % 4 ? 1 : 2, 1, fade); }
+    }
+  }
+
+  // ---- The lightning mortar: an iron mortar on a stone turntable that turns to face its runner, and its bombs: round
+  // iron shells with lightning trapped inside, pulsing behind a riveted porthole, and an electric fuse spitting sparks.
+  // They blow up the moment they land: a real explosion (a flash, a fireball, iron shards, a shockwave, smoke) ----
+
+  const MIR = { d: "#2a3234", m: "#4c5658", l: "#7a8688", hi: "#a8b4b6" };
+  const BOMB = ["#151a1f", "#232b31", "#33404a", "#4a5a64", "#6c7f88", "#a4b6bc"]; // the bomb's iron: dark rim .. shine
+  function mortarBarrel(cx, cy, ang, len, rad, rimR, kick, bore) { // a round iron tube from the breech up along ang, a thick rim and an open bore
+    const ca = Math.cos(ang), sa = Math.sin(ang), bx = cx - ca * kick, by = cy - sa * kick, mx = bx + ca * len, my = by + sa * len;
+    for (let yy = Math.floor(Math.min(by, my) - rimR - 2); yy <= Math.max(by, my) + rimR + 2; yy++) for (let xx = Math.floor(Math.min(bx, mx) - rimR - 2); xx <= Math.max(bx, mx) + rimR + 2; xx++) {
+      const px = xx + 0.5 - bx, py = yy + 0.5 - by, u = Math.max(0, Math.min(len, px * ca + py * sa)), v = -px * sa + py * ca, d = Math.hypot(px - ca * u, py - sa * u);
+      const rim = u > len - 2.5, R = rim ? rimR : rad;
+      if (d > R) continue;
+      const up = ca > 0 ? v < -R * 0.35 : v > R * 0.35, down = ca > 0 ? v > R * 0.35 : v < -R * 0.35; // (lit from above, whichever way it faces)
+      let col = d > R - 1 ? MIR.d : up ? MIR.hi : down ? "#3a4446" : MIR.m;
+      if (!rim && d <= R - 1 && [2, 6, 9].some((bu) => Math.abs(u - bu) < 0.7)) col = MIR.l; // iron bands
+      P(col, xx, yy);
+    }
+    for (let yy = -rad; yy <= rad; yy++) for (let xx = -rad; xx <= rad; xx++) { // the bore, seen end-on and tilted
+      const a = xx * ca + yy * sa, b2 = -xx * sa + yy * ca;
+      if ((a * a) / 2.2 + (b2 * b2) / ((rad - 1) * (rad - 1)) <= 1) P(bore, mx + xx, my + yy);
+    }
+    return [mx, my];
+  }
+  function drawMortars(level, camX, time) {
+    const M = MORTAR, R = Math.PI / 3.2;
+    for (const m of level.mortars) {
+      const cx = Math.round(m.x - camX), gy = m.gy;
+      if (cx < -40 || cx > VIEW_W + 40) continue;
+      const st = level.mortarState(m, time), face = m.face || 1, from = m.from || face, e = st.turning, ease = e * e * (3 - 2 * e);
+      const angOf = (f) => (f > 0 ? -R : -Math.PI + R);
+      const ang = from === face ? angOf(face) : angOf(from) + (angOf(face) - angOf(from)) * ease;
+      const since = m.firedAt !== undefined ? time - m.firedAt : 9, kick = since < 0.15 ? 2 : since < 0.3 ? 1 : 0;
+      // the turntable: a round stone plinth, its marks sliding round as it turns
+      for (let yy = -2; yy <= 0; yy++) for (let xx = -11; xx <= 11; xx++) if ((xx * xx) / 121 + (yy * yy) / 4 <= 1) P(yy <= -2 ? SST.hi : SST.mid, cx + xx, gy - 1 + yy);
+      const turn = (from === face ? 0 : ease * (face - from)) + (face > 0 ? 0 : 2);
+      for (let i = 0; i < 4; i++) { const a = ((i / 4 + turn / 4) % 1) * Math.PI * 2, x = Math.cos(a) * 10; if (Math.sin(a) > 0) P(SST.deep, cx + x, gy - 1); }
+      P(SST.edge, cx - 6, gy - 6, 13, 4); P(SST.light, cx - 5, gy - 6, 11, 1);
+      const [mx, my] = mortarBarrel(cx, gy - 9, ang, 12, 3.8, 4.8, kick, st.charge > 0 ? SCY : "#141c22");
+      for (let yy = -3; yy <= 3; yy++) for (let xx = -3; xx <= 3; xx++) { const d = Math.hypot(xx, yy); if (d <= 3) P(d > 2.3 ? MIR.d : xx + yy < 0 ? MIR.hi : MIR.m, cx + xx, gy - 9 + yy); } // the ball breech
+      // the rune cog on the plinth: it spins as it turns, and its runes glow as it charges
+      const spin = time * 2 + (e > 0 && e < 1 ? e * 8 : 0);
+      for (let yy = -3; yy <= 3; yy++) for (let xx = -3; xx <= 3; xx++) { const d = Math.hypot(xx, yy), a = Math.atan2(yy, xx) - spin; if (d > (Math.cos(a * 6) > 0.2 ? 3.2 : 2.4)) continue; P(d > 2.2 ? MIR.m : st.charge > 0 ? SCY : RUNE, cx - 9 * face + xx, gy - 6 + yy); }
+      if (st.charge > 0) { drawGlowAt("ice", st.charge > 0.6 ? 2 : 1, mx, my, 0.3 + st.charge * 0.6); if (st.charge > 0.5 && hash(Math.floor(time * 20), m.id) > 0.5) stormArc(mx - 3, my, mx + 3, my - 2, Math.floor(time * 20), SW, 0.8); }
+      if (since < 0.8) for (let i = 0; i < 6; i++) { // smoke from the muzzle after a shot
+        const k = since / 0.8, r = 1 + Math.round(k * 2 + hash(i, m.id) * 1.5);
+        const sx = mx + Math.cos(ang) * (2 + k * 8) + (hash(i, 3) - 0.5) * 6 * k, sy = my + Math.sin(ang) * (2 + k * 6) - k * 8 - hash(i, 4) * 4 * k;
+        P(i % 2 ? "#6a6e72" : "#8a8e92", sx - r / 2, sy - r / 2, r, r, (1 - k) * 0.7);
+      }
+    }
+  }
+  // A bomb in flight (or a close-up for tests): tumbling, its lightning pulsing behind the porthole, sparks off its fuse
+  function drawBomb(x, y, ang, t, seed) {
+    const Rb = 6, pulse = 0.5 + 0.5 * Math.sin(t * 9), c = Math.cos(ang), s = Math.sin(ang);
+    drawGlowAt("ice", 2, x, y, 0.35 + 0.35 * pulse);
+    const fr = Math.floor(t * 20);
+    for (let yy = -Rb; yy <= Rb; yy++) for (let xx = -Rb; xx <= Rb; xx++) {
+      const d = Math.hypot(xx, yy);
+      if (d > Rb + 0.4) continue;
+      const u = xx * c + yy * s, v = -xx * s + yy * c, w = Math.hypot(u, v - 0.5);
+      let col;
+      if (w < 2.8) { // the porthole: the lightning inside
+        col = w < 0.9 + pulse * 1.4 ? SW : hash(fr + seed, Math.round(xx * 7 + yy * 3)) > 0.5 ? SICE : SCY;
+      } else if (w < 3.8) col = Math.round(u + v) % 3 === 0 ? MIR.hi : xx + yy < 0 ? MIR.l : MIR.m; // its riveted frame
+      else {
+        const light = ((-xx * 0.55 - yy * 0.75) / Rb) * 0.9 + Math.sqrt(Math.max(0, 1 - (d * d) / (Rb * Rb))) * 0.8 - 0.1;
+        col = BOMB[d > Rb - 0.6 ? 0 : Math.max(1, Math.min(4, Math.round(1 + light * 3)))];
+        if (Math.hypot(xx + 2.5, yy + 3) < 1.2) col = BOMB[5]; // the shine
+      }
+      P(col, x + xx, y + yy);
+    }
+    // the electric fuse: a cap, a little copper coil, a spark at its tip
+    const up = (n) => [x + Math.round(s * n), y - Math.round(c * n)];
+    for (let n = Rb - 1; n <= Rb + 1; n++) for (let w = -1; w <= 1; w++) { const [fx, fy] = up(n); P(n === Rb + 1 ? MIR.d : w < 0 ? MIR.hi : MIR.l, fx + Math.round(c * w), fy + Math.round(s * w)); }
+    for (let n = Rb + 2; n <= Rb + 4; n++) { const [fx, fy] = up(n), w = n % 2 ? 1 : -1; P("#8a5a2a", fx, fy); P(n % 2 ? "#e0a050" : "#c08040", fx + Math.round(c * w), fy + Math.round(s * w)); }
+    const [tx, ty] = up(Rb + 5);
+    P(SW, tx, ty); drawGlowAt("white", 0, tx, ty, 0.6 + 0.4 * pulse);
+    for (let i = 0; i < 3; i++) { const a = hash(fr + seed, i) * 6.28, dd = 1 + hash(fr + seed, i + 9) * 2; P(hash(fr, i + 3) > 0.4 ? SW : SCY, tx + Math.cos(a) * dd, ty + Math.sin(a) * dd); }
+    if (hash(Math.floor(t * 18), seed + 8) < 0.18) { const a = hash(Math.floor(t * 18), 4) * 6.28; stormArc(tx, ty, x + Math.round(Math.cos(a) * Rb), y + Math.round(Math.sin(a) * Rb), Math.floor(t * 18), SW, 0.8); } // lightning licking down the shell
+  }
+  const BOOM_FIRE = ["#ffffff", "#fff3b0", "#ffd050", "#ff9a30", "#e0601c", "#9a3418"];
+  function drawMortarBombs(world, camX, time) {
+    for (const bm of world.mortarBombs) {
+      const { x, y, u } = Game.bombAt(bm), sx = Math.round(x - camX);
+      if (sx < -30 || sx > VIEW_W + 30) continue;
+      for (let k = 1; k <= 6; k++) { // its trail of sparks
+        const ub = { ...bm, age: bm.age - k * 0.05 };
+        if (ub.age <= 0) break;
+        const q = Game.bombAt(ub), fr = Math.floor(time * 20);
+        P(k < 3 ? SW : SCY, q.x - camX + (hash(k, fr) - 0.5) * 3, q.y + (hash(k + 4, fr) - 0.5) * 3, 1, 1, 1 - k / 7);
+      }
+      drawBomb(sx, Math.round(y), bm.face * u * Math.PI * 2, time, bm.seed);
+    }
+    for (const bm of world.booms) { // the explosion
+      const x = bm.x - camX, y = bm.y, t = bm.t, R = MORTAR.blast, gy = bm.gy, seed = bm.seed;
+      if (x < -R * 2 || x > VIEW_W + R * 2) continue;
+      const end = MORTAR.boom + 0.8;
+      if (gy !== null) { // the scorch mark, lingering
+        const a = Math.min(1, (end - t) / 0.5) * 0.85;
+        for (let dx = -R * 0.7; dx <= R * 0.7; dx++) { const w = 1 - Math.abs(dx) / (R * 0.7); if (hash(Math.round(dx), seed) < 0.2 + w) P("#14181a", x + dx, gy, 1, 1, a * w + 0.15 * a); if (w > 0.5 && hash(Math.round(dx), seed + 1) > 0.6) P("#14181a", x + dx, gy + 1, 1, 1, a * w); }
+        if (t < 0.9) for (let i = 0; i < 6; i++) P(hash(i, Math.floor(t * 10)) > 0.5 ? "#ffb040" : "#e0601c", x + (hash(i, seed) - 0.5) * R * 1.2, gy, 1, 1, 1 - t / 0.9); // embers on it
+      }
+      if (t >= MORTAR.boom + 0.6) continue;
+      // the flash
+      if (t < 0.1) { drawGlowAt("white", 5, x, y, 1); b.globalAlpha = 0.35 * (1 - t / 0.1); b.fillStyle = "#ffffff"; b.fillRect(0, 0, VIEW_W, VIEW_H); b.globalAlpha = 1; }
+      if (t < 0.7) drawGlowAt("fire", 5, x, y - 8, (1 - t / 0.7) * 0.9);
+      // the shockwave, racing out along the ground and up
+      if (t < 0.3) { const v = t / 0.3, r = R * (0.3 + 0.9 * Math.sqrt(v)); for (let an = Math.PI; an < Math.PI * 2; an += 0.03) P(v < 0.4 ? SW : SICE, x + Math.cos(an) * r, y + 4 + Math.sin(an) * r * 0.6, 2, 1, (1 - v) * 0.9); }
+      // dust kicked up along the ground both ways
+      if (gy !== null && t < 0.9) for (const sd of [-1, 1]) for (let i = 0; i < 5; i++) {
+        const v = Math.min(1, t / 0.5), dx = sd * R * (0.3 + 0.8 * v) * (0.6 + hash(i, seed + sd) * 0.4), r = 2 + Math.round(v * 3 * hash(i, seed + 5));
+        P(i % 2 ? "#8a8478" : "#a8a090", x + dx - r / 2, gy - r - v * 3 * hash(i, 7), r, r, (1 - t / 0.9) * 0.7);
+      }
+      // the fireball: puffs of fire bursting out and up, burning from white to yellow to orange, then dark smoke rising
+      const puffs = [];
+      for (let i = 0; i < 26; i++) {
+        const a = Math.PI - 0.1 + hash(i, seed) * (Math.PI + 0.2), dist = R * 0.85 * (0.25 + 0.75 * hash(i, seed + 1)), life = 0.45 + hash(i, seed + 2) * 0.6;
+        const k = t / life, out = 1 - (1 - Math.min(1, t / 0.28)) ** 3;
+        const r = (4 + hash(i, seed + 3) * 5) * (0.45 + out * 0.9) * (k > 0.8 ? 1 + (k - 0.8) * 1.2 : 1);
+        puffs.push({ px: x + Math.cos(a) * dist * out, py: Math.min(y + 4, y + Math.sin(a) * dist * out * 0.75) - t * t * 22 - (k > 0.6 ? (k - 0.6) * 18 : 0), r, k });
+      }
+      for (let i = 0; i < 9; i++) { const k = (t - 0.2 - i * 0.04) / 1.3; if (k > 0 && k < 1) puffs.push({ px: x + (hash(i, seed + 9) - 0.5) * 14 + Math.sin(t * 2 + i) * 3, py: y - 8 - k * 46 - i * 4, r: 4 + k * 7 + (i % 3), k: 0.85 + k * 0.6 }); } // the smoke column, a mushroom rising
+      puffs.sort((p1, p2) => p2.k - p1.k); // (the oldest, darkest at the back)
+      for (const pf of puffs) {
+        if (pf.k >= 1.45) continue;
+        const ci = Math.min(5, Math.floor(pf.k * 7)), smoke = pf.k > 0.85, a = smoke ? Math.max(0, 1 - (pf.k - 0.85) / 0.6) * 0.8 : 1;
+        const rr = Math.round(pf.r);
+        for (let yy = -rr; yy <= rr; yy++) for (let xx = -rr; xx <= rr; xx++) {
+          const d = Math.hypot(xx, yy);
+          if (d > pf.r) continue;
+          const shade = xx + yy > pf.r * 0.5;
+          const col = smoke ? (shade ? "#2c2a2e" : yy < -pf.r * 0.4 ? "#5a585e" : "#424046") : BOOM_FIRE[Math.min(5, ci + (shade ? 1 : 0))];
+          P(col, pf.px + xx, pf.py + yy, 1, 1, a);
+        }
+      }
+      // lightning lashing out of it: the bomb's charge let loose
+      if (t < 0.35) for (let i = 0; i < 6; i++) { const an = Math.PI + hash(i, seed + 4) * Math.PI, len = R * (0.6 + hash(i, seed + 6) * 0.6) * Math.min(1, t * 6); stormArc(x, y, x + Math.cos(an) * len, y + Math.sin(an) * len, 700 + i * 13 + Math.floor(t * 30), i % 2 ? SW : SICE, 1 - t / 0.35); }
+      // iron shards and bits of its glass flying out, falling back down
+      if (t < 1.1) for (let i = 0; i < 24; i++) {
+        const an = Math.PI + 0.15 + hash(i, seed + 7) * (Math.PI - 0.3), v = 90 + hash(i, seed + 8) * 150;
+        let sx = x + Math.cos(an) * v * t, sy = y + Math.sin(an) * v * t + 260 * t * t;
+        if (gy !== null && sy > gy - 1) sy = gy - 1;
+        const glass = i % 4 === 0, ember = i % 4 === 1;
+        P(glass ? SICE : ember ? (t < 0.5 ? "#ffd050" : "#e0601c") : i % 2 ? MIR.m : MIR.l, sx, sy, glass || ember ? 1 : 2, glass || ember ? 1 : 2, Math.min(1, (1.1 - t) * 3));
+      }
     }
   }
 

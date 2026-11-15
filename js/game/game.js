@@ -66,6 +66,8 @@ const Game = (() => {
       wisps: [],       // the magic trailing behind a loose saw: little glowing wisps drifting up and fading
       builtPortals: [], // brick portals you come out of: they build, open, close and rest again, never removed { level, x, gy, cy, style, state, t }
       stormBalls: [],   // the ruins' balls of lightning { level, x, y, angle, age }
+      mortarBombs: [],  // the ruins' mortar bombs in flight { level, x0, y0, x1, y1, top, age, seed }
+      booms: [],        // ...and their explosions { level, x, y, gy, t, seed }
       blasts: [],       // ...and their explosions { level, x, y, t }
       nextCatchup: null, // when (world time) the next purple orb comes for whoever's fallen behind
       warps: [],       // portal gun: someone going into a portal and out of another one far ahead
@@ -161,11 +163,13 @@ const Game = (() => {
     updateBuiltPortals(dt);
     for (const bl of world.blasts) bl.t += dt;
     world.blasts = world.blasts.filter((bl) => bl.t < STORM.boom + 0.5); // (its scorch mark lingers a moment)
+    for (const bm of world.booms) bm.t += dt;
+    world.booms = world.booms.filter((bm) => bm.t < MORTAR.boom + 0.8);
     updateRootWall(dt);
     // The main course's dangers only see who's on it: anyone off in a forest (or on their way) counts as out of the race
     onCourse(level, () => mainCourse(dt, inputs));
     for (const f of forests()) {
-      if (f.biome === "ruins") onCourse(f, () => { updateBridges(dt); updateRuins(f, dt); updateBiomeGates(f); updateStorms(dt); levelSounds(); });
+      if (f.biome === "ruins") onCourse(f, () => { updateBridges(dt); updateRuins(f, dt); updateBiomeGates(f); updateStorms(dt); updateMortars(dt); levelSounds(); });
       else if (f.leg) onCourse(f, () => { updateBridges(dt); updateFlytraps(dt); checkThinIce(); levelSounds(); updateLeg(f); });
       else onCourse(f, () => { updateBridges(dt); updateLooseSaws(dt); updateLooseMaces(dt); updateSpores(); updateLobbers(dt); updateAliveTrees(dt); levelSounds(); });
     }
@@ -197,6 +201,7 @@ const Game = (() => {
       updateLobbers(dt); // (a race that's all enchanted forest has them on the main course)
       updateAliveTrees(dt);
       updateStorms(dt); // (a race that's all ruins has them on the main course)
+      updateMortars(dt);
     }
     updateMonkeys(dt);
     updateWarps(dt);
@@ -1726,6 +1731,62 @@ const Game = (() => {
     world.stormBalls = world.stormBalls.filter((b) => !b.done);
   }
 
+  // The ruins' lightning mortars: each turns to face whichever runner is farthest from it (within range, either way),
+  // glows, and lobs a bomb at where they'll be if they keep going. A bomb flies slowly and blows up the moment it lands.
+  // Shared by everyone on the course.
+  function updateMortars(dt) {
+    const { level, players } = world, M = MORTAR;
+    const runners = players.filter((p) => !p.dead && !p.caught && !p.held && !p.trip);
+    const farthest = (m) => { let best = null, bd = -1; for (const p of runners) { const d = Math.abs(p.x + HITBOX_W / 2 - m.x); if (d < M.range && d > bd) { bd = d; best = p; } } return best; };
+    for (const m of level.mortars) {
+      const st = level.mortarState(m, level.time);
+      if (m.face === undefined) { m.face = 1; m.from = 1; m.turnK = -1; }
+      if (st.turning > 0 && m.turnK !== st.k) { // time to turn: pick its runner, and face them
+        m.turnK = st.k;
+        m.target = farthest(m);
+        m.from = m.face;
+        if (m.target) m.face = Math.sign(m.target.x + HITBOX_W / 2 - m.x) || m.face;
+      }
+      if (m.lastK !== undefined && st.k !== m.lastK) { // fire
+        let p = m.target && runners.includes(m.target) && Math.abs(m.target.x - m.x) < M.range ? m.target : farthest(m);
+        if (p) {
+          const vx = Math.max(-PHYSICS.runSpeed, Math.min(PHYSICS.runSpeed, p.vx || 0)); // (where they'll be if they keep going)
+          let x1 = p.x + HITBOX_W / 2 + vx * M.flight;
+          x1 = Math.max(m.x - M.reach, Math.min(m.x + M.reach, x1));
+          const g = level.groundTop(x1), y1 = (g !== null ? g : m.gy + 24) - 6;
+          const x0 = m.x + m.face * 7, y0 = m.gy - 19;
+          world.mortarBombs.push({ level, x0, y0, x1, y1, top: Math.max(10, Math.min(y0, y1) - M.arc), age: 0, seed: Math.floor(Math.random() * 1000), face: m.face });
+          m.firedAt = level.time;
+          Sound.play("mortarFire");
+        }
+        m.target = null;
+      }
+      m.lastK = st.k;
+    }
+    for (const b of world.mortarBombs) {
+      if (b.level !== level || b.done) continue;
+      b.age += dt;
+      if (b.age < M.flight) continue;
+      b.done = true; // it lands: boom. Anyone close is caught in it
+      for (const q of runners) {
+        if (q.dead) continue;
+        const nx = Math.max(q.x, Math.min(b.x1, q.x + HITBOX_W)), ny = Math.max(q.y, Math.min(b.y1, q.y + HITBOX_H));
+        if (Math.hypot(b.x1 - nx, b.y1 - ny) < M.blast) q.die("BLASTED!");
+      }
+      const g = level.groundTop(b.x1);
+      world.booms.push({ level, x: b.x1, y: b.y1, gy: g !== null ? g : null, t: 0, seed: b.seed });
+      world.quakes.push({ level, x: b.x1, t: 0.45 });
+      Sound.play("mortarBoom");
+    }
+    world.mortarBombs = world.mortarBombs.filter((b) => !b.done);
+  }
+
+  // Where a mortar's bomb is in its flight: { x, y, u (0..1) }. A slow lob, highest in the middle
+  function bombAt(b) {
+    const u = Math.min(1, b.age / MORTAR.flight), c = 2 * b.top - (b.y0 + b.y1) / 2;
+    return { x: b.x0 + (b.x1 - b.x0) * u, y: (1 - u) ** 2 * b.y0 + 2 * u * (1 - u) * c + u * u * b.y1, u };
+  }
+
   // Inside the ruins: the exit portal, the clock running out, and (in the last seconds) stones falling
   function updateRuins(f, dt) {
     const inside = world.players.filter((p) => p.realm === f && !p.caught && !p.trip);
@@ -3190,6 +3251,7 @@ const Game = (() => {
     dreamDark,
     tripDark,
     ruinsLeft,
+    bombAt,
     sandstormStrength,
     floodSurface,
     monsoonStrength: () => (world.monsoon ? Math.max(0, Math.min(1, world.monsoon.t / 0.6, (MONSOON.time - world.monsoon.t) / 0.6)) : 0),

@@ -505,7 +505,7 @@ const RUINS = {
   stoneEvery: 0.7,     // last 4 s: a stone falls near each runner about this often (seconds)
   stoneWarn: 0.6,      // ...its shadow grows on the ground this long first
   stoneFall: 0.35,     // ...then it drops this fast (seconds from the top to the ground)
-  mix: { flat: 1, step: 3, spikes: 7, gap: 4, floating: 3, moving: 2, falling: 2, mace: 3, saw: 3, shooter: 5, gearLaser: 5, storm: 3, laserGate: 4 }, // the ruins' sections (spikes are its fire turrets, shooters its laser eye-stones)
+  mix: { flat: 1, step: 3, spikes: 7, gap: 4, floating: 3, moving: 2, falling: 2, mace: 3, saw: 3, shooter: 5, gearLaser: 5, storm: 3, laserGate: 4, mortar: 3 }, // the ruins' sections (spikes are its fire turrets, shooters its laser eye-stones)
   gap: 1,              // flat tiles between its sections: 0 to this
   // biome portals: each visit has two, one on the path (forced: a clean gateway you run through) and one optional
   // (a small floating ring of stones you jump into), each sending you through a short, packed stretch of a biome
@@ -583,6 +583,22 @@ const STORM = {
   rise: 50,            // where the ball forms: this high above the ground
   sense: 300,          // it only fires with a runner this close (so balls don't pile up with no one near)
   boom: 0.35,          // the explosion lasts this long
+};
+
+// The ruins' lightning mortar: an iron mortar on a turntable. Every few seconds it turns to face whichever runner is
+// farthest from it (ahead or behind) and slowly lobs an iron bomb with lightning trapped inside (you see it through a
+// porthole) at where they'll be if they keep going. There's no mark on the ground: watch the bomb. It blows up the
+// moment it lands, a real explosion that catches anyone close. Touching the bomb itself doesn't hurt.
+const MORTAR = {
+  period: 4,           // seconds between shots
+  turn: 0.5,           // it turns to face its runner over this long...
+  charge: 0.8,         // ...then glows for this long, then fires
+  flight: 2.4,         // a bomb's flight (slow: watch where it's coming down)
+  arc: 56,             // the flight's top: this high above the higher of its two ends (pixels)
+  range: 240,          // it fires at runners within this far of it, either way (pixels: 30 tiles)
+  reach: 300,          // ...and its bombs land at most this far from it
+  blast: 40,           // the explosion catches anyone this close (pixels: 5 tiles)
+  boom: 1.6,           // the explosion (fireball, shards, smoke) lasts this long; its scorch mark a little longer
 };
 
 // The ruins' laser gate: two chain lifts (carved posts with cogs, the emitters hanging on chains, counterweights) with a laser strung between them that
