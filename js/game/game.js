@@ -346,7 +346,7 @@ const Game = (() => {
             return;
           }
           if (orb.kind === "snowstorm") {
-            world.snowstorm = { t: world.snowstorm ? Math.min(world.snowstorm.t, SNOWSTORM.fade) : 0 };
+            world.snowstorm = { t: world.snowstorm ? Math.min(world.snowstorm.t, SNOWSTORM.fade) : 0, from: world.snowstorm ? world.snowstorm.from : world.players.map((q) => q.x) }; // (where everyone was: who gets further?)
             for (const q of world.players) if (!q.caught) q.showHit("SNOWSTORM! KEEP MOVING!", "#e8f8ff");
             Sound.play("snowstorm");
             return;
@@ -2799,11 +2799,22 @@ const Game = (() => {
   }
 
   // While it blows (past its first half second), standing still freezes you (see Player.update)
+  // The snowstorm's over: with 2 players, whoever got further during it is the ice walker now (for good: skates, faster on
+  // ice), taking it from the other one if they had it. A tie changes nothing
+  function crownIceWalker(st) {
+    if (world.solo || !st.from || world.players.length < 2) return;
+    const went = world.players.map((q, i) => q.x - st.from[i]);
+    if (Math.abs(went[0] - went[1]) < 1) return;
+    const win = world.players[went[0] > went[1] ? 0 : 1], lose = world.players.find((q) => q !== win);
+    if (lose.iceWalker) { lose.iceWalker = false; lose.showHit("LOST ICE WALKER!", "#a8e0ff"); }
+    if (!win.iceWalker) { win.iceWalker = true; win.showHit("ICE WALKER!", "#a8e0ff"); win.sparkle("#e8f8ff"); Sound.play("gotSnowball"); }
+  }
+
   function updateSnowstorm(dt) {
     const st = world.snowstorm;
     if (st) {
       st.t += dt;
-      if (st.t >= SNOWSTORM.time) world.snowstorm = null;
+      if (st.t >= SNOWSTORM.time) { world.snowstorm = null; crownIceWalker(st); }
     }
     const on = snowstormStrength() >= 0.5;
     for (const p of world.players) p.snowstorm = on && !p.caught;

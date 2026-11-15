@@ -1,7 +1,7 @@
 // The game's version, shown left of the logo. The first number goes up for big updates (a new biome, a new
 // secret world...), the second for smaller additions and fixes (back to 0 with each big update): 6.16 means
 // the 6th big update (the enchanted forest), 16 small ones since. (7: the arcane ruins.)
-const GAME_VERSION = "7.32";
+const GAME_VERSION = "7.33";
 
 // Tunable numbers for the game. Change these to adjust how it feels.
 // Distances are in game pixels; one tile is 8 pixels (about "1 meter").
@@ -152,6 +152,9 @@ const MONKEY = {
 // Snowstorm (gold): works at once. For 10 seconds a blizzard whites out everyone's screen, and
 // anyone who isn't holding left or right (jumping doesn't count) freezes solid within half a second,
 // in a block of ice like thin ice: jump 3 times to break out.
+// With 2 players, whoever gets further during the snowstorm (from when the orb was grabbed to when the storm ends: just
+// that, not the race so far or the fire) becomes an ice walker for good (the skates from 1-player mode: faster on ice),
+// until another snowstorm where the other one gets further and takes it.
 const SNOWSTORM = {
   chance: 0.15,
   time: 10,          // seconds it blows

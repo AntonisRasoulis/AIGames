@@ -2150,7 +2150,7 @@ const Renderer = (() => {
       b.fillStyle = "#8fd8ff";
       b.fillRect(x - 2, y + 15, Math.ceil(12 * p.iceLock / SNOWBALL.freeze), 2);
     }
-    if (p.skate > 0 && p.onGround && p.onIce && Math.abs(p.vx) > 40) { // skating: a glint of ice off your heels
+    if ((p.skate > 0 || p.iceWalker) && p.onGround && p.onIce && Math.abs(p.vx) > 40) { // skating: a glint of ice off your heels
       b.fillStyle = "#ffffff";
       for (let k = 1; k <= 3; k++) b.fillRect(x + 4 - Math.sign(p.vx) * (k * 4 + (Math.floor(time * 20) % 2)), y + 12, 2, 1);
     }
@@ -4315,6 +4315,7 @@ const Renderer = (() => {
       const effects = [["red", "FAST"], ["blue", "HIGH JUMP"], ["pink", "FLOAT"]].filter(([k]) => p.spores[k] > 0);
       if (p.poison > 0 && (p.poisonMax === SPORES.time || p.poisonLethal)) effects.push(["green", "POISON"]); // (a spore's, or a Lobber's deadly one)
       if (p.rootGuard) effects.unshift(["roots", "ROOTS"]);       // (alone: the roots guarding you from the fire, till they're used)
+      if (p.iceWalker) effects.unshift(["ice", "ICE WALKER"]); // (won a snowstorm: for good, till someone wins one from you)
       if (p.magicFeet) effects.unshift(["magic", "MAGIC FEET"]); // (the enchanted forest's gift: for good, so no countdown)
       if (p.aurora) effects.unshift(["aurora", p.aurora.back > 0 ? `AURORA ${Math.ceil(p.aurora.back)}` : "AURORA"]); // (the ruins' gift)
       const ruinsOf = p.realm && (p.realm.biome === "ruins" ? p.realm : p.realm.parent && p.realm.parent.realmEnd !== undefined ? p.realm.parent : null); // (a biome portal's stretch: its ruins' clock still runs)
@@ -4332,8 +4333,8 @@ const Renderer = (() => {
       let ex = 12;
       for (const [k, name] of effects) {
         const left = k === "green" ? p.poison : p.spores[k];
-        const label = k === "magic" || k === "roots" || k === "aurora" ? name : `${name} ${Math.ceil(left)}`;
-        text(ctx, label, ex, top + (p.power ? 52 : 36), k === "magic" ? "#e2a6ff" : k === "roots" ? "#a898b8" : k === "aurora" ? "#7af0d8" : SPORE_COLORS[k].spore, 10);
+        const label = k === "magic" || k === "roots" || k === "aurora" || k === "ice" ? name : `${name} ${Math.ceil(left)}`;
+        text(ctx, label, ex, top + (p.power ? 52 : 36), k === "magic" ? "#e2a6ff" : k === "roots" ? "#a898b8" : k === "aurora" ? "#7af0d8" : k === "ice" ? "#a8e0ff" : SPORE_COLORS[k].spore, 10);
         ex += (label.length + 2) * 10;
       }
       if (p.flash > 0) {

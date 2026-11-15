@@ -80,6 +80,7 @@ class Player {
     this.stormHits = 0;           // ...and how many jumps we've cracked the ice with
     this.iceLock = 0;             // seconds left frozen by a snowball (no way out)
     this.skate = 0;               // seconds left on skates (faster on ice)
+    this.iceWalker = false;       // won a snowstorm (2 players): skates for good, faster on ice
     this.realm = null;            // the enchanted forest we're in (null: the main course)
     this.dream = null;            // falling asleep (to the forest), the fireflies taking us out, or waking up: { kind, t }
     this.trip = null;             // being taken in or out of the arcane ruins by the aurora: { kind: in | out | fail, stage: pull | build | pop, t, ... }
@@ -309,7 +310,7 @@ class Player {
     // Running (spinning after a super bounce: no steering at all)
     const dir = this.spinning ? 0 : (input.right ? 1 : 0) - (input.left ? 1 : 0);
     if (dir !== 0) {
-      const skating = this.skate > 0 && this.onGround && this.onIce;
+      const skating = (this.skate > 0 || this.iceWalker) && this.onGround && this.onIce;
       let accel = this.onGround ? (this.onIce ? SNOW.iceAccel * (skating ? SNOWBALL.skateAccel : 1) : PHYSICS.groundAccel) : PHYSICS.airAccel;
       if (Math.sign(this.vx) === -dir && !(this.onGround && this.onIce)) accel *= 2; // turn around quickly (not on ice)
       const fast = this.spores.red > 0 ? SPORES.speed : 1; // a red spore makes you faster
