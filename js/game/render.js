@@ -154,6 +154,7 @@ const Renderer = (() => {
     drawAliveTrees(world.level, camX, world.time); // (behind the ground, like the trees in the background)
     drawTiles(world.level, camX, world.time);
     drawFireRows(world.level, camX, world.time);
+    drawRuneTiles(world.level, camX, world.time);
     drawGearLasers(world.level, camX, world.time, false);
     drawStormEngines(world.level, camX, world.time);
     drawMortars(world.level, camX, world.time);
@@ -445,6 +446,54 @@ const Renderer = (() => {
     if (!top) return;
     P("#4f8a3a", sx, sy, 8, 2); P("#3a6230", sx, sy + 2, 8, 1);
     for (let x = 0; x < 8; x++) if (hash(c * 8 + x, r) < 0.3) P("#6aa84a", sx + x, sy - 1);
+  }
+
+  // ---- Its rune tiles: a crack of blue light in an ordinary ground tile (small, medium, or very cracked), pulsing faster
+  // and sparking once it's set off; the burst (a flash, a ring, a column of light, chips of stone and grass); then the
+  // crack stays, dark ----
+  const RUNE_CRACKS = { // jagged paths from the grass down into the stone, two rows of bricks deep
+    small: [[[4, 2], [4, 4], [3, 6], [4, 8], [4, 10]]],
+    medium: [[[3, 2], [4, 4], [3, 6], [4, 8], [5, 11], [5, 14]], [[4, 5], [6, 6], [7, 8]], [[4, 8], [2, 10], [1, 12]]],
+    large: [[[4, 0], [4, 3], [3, 5], [4, 8], [3, 11], [4, 15]], [[4, 3], [6, 4], [7, 6]], [[3, 5], [1, 6], [0, 8]], [[4, 8], [6, 10], [7, 13]], [[3, 11], [1, 13]], [[4, 4], [2, 2], [1, 1]]],
+  };
+  const runeCrackPixels = {};
+  for (const kind in RUNE_CRACKS) {
+    const out = new Map();
+    for (const path of RUNE_CRACKS[kind]) for (let i = 1; i < path.length; i++) {
+      const [x0, y0] = path[i - 1], [x1, y1] = path[i], n = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0));
+      for (let k = 0; k <= n; k++) { const x = Math.round(x0 + ((x1 - x0) * k) / n), y = Math.round(y0 + ((y1 - y0) * k) / n); out.set(x + "," + y, [x, y]); }
+    }
+    runeCrackPixels[kind] = [...out.values()];
+  }
+  function drawRuneTiles(level, camX, time) {
+    const CY = "#8fd8ff", W = "#eafff8";
+    for (const rt of level.runeTiles) {
+      const x = Math.round(rt.x - camX), gy = rt.gy, k = runeCrackPixels[rt.kind], big = rt.kind === "large";
+      if (x < -40 || x > VIEW_W + 40) continue;
+      if (rt.state === "spent") {
+        for (const [cx, cy] of k) if (cy >= 3 || big) P(cy < 3 ? "#3a6230" : "#2a3232", x + cx, gy + cy);
+        if (rt.t < RUNE_TILE.boom) { // the burst
+          const u = rt.t / RUNE_TILE.boom, cx = x + 4, cy = gy + 1;
+          if (u < 0.15) drawGlowAt("white", 3, cx, cy, 1 - u / 0.15);
+          drawGlowAt("ice", 2, cx, cy, 1 - u);
+          const R = 4 + u * 16;
+          for (let a = Math.PI; a < Math.PI * 2; a += 0.08) P(u < 0.4 ? W : RUNE, cx + Math.cos(a) * R, cy + Math.sin(a) * R * 0.8, 1, 1, 1 - u);
+          for (let i = 0; i < 10; i++) { const a = Math.PI + 0.3 + hash(i, rt.id) * (Math.PI - 0.6), v = 20 + hash(i, rt.id + 1) * 30; P(i % 3 ? "#727c7c" : "#4f8a3a", cx + Math.cos(a) * v * u, cy + Math.sin(a) * v * u + 40 * u * u, 1, 1, 1 - u); }
+          P(CY, cx - 1, cy - 20 * (1 - u), 3, 20 * (1 - u), 0.5 * (1 - u)); P(W, cx, cy - 16 * (1 - u), 1, 16 * (1 - u), 0.7 * (1 - u));
+        }
+        continue;
+      }
+      const kk = RUNE_TILE.kinds[rt.kind], heat = rt.state === "armed" ? Math.min(1, 0.5 + (kk.delay > 0 ? rt.t / kk.delay : 1) * 0.5) : 0;
+      const p = 0.5 + 0.5 * Math.sin(time * (3 + heat * 25)), lit = 0.35 + 0.25 * p + heat * 0.4, set = new Set(k.map(([a, b2]) => a + "," + b2));
+      for (const [cx, cy] of k) for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { // the lit edge of the stone
+        const nx = cx + dx, ny = cy + dy;
+        if (nx < 0 || nx > 7 || set.has(nx + "," + ny)) continue;
+        P(ny < 3 ? "#6aa84a" : "#a8c8c4", x + nx, gy + ny, 1, 1, lit * 0.5);
+      }
+      for (const [cx, cy] of k) { if (cy < 3 && !big) continue; P(cy >= 6 ? (p > 0.5 ? RUNE : CY) : heat > 0.6 && p > 0.5 ? W : "#eafff8", x + cx, gy + cy); }
+      for (let i = 0; i < 4 + (big ? 3 : 0); i++) { const u = (time * (1.5 + heat * 3) + i * 0.27) % 1; P(i % 2 ? CY : RUNE, x + 2 + ((i * 3) % 5), gy - 1 - u * (4 + heat * 8 + (big ? 3 : 0)), 1, 1, (1 - u) * lit); } // light pouring up out of it
+      if (heat > 0) { const fr = Math.floor(time * 20); for (let i = 0; i < 2 + heat * 6; i++) P(hash(fr, i) > 0.4 ? W : RUNE, x + 1 + hash(fr, i + 9) * 6, gy - 1 - hash(fr, i + 3) * (2 + heat * 5)); }
+    }
   }
 
   // ---- Its fire turrets ----

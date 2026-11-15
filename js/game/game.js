@@ -177,7 +177,7 @@ const Game = (() => {
     // The main course's dangers only see who's on it: anyone off in a forest (or on their way) counts as out of the race
     onCourse(level, () => mainCourse(dt, inputs));
     for (const f of forests()) {
-      if (f.biome === "ruins") onCourse(f, () => { world.players.forEach((p, i) => { if (inputs[i].firePressed && p.power === "laser") usePower(p, i); }); checkOrbs(); updateBridges(dt); updateRuins(f, dt); updateBiomeGates(f); updateStorms(dt); updateMortars(dt); levelSounds(); });
+      if (f.biome === "ruins") onCourse(f, () => { world.players.forEach((p, i) => { if (inputs[i].firePressed && p.power === "laser") usePower(p, i); }); checkOrbs(); updateBridges(dt); updateRuins(f, dt); updateBiomeGates(f); updateStorms(dt); updateMortars(dt); updateRuneTiles(dt); levelSounds(); });
       else if (f.leg) onCourse(f, () => { updateBridges(dt); updateFlytraps(dt); checkThinIce(); levelSounds(); updateLeg(f); });
       else onCourse(f, () => { world.players.forEach((p, i) => { if (inputs[i].firePressed && p.power === "mushroom") usePower(p, i); }); checkOrbs(); updateBridges(dt); updateLooseSaws(dt); updateLooseMaces(dt); updateSpores(); updateLobbers(dt); updateAliveTrees(dt); levelSounds(); });
     }
@@ -210,6 +210,7 @@ const Game = (() => {
       updateAliveTrees(dt);
       updateStorms(dt); // (a race that's all ruins has them on the main course)
       updateMortars(dt);
+      updateRuneTiles(dt);
     }
     updateMonkeys(dt);
     updateWarps(dt);
@@ -1857,6 +1858,41 @@ const Game = (() => {
       Sound.play("mortarBoom");
     }
     world.mortarBombs = world.mortarBombs.filter((b) => !b.done);
+  }
+
+  // The ruins' rune tiles: set one off (stand on it, or for the very cracked kind come near it) and after its own moment
+  // it bursts, throwing anyone close away from it: straight up if they're over it, otherwise forward or back. Once each
+  function updateRuneTiles(dt) {
+    const { level, players } = world, R = RUNE_TILE;
+    const runners = players.filter((p) => !p.dead && !p.caught && !p.held && !p.trip);
+    for (const rt of level.runeTiles) {
+      if (rt.state === "spent") { rt.t += dt; continue; }
+      const k = R.kinds[rt.kind], cx = rt.x + TILE / 2;
+      if (rt.state === "idle") {
+        const on = runners.some((p) => {
+          const mid = p.x + HITBOX_W / 2, onIt = p.onGround && Math.abs(p.y + HITBOX_H - rt.gy) < 2;
+          if (k.trigger === "near") return Math.abs(mid - cx) < R.near && p.y + HITBOX_H > rt.gy - 30;
+          if (k.trigger === "over") return onIt && Math.abs(mid - cx) <= 2; // (your middle over its middle)
+          return onIt && p.x + HITBOX_W > rt.x && p.x < rt.x + TILE; // (a foot on it)
+        });
+        if (on) { rt.state = "armed"; rt.t = 0; Sound.play("runeArm"); }
+        continue;
+      }
+      rt.t += dt;
+      if (rt.t < k.delay) continue;
+      rt.state = "spent"; rt.t = 0; // it bursts
+      for (const q of runners) {
+        const dx = q.x + HITBOX_W / 2 - cx, dy = q.y + HITBOX_H / 2 - rt.gy;
+        if (Math.hypot(dx, dy) > R.reach) continue;
+        q.onGround = false; q.standingOn = null; q.inQuick = false;
+        if (Math.abs(dx) <= R.under) { q.vx = 0; q.vy = -R.up; }
+        else { q.vx = Math.sign(dx) * R.side; q.vy = -R.lift; }
+        q.stun = R.stun;
+        q.showHit(Math.abs(dx) <= R.under ? "LAUNCHED!" : dx > 0 ? "BLASTED FORWARD!" : "BLASTED BACK!", "#8fd8ff");
+      }
+      world.quakes.push({ level, x: cx, t: 0.2 });
+      Sound.play("runeBurst");
+    }
   }
 
   // Where a mortar's bomb is in its flight: { x, y, u (0..1), falling (0..1) }. It climbs, slowing to the top of the

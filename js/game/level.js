@@ -89,6 +89,7 @@ class Level {
     this.ruinsOn = options.ruins !== false; // (the arcane ruins turned off in the biome picker: no ruins portal)
     this.ruinsGates = [];     // the ruins portal on the main course (one per race): { id, x, gy, state: off | on | broken, presses, openedAt, realm, burstAt, brokenAt }
     this.fireRows = [];       // ruins: rows of fire turrets (in place of spikes): { id, x0, n, gy, speed, kind, phase, second }
+    this.runeTiles = [];      // ruins: rune tiles { id, x (its left edge), gy, kind, state: idle | armed | spent, t }
     this.laserGates = [];     // ruins: laser gates { id, x0, x1 (the emitters), gy, rhythm, phase, sway, swayPhase }
     this.mortars = [];        // ruins: lightning mortars { id, x, gy, phase, x0, x1 (it only fires while the leader's between these) }
     this.storms = [];         // ruins: storm engines { id, x, gy, period, phase }
@@ -335,6 +336,7 @@ class Level {
     if (this.onFire(x + HITBOX_W / 2, HITBOX_W / 2 + 4)) return true;
     if (this.fireRows.some((r) => x + HITBOX_W > r.x0 - 4 && x < r.x0 + r.n * TILE + 4)) return true; // (no waiting on a fire row)
     if (this.laserGates.some((g) => x + HITBOX_W > g.x0 - 4 && x < g.x1 + 4)) return true; // (not under a laser gate)
+    if (this.runeTiles.some((rt) => rt.state !== "spent" && Math.abs(rt.x + TILE / 2 - (x + HITBOX_W / 2)) < RUNE_TILE.near + 8)) return true; // (not on or by a rune tile that hasn't gone off)
     if (this.storms.some((s) => Math.abs(x + HITBOX_W / 2 - s.x) < STORM.blast + 16)) return true; // (no coming back right by a storm engine)
     if (this.gearLasers.some((gl) => Math.abs(x + HITBOX_W / 2 - gl.x) < (gl.gy - gl.cy) / Math.tan((GEAR_LASER.below[0] * Math.PI) / 180) + 16)) return true; // (anywhere its beams can land)
     if (this.ruinsGates.some((g) => g.state !== "broken" && Math.abs(g.x - (x + HITBOX_W / 2)) < RUINS.grab + 8)) return true; // (not on its button, or in its grab)
@@ -924,7 +926,7 @@ class Level {
       if (orb && this.realmEnd !== undefined) weights.orb = ORBS.weight.ruins; // (the ruins trip: its laser gun orbs)
       if (this.realmEnd === undefined) { // (the ruins as the main course, in a race that's all secret biomes: orbs too, and an easy start)
         if (orb) weights.orb = ORBS.weight.ruins;
-        if (this.col <= 60) for (const k of ["shooter", "saw", "gearLaser", "storm", "laserGate"]) delete weights[k];
+        if (this.col <= 60) for (const k of ["shooter", "saw", "gearLaser", "storm", "laserGate", "runeTile"]) delete weights[k];
       }
     }
     if (this.biome === "forest") { // (its own mix, so its own dangers and the usual ones all get their turn)
@@ -1474,6 +1476,14 @@ const SECTIONS = {
     this.flat(w + 1, false);
     this.laserGates.push({ id: this.nextId++, x0, x1: x0 + w * TILE + TILE, gy: this.groundRow * TILE, rhythm: G.rhythm[0] + this.rng() * (G.rhythm[1] - G.rhythm[0]), phase: this.rng(), sway: G.sway[0] + this.rng() * (G.sway[1] - G.sway[0]), swayPhase: this.rng() });
     this.flat(3, false);
+  },
+
+  // The ruins' rune tile: one ground tile with a crack of blue light in it, room either side (you can be thrown 7 tiles)
+  runeTile() {
+    this.flat(7, false);
+    const kinds = Object.keys(RUNE_TILE.kinds);
+    this.runeTiles.push({ id: this.nextId++, x: this.col * TILE, gy: this.groundRow * TILE, kind: kinds[Math.floor(this.rng() * kinds.length)], state: "idle", t: 0 });
+    this.flat(8, false);
   },
 
   // The ruins' lightning mortar (placed by addSection, one at a time): on flat ground, with room round it

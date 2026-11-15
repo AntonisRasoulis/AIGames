@@ -1,7 +1,7 @@
 // The game's version, shown left of the logo. The first number goes up for big updates (a new biome, a new
 // secret world...), the second for smaller additions and fixes (back to 0 with each big update): 6.16 means
 // the 6th big update (the enchanted forest), 16 small ones since. (7: the arcane ruins.)
-const GAME_VERSION = "7.39";
+const GAME_VERSION = "7.40";
 
 // Tunable numbers for the game. Change these to adjust how it feels.
 // Distances are in game pixels; one tile is 8 pixels (about "1 meter").
@@ -572,7 +572,7 @@ const RUINS = {
   stoneEvery: 0.7,     // last 4 s: a stone falls near each runner about this often (seconds)
   stoneWarn: 0.6,      // ...its shadow grows on the ground this long first
   stoneFall: 0.35,     // ...then it drops this fast (seconds from the top to the ground)
-  mix: { flat: 1, step: 3, spikes: 7, gap: 4, floating: 3, moving: 2, falling: 2, mace: 3, saw: 3, shooter: 5, gearLaser: 5, storm: 3, laserGate: 4 }, // the ruins' sections (spikes are its fire turrets, shooters its laser eye-stones)
+  mix: { flat: 1, step: 3, spikes: 7, gap: 4, floating: 3, moving: 2, falling: 2, mace: 3, saw: 3, shooter: 5, gearLaser: 5, storm: 3, laserGate: 4, runeTile: 4 }, // the ruins' sections (spikes are its fire turrets, shooters its laser eye-stones)
   gap: 1,              // flat tiles between its sections: 0 to this
   // biome portals: each visit has two, one on the path (forced: a clean gateway you run through) and one optional
   // (a small floating ring of stones you jump into), each sending you through a short, packed stretch of a biome
@@ -650,6 +650,26 @@ const STORM = {
   rise: 50,            // where the ball forms: this high above the ground
   sense: 300,          // it only fires with a runner this close (so balls don't pile up with no one near)
   boom: 0.35,          // the explosion lasts this long
+};
+
+// The ruins' rune tiles: ground tiles like any other (grass on top), with a crack of blue light in them. Set one off and
+// it bursts, throwing whoever's close away from it: which way depends on where you are when it goes, so each kind has its
+// own timing. It never hurts you itself (where you land is up to you), and it only goes off once, for everyone.
+const RUNE_TILE = {
+  kinds: {           // trigger: "step" (someone stands on it), "over" (someone's middle is over it) or "near" (someone comes
+                     // within `near`); delay: then it bursts
+    small: { trigger: "step", delay: 0.3 },  // a small crack: running on, you're past it when it goes: thrown forward
+    medium: { trigger: "over", delay: 0 },   // a medium crack: goes off right under you: thrown up
+    large: { trigger: "near", delay: 0.05 }, // very cracked: bursts as you come near: thrown back
+  },
+  near: 26,          // "near": someone's middle within this far of its middle (pixels)
+  reach: 30,         // the burst throws anyone whose middle is within this far of its middle
+  under: 5,          // ...straight up if they're within this far either side of its middle...
+  up: 375,           // ...this fast (twice a jump's height)
+  side: 110,         // ...otherwise away from it this fast (about 7 tiles in all)...
+  lift: 220,         // ...with this much lift
+  stun: 0.5,         // no control for this long while you're thrown
+  boom: 0.5,         // the burst's light and flying chips last this long
 };
 
 // The ruins' lightning mortar: a rune cannon on a turntable, just one at a time (one per trip into the ruins; in a race

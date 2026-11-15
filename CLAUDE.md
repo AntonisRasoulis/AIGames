@@ -18,7 +18,7 @@ costs ground to the fire. 1 Player: one big view, race the fire for distance (be
 - Repo: `AntonisRasoulis/VibeCodingPractice`. Development branch: `claude/nice-meitner-muga6l`
   (a fresh chat may be given a different branch: use the one you're told).
 - Published as a claude.ai Artifact (a single bundled HTML file):
-  **https://claude.ai/artifact/Uh5CKSPymdWERadhojnY7P** (Version 145 at the time of writing). Always
+  **https://claude.ai/artifact/Uh5CKSPymdWERadhojnY7P** (Version 146 at the time of writing). Always
   republish to this same URL (pass it as `url`); never create a new artifact for the game.
 
 ## Style
@@ -314,6 +314,9 @@ Scripts load in this order (all globals, no modules), each with a `?v=` cache-bu
     the emitter on two chains, a rune counterweight opposite; v7.21 base B1: carved steps, iron brackets, a rune band lit while it's on): a laser between two of them, 4-12 tiles apart, sliding up
     and down, firing (v7.39) one 0.25 s shot going up and one going down (each gate at its own point 25-75% through the
     slide), 1 s dotted warning before each. `LASER_GATE`, `laserGates`, `laserState`.
+  - **Rune tiles** (v7.40, `RUNE_TILE`, `runeTiles`, `updateRuneTiles`, `drawRuneTiles`; the ruins' own trap): a ground tile
+    (flush, grass on top) with a crack of blue light; small (step on, 0.3 s: thrown forward), medium (over its middle: launched
+    up 76 px), very cracked (comes near: thrown back). The blast pushes away from its middle, never hurts, once for everyone.
   - **The lightning mortar** (v7.22, chosen after mockups: the rune cannon C on a stone plinth, the barrel only at 45 / 90 / 135
     degrees on the pixel diagonals so it's never jagged; bomb T1, the plasma lens orb in the ruins' teal and dark iron). **v7.23:
     just one, infinite range** (owner's answers B, A, B): one per ruins trip; in an all-ruins race one per 250-450-tile stretch
