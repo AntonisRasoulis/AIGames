@@ -45,7 +45,7 @@ const Renderer = (() => {
       // Each player sees their own course: the main one, or the enchanted forest they're in
       const course = p.realm || world.level, other = world.players[1 - i];
       const mine = (list) => list.filter((e) => (e.level || world.level) === course);
-      const view = Object.assign(Object.create(world), { level: course, sawBits: mine(world.sawBits), wisps: mine(world.wisps), quakes: mine(world.quakes), builtPortals: mine(world.builtPortals), stormBalls: mine(world.stormBalls), blasts: mine(world.blasts), mortarBombs: mine(world.mortarBombs), booms: mine(world.booms), mushroomThrows: world.mushroomThrows.filter((m) => (m.p.realm || world.level) === course) });
+      const view = Object.assign(Object.create(world), { level: course, sawBits: mine(world.sawBits), wisps: mine(world.wisps), quakes: mine(world.quakes), builtPortals: mine(world.builtPortals), stormBalls: mine(world.stormBalls), blasts: mine(world.blasts), mortarBombs: mine(world.mortarBombs), booms: mine(world.booms), mushroomThrows: world.mushroomThrows.filter((m) => (m.p.realm || world.level) === course), laserShots: mine(world.laserShots) });
       if (p.realm) Object.assign(view, { inForest: true, monsoon: null, missiles: [], bears: [], jaguars: [], decoys: [], arrows: [], vultures: [], hawks: [], sticks: [], burns: [], drones: [], hands: [], roots: [], bolts: [], monkeys: [], thrownSnowballs: [], grapples: [], vines: [], warps: [] });
       drawView(view, p, other && other.realm === p.realm && !other.dream ? other : null, camX);
       drawDream(p, camX, world.time);
@@ -164,6 +164,7 @@ const Renderer = (() => {
     drawStormBalls(world, camX, world.time);
     drawMortarBombs(world, camX, world.time);
     drawMushroomThrows(world, camX);
+    drawLaserShots(world, camX, world.time);
     drawLaserGates(world.level, camX, world.time, true);
     for (const p of [player, other]) if (p) { drawAuroraLights(p, camX, world.time, p === other); drawTripRibbons(p, camX, world.time); }
     drawCoconuts(world.level, player, camX, world.time); // falling (in front of the runners)
@@ -601,6 +602,30 @@ const Renderer = (() => {
       drawGlowAt("white", 4, x, bl.y, fade);
       for (let i = 0; i < 10; i++) { const an = hash(i, 5) * Math.PI * 2, len = R * (0.9 + hash(i, 6) * 0.7) * Math.min(1, u * 4); stormArc(x, bl.y, x + Math.cos(an) * len, bl.y + Math.sin(an) * len, 900 + i * 17 + Math.floor(u * 30), i % 3 ? SW : SICE, fade); }
       for (let i = 0; i < 18; i++) { const an = hash(i, 7) * Math.PI * 2, d = R * (0.3 + 1.3 * u) * (0.6 + hash(i, 8) * 0.6); P(i % 4 ? SW : "#8a9494", x + Math.cos(an) * d, bl.y + Math.sin(an) * d + u * u * 20, i % 4 ? 1 : 2, 1, fade); }
+    }
+  }
+
+  // ---- The ruins' laser gun: the aim line while it charges, then a red-hot beam to the edge of the screen (and on,
+  // forever): a white core, red-hot edges crackling, pulses of light racing along it, a flash at the muzzle ----
+  function drawLaserShots(world, camX, time) {
+    const G = LASER_GUN, RED = "#ff6a5a", DARK = "#c8301a";
+    for (const s of world.laserShots) {
+      const x0 = Math.round(s.x - camX), y = s.y, end = s.dir > 0 ? VIEW_W + 4 : -4;
+      const from = Math.max(-4, Math.min(x0, end)), to = Math.min(VIEW_W + 4, Math.max(x0, end));
+      if (s.t < G.charge) { // charging: the muzzle glows and a dotted aim line flashes along it
+        const a = 0.45 + 0.45 * Math.sin(time * 40);
+        for (let x = from; x <= to; x++) if ((x - x0) % 3 === 0) P(RED, x, y, 1, 1, a);
+        P("#ffffff", x0 - 1, y - 1, 3, 3, 0.6 + 0.4 * (s.t / G.charge));
+        drawGlowAt("red", 1, x0, y, 0.5 + s.t / G.charge * 0.5);
+        continue;
+      }
+      const u = (s.t - G.charge) / G.beam, fade = u > 0.7 ? (1 - u) / 0.3 : 1, fr = Math.floor(time * 30);
+      for (let x = from; x <= to; x++) {
+        const j = hash(x, fr) > 0.85 ? 1 : 0;
+        P(DARK, x, y - 2 - j, 1, 1, fade * 0.7); P(RED, x, y - 1, 1, 1, fade); P("#ffffff", x, y, 1, 1, fade); P(RED, x, y + 1, 1, 1, fade); P(DARK, x, y + 2 + j, 1, 1, fade * 0.7);
+      }
+      for (let k = 0; k < 6; k++) { const d = ((time * 600 + k * 70) % (VIEW_W + 40)); P("#ffffff", x0 + s.dir * d - 1, y - 1, 3, 3, fade); } // pulses racing along it
+      P("#ffffff", x0 - 2, y - 3, 4, 7, fade); drawGlowAt("red", 2, x0, y, fade); // the muzzle flash
     }
   }
 
@@ -2878,14 +2903,14 @@ const Renderer = (() => {
       if (sx < -10 || sx > VIEW_W) continue;
       const bob = Math.round(Math.sin(time * 3 + o.x) * 1.5);
       if (Math.floor(time * 4) % 2) {
-        const ability = o.kind === "zap" || o.kind === "hand" || o.kind === "wind" || o.kind === "drone" || o.kind === "firehawk" || o.kind === "snowball" || o.kind === "monkey" || o.kind === "mushroom";
+        const ability = o.kind === "zap" || o.kind === "hand" || o.kind === "wind" || o.kind === "drone" || o.kind === "firehawk" || o.kind === "snowball" || o.kind === "monkey" || o.kind === "mushroom" || o.kind === "laser";
         b.fillStyle = o.purple ? "rgba(215, 160, 255, 0.55)" : ability ? "rgba(170, 225, 255, 0.5)" : "rgba(255, 240, 150, 0.5)";
         b.fillRect(sx - 1, o.y + bob + 1, 10, 6);
         b.fillRect(sx + 1, o.y + bob - 1, 6, 10);
       }
       const sprite = { freeze: sprites.freezeOrb, dash: sprites.dashOrb, zap: sprites.zapOrb, hand: sprites.handOrb, wind: sprites.windOrb, drone: sprites.droneOrb, sandstorm: sprites.sandOrb, firehawk: sprites.hawkOrb, snowstorm: sprites.stormOrb, snowball: sprites.snowballOrb, monsoon: sprites.monsoonOrb, monkey: sprites.monkeyOrb, portalgun: sprites.portalGunOrb, grapple: sprites.grappleOrb, vine: sprites.vineOrb }[o.kind] || sprites.orb;
       if (o.kind === "wind") drawOrbWisps(sx, o.y + bob, time + o.x);
-      if (o.kind === "mushroom") { b.drawImage(sprites.mushroomOrb, sx - 2, o.y + bob - 2); continue; } // (12 x 12: a little bigger)
+      if (o.kind === "mushroom" || o.kind === "laser") { b.drawImage(o.kind === "laser" ? sprites.laserOrb : sprites.mushroomOrb, sx - 2, o.y + bob - 2); continue; } // (12 x 12: a little bigger)
       b.drawImage(sprite, sx, o.y + bob);
     }
   }
@@ -3149,6 +3174,7 @@ const Renderer = (() => {
         grapple: ["#ffffff", "#d9a3ff", "#b04bff", "#d9a3ff"],
         roots: ["#a898b8", "#2f2934", "#a060ff", "#776b82"],
         mushroom: ["#ff6a7a", "#6ab8ff", "#9aff6a", "#ff9af0"], // (the four mushrooms it could be)
+        laser: ["#ff6a5a", "#7af0d8", "#ffffff", "#c8301a"],
       }[p.power][k];
       b.fillRect(Math.round(cx + Math.cos(a) * r), Math.round(cy + Math.sin(a) * r), 1, 1);
     }
@@ -4231,8 +4257,8 @@ const Renderer = (() => {
       if (p.power) {
         const key = world.solo ? "S/DOWN" : i === 0 ? "S" : "DOWN";
         const arrow = p.facing > 0 ? ">>" : "<<"; // follows the way you're facing
-        const label = { mushroom: "MUSHROOM", zap: "ZAP", hand: "HAND", wind: "WIND DASH", drone: "DRONE", firehawk: "FIREHAWK", snowball: "SNOWBALL", monkey: "MONKEY", portalgun: "PORTAL GUN", grapple: "GRAPPLE", roots: "ROOTS" }[p.power] || p.power.toUpperCase();
-        const color = { mushroom: "#ff6a7a", zap: "#fff27a", hand: "#c9a3ff", wind: "#ffffff", drone: "#4fc0ff", firehawk: "#ff7a1a", snowball: "#e8f8ff", monkey: "#e8c090", portalgun: "#d9a3ff", grapple: "#d9a3ff", roots: "#a898b8" }[p.power] || "#ffffff";
+        const label = { laser: "LASER GUN", mushroom: "MUSHROOM", zap: "ZAP", hand: "HAND", wind: "WIND DASH", drone: "DRONE", firehawk: "FIREHAWK", snowball: "SNOWBALL", monkey: "MONKEY", portalgun: "PORTAL GUN", grapple: "GRAPPLE", roots: "ROOTS" }[p.power] || p.power.toUpperCase();
+        const color = { laser: "#ff6a5a", mushroom: "#ff6a7a", zap: "#fff27a", hand: "#c9a3ff", wind: "#ffffff", drone: "#4fc0ff", firehawk: "#ff7a1a", snowball: "#e8f8ff", monkey: "#e8c090", portalgun: "#d9a3ff", grapple: "#d9a3ff", roots: "#a898b8" }[p.power] || "#ffffff";
         text(ctx, `${label} ${arrow} press ${key}`, 12, top + 36, color, 10);
       }
       // Spore mushroom effects, with the seconds left on each

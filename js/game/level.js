@@ -898,7 +898,7 @@ class Level {
     const weights = { flat: 1, step: 2, spikes: 4, gap: 4, floating: 2, moving: 2, falling: 2, portal: 1, mace: 4 };
     if (this.col > 60) Object.assign(weights, { shooter: 5, saw: 5 });
     if (this.col > 60 && this.biome === "prairie") Object.assign(weights, { trap: 1, bush: 2 });
-    if (this.col > 120 && this.col - this.lastOrbCol > ORBS.gap && (this.realmEnd === undefined || this.biome === "forest")) weights.orb = ORBS.weight[this.biome]; // about 3 orbs per biome (in the dream forest: just mushroom orbs)
+    if (this.col > 120 && this.col - this.lastOrbCol > ORBS.gap && (this.realmEnd === undefined || this.biome === "forest" || this.biome === "ruins") && !this.leg) weights.orb = ORBS.weight[this.biome]; // about 3 orbs per biome (in the dream forest and the ruins trip: just their own orbs)
     if (this.biome === "snow") Object.assign(weights, { ice: 4, icicles: 5, snowball: 3 });
     if (this.biome === "snow" && this.col > 60) weights.thinIce = 4;
     if (this.biome === "desert") Object.assign(weights, { quicksand: 5, tumbleweed: 4 });
@@ -913,6 +913,7 @@ class Level {
       const orb = weights.orb;
       for (const k in weights) delete weights[k];
       Object.assign(weights, RUINS.mix);
+      if (orb && this.realmEnd !== undefined) weights.orb = ORBS.weight.ruins; // (the ruins trip: its laser gun orbs)
       if (this.realmEnd === undefined) { // (the ruins as the main course, in a race that's all secret biomes: orbs too, and an easy start)
         if (orb) weights.orb = ORBS.weight.ruins;
         if (this.col <= 60) for (const k of ["shooter", "saw", "gearLaser", "storm", "laserGate"]) delete weights[k];
@@ -1804,6 +1805,7 @@ const SECTIONS = {
       if (r < SANDSTORM.chance) kind = "sandstorm";
       else if (r < SANDSTORM.chance + FIREHAWK.chance) kind = "firehawk";
     }
+    if (this.biome === "ruins" && (this.realmEnd !== undefined || this.rng() < LASER_GUN.chance)) kind = "laser"; // the ruins' own: the laser gun (the only one in a ruins trip)
     if (this.biome === "forest" && (this.realmEnd !== undefined || this.rng() < MUSHROOM_ORB.chance)) kind = "mushroom"; // the forest's own: the mushroom orb (the only one in the dream forest)
     this.orbs.push({ x: this.col * TILE, y: this.groundRow * TILE - 32, w: 8, h: 8, used: false, kind });
     this.lastOrbCol = this.col;

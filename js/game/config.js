@@ -1,7 +1,7 @@
 // The game's version, shown left of the logo. The first number goes up for big updates (a new biome, a new
 // secret world...), the second for smaller additions and fixes (back to 0 with each big update): 6.16 means
 // the 6th big update (the enchanted forest), 16 small ones since. (7: the arcane ruins.)
-const GAME_VERSION = "7.24";
+const GAME_VERSION = "7.25";
 
 // Tunable numbers for the game. Change these to adjust how it feels.
 // Distances are in game pixels; one tile is 8 pixels (about "1 meter").
@@ -154,6 +154,21 @@ const MUSHROOM_ORB = {
   chance: 0.3,       // on a course where the forest is the main biome: share of orbs that are mushroom orbs
   flight: 1,         // seconds it's up in the air before it lands on you
   height: 42,        // how high you throw it (pixels: about 5 tiles)
+};
+// The ruins' laser gun orb (light blue, S / Down): a rune blaster. Fire it and a dotted aim line flashes along your
+// line for a moment, then a red-hot laser shoots straight out the way you're facing, at chest height, through
+// everything, forever: anyone it touches is vaporized (the aurora's shield still saves you). One shot. Alone, there's
+// nobody to shoot: fired backwards (facing left) it pushes the fire back a little; facing right it does nothing and you
+// keep it. Found where the ruins are the main course, and it's the only orb (and usable power) inside a ruins trip.
+const LASER_GUN = {
+  chance: 0.3,       // on a course where the ruins are the main biome: share of orbs that are laser guns
+  charge: 0.3,       // seconds of aim line before it fires (time to jump it or duck under)
+  beam: 0.5,         // seconds the laser is there...
+  deadly: 0.25,      // ...deadly for the first this-many of them, then a harmless afterglow (so a jump made any time during
+                     // the aim line clears it: tested; deadly for longer and the earliest jumps come down into it)
+  chest: 4,          // the beam's height: this far down from the top of the shooter (pixels)
+  thick: 3,          // how thick the deadly part is (pixels)
+  push: 48,          // alone, fired at the fire: it's pushed back this far (pixels: 6 tiles)
 };
 // Snowball (light blue, S / Down): thrown the way you're facing, in a short low arc. It's small and
 // hard to hit, but if it hits the other player they're frozen for 7 seconds, with no way out.

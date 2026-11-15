@@ -1389,18 +1389,33 @@ const MUSHROOM_ORB_ICON = [
   "............",
   "............",
 ];
-function makeMushroomOrb() {
-  const C = { c: "#e8344a", h: "#ff7a8a", d: "#a01a30", w: "#ffffff", s: "#f4ead8" };
+// The laser gun orb (design G2, the rune blaster): a grey stone gun with teal runes and a glowing teal muzzle
+const LASER_ORB_ICON = [
+  "............",
+  "............",
+  "............",
+  "..ssssss....",
+  ".sllllllttw.",
+  ".ssrsrssttw.",
+  "..sssssss...",
+  "...ss.......",
+  "...ss.......",
+  "..sss.......",
+  "............",
+  "............",
+];
+function makeMushroomOrb() { return makeBigOrb(MUSHROOM_ORB_ICON, { c: "#e8344a", h: "#ff7a8a", d: "#a01a30", w: "#ffffff", s: "#f4ead8" }); }
+function makeLaserOrb() { return makeBigOrb(LASER_ORB_ICON, { s: "#646e6e", l: "#a0aaaa", r: "#7af0d8", t: "#2fbfa8", w: "#ffffff" }); }
+// A 12 x 12 light blue orb (a little bigger than the others, so its picture reads) with an icon's rows on top
+function makeBigOrb(ICON, C) {
   const cv = makeCanvas(12, 12), g = cv.getContext("2d");
-  {
-    for (let j = 0; j < 12; j++) for (let i = 0; i < 12; i++) {
-      const d = Math.hypot(i - 5.5, j - 5.5);
-      if (d > 6.1) continue;
-      g.fillStyle = d > 5.1 ? ABILITY_ORB_PALETTE.o : Math.hypot(i - 3.5, j - 3.2) < 1.6 ? "#9fe0ff" : ABILITY_ORB_PALETTE.y; // (a little shine)
-      g.fillRect(i, j, 1, 1);
-      const ch = MUSHROOM_ORB_ICON[j][i];
-      if (ch !== ".") { g.fillStyle = C[ch]; g.fillRect(i, j, 1, 1); }
-    }
+  for (let j = 0; j < 12; j++) for (let i = 0; i < 12; i++) {
+    const d = Math.hypot(i - 5.5, j - 5.5);
+    if (d > 6.1) continue;
+    g.fillStyle = d > 5.1 ? ABILITY_ORB_PALETTE.o : Math.hypot(i - 3.5, j - 3.2) < 1.6 ? "#9fe0ff" : ABILITY_ORB_PALETTE.y; // (a little shine)
+    g.fillRect(i, j, 1, 1);
+    const ch = ICON[j][i];
+    if (ch !== ".") { g.fillStyle = C[ch]; g.fillRect(i, j, 1, 1); }
   }
   return cv;
 }
@@ -1739,6 +1754,7 @@ function buildSprites() {
     monkeyHand: spriteFromRows(MONKEY_HAND_ROWS, MONKEY_HAND_PALETTE),
     stormOrb: spriteFromRows(STORM_ORB_ROWS, { o: "#b8860b", y: "#ffd23f", w: "#ffffff" }),
     mushroomOrb: makeMushroomOrb(),
+    laserOrb: makeLaserOrb(),
     snowballOrb: spriteFromRows(SNOWBALL_ORB_ROWS, { o: ABILITY_ORB_PALETTE.o, y: ABILITY_ORB_PALETTE.y, w: "#ffffff", s: "#a8d4f0" }),
     thrownSnowball: spriteFromRows(THROWN_SNOWBALL_ROWS, { w: "#ffffff", s: "#a8d4f0" }),
     sandOrb: spriteFromRows(SAND_ORB_ROWS, { o: "#b8860b", y: "#ffd23f", s: "#a86a2a" }),

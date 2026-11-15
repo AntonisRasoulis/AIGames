@@ -18,7 +18,7 @@ costs ground to the fire. 1 Player: one big view, race the fire for distance (be
 - Repo: `AntonisRasoulis/VibeCodingPractice`. Development branch: `claude/nice-meitner-muga6l`
   (a fresh chat may be given a different branch: use the one you're told).
 - Published as a claude.ai Artifact (a single bundled HTML file):
-  **https://claude.ai/artifact/Uh5CKSPymdWERadhojnY7P** (Version 130 at the time of writing). Always
+  **https://claude.ai/artifact/Uh5CKSPymdWERadhojnY7P** (Version 131 at the time of writing). Always
   republish to this same URL (pass it as `url`); never create a new artifact for the game.
 
 ## Style
@@ -118,7 +118,11 @@ Scripts load in this order (all globals, no modules), each with a `?v=` cache-bu
 - **The forest's orb: the mushroom orb** (v7.24, `MUSHROOM_ORB`, power `"mushroom"`; icon chosen E2: a red toadstool with a white
   "?" on a 12 x 12 light blue orb): on an all-forest main course (30% of orbs) and the only orb in the dream forest. S / Down
   throws a mushroom straight up (showing its colour); after 1 s it always lands on you: one of the 4 spore mushrooms, 1 in 4
-  each, their effects and times (`giveSpore`). Only affects you. The owner plans orbs for the other biomes without one (the ruins).
+  each, their effects and times (`giveSpore`). Only affects you.
+- **The ruins' orb: the laser gun** (v7.25, `LASER_GUN`, power `"laser"`; icon G2 rune blaster, beam B2 red-hot): on an
+  all-ruins main course (30%) and the only orb inside a ruins trip (usable there). 0.3 s aim line, then a laser the way you
+  face, chest height, through everything, forever, 0.5 s (deadly only the first 0.25 s so a jump during the aim line clears
+  it: tested). Kills ("VAPORIZED!"). Alone: fired backwards it pushes the fire back 6 tiles; facing right, you keep it.
 - **Magic feet** (the forest's gift, `MAGIC_FEET`): coming out of the forest, you have it for the rest of
   the race. Magic holds you up over every hole: pits and rivers get a magic bridge as you get near
   (`updateBridges`); quicksand, sinkholes and thin ice still go off, then a bridge catches you

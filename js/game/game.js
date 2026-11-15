@@ -66,6 +66,7 @@ const Game = (() => {
       wisps: [],       // the magic trailing behind a loose saw: little glowing wisps drifting up and fading
       builtPortals: [], // brick portals you come out of: they build, open, close and rest again, never removed { level, x, gy, cy, style, state, t }
       stormBalls: [],   // the ruins' balls of lightning { level, x, y, angle, age }
+      laserShots: [],   // the ruins' laser gun: { level, p, owner, x, y, dir, t }
       mushroomThrows: [], // the forest's mushroom orb: a mushroom thrown up, coming back down on its thrower { p, kind, t }
       mortarBombs: [],  // the ruins' mortar bombs in flight { level, x0, y0, x1, y1, top, age, seed }
       booms: [],        // ...and their explosions { level, x, y, gy, t, seed }
@@ -163,6 +164,7 @@ const Game = (() => {
     updateTrips(dt);
     updateBuiltPortals(dt);
     updateMushroomThrows(dt);
+    updateLaserShots(dt);
     for (const bl of world.blasts) bl.t += dt;
     world.blasts = world.blasts.filter((bl) => bl.t < STORM.boom + 0.5); // (its scorch mark lingers a moment)
     for (const bm of world.booms) bm.t += dt;
@@ -171,7 +173,7 @@ const Game = (() => {
     // The main course's dangers only see who's on it: anyone off in a forest (or on their way) counts as out of the race
     onCourse(level, () => mainCourse(dt, inputs));
     for (const f of forests()) {
-      if (f.biome === "ruins") onCourse(f, () => { updateBridges(dt); updateRuins(f, dt); updateBiomeGates(f); updateStorms(dt); updateMortars(dt); levelSounds(); });
+      if (f.biome === "ruins") onCourse(f, () => { world.players.forEach((p, i) => { if (inputs[i].firePressed && p.power === "laser") usePower(p, i); }); checkOrbs(); updateBridges(dt); updateRuins(f, dt); updateBiomeGates(f); updateStorms(dt); updateMortars(dt); levelSounds(); });
       else if (f.leg) onCourse(f, () => { updateBridges(dt); updateFlytraps(dt); checkThinIce(); levelSounds(); updateLeg(f); });
       else onCourse(f, () => { world.players.forEach((p, i) => { if (inputs[i].firePressed && p.power === "mushroom") usePower(p, i); }); checkOrbs(); updateBridges(dt); updateLooseSaws(dt); updateLooseMaces(dt); updateSpores(); updateLobbers(dt); updateAliveTrees(dt); levelSounds(); });
     }
@@ -315,9 +317,9 @@ const Game = (() => {
         if (p.dead || p.held || p.caught || (orb.kind === "swap" && (!other || other.dead || other.caught))) continue;
         if (overlaps(p.x, p.y, HITBOX_W, HITBOX_H, orb.x, orb.y, orb.w, orb.h)) {
           orb.used = true;
-          if (orb.kind === "zap" || orb.kind === "hand" || orb.kind === "wind" || orb.kind === "drone" || orb.kind === "firehawk" || orb.kind === "snowball" || orb.kind === "monkey" || orb.kind === "mushroom") {
-            p.sparkle({ zap: "#bff4ff", hand: "#c9a3ff", wind: "#ffffff", drone: "#4fc0ff", firehawk: "#ff7a1a", snowball: "#e8f8ff", monkey: "#c8946a", mushroom: "#ff6a7a" }[orb.kind]);
-            Sound.play({ zap: "gotZap", hand: "gotHand", wind: "gotWind", drone: "gotDrone", firehawk: "gotHawk", snowball: "gotSnowball", monkey: "gotMonkey", mushroom: "gotMushroom" }[orb.kind]);
+          if (orb.kind === "zap" || orb.kind === "hand" || orb.kind === "wind" || orb.kind === "drone" || orb.kind === "firehawk" || orb.kind === "snowball" || orb.kind === "monkey" || orb.kind === "mushroom" || orb.kind === "laser") {
+            p.sparkle({ zap: "#bff4ff", hand: "#c9a3ff", wind: "#ffffff", drone: "#4fc0ff", firehawk: "#ff7a1a", snowball: "#e8f8ff", monkey: "#c8946a", mushroom: "#ff6a7a", laser: "#7af0d8" }[orb.kind]);
+            Sound.play({ zap: "gotZap", hand: "gotHand", wind: "gotWind", drone: "gotDrone", firehawk: "gotHawk", snowball: "gotSnowball", monkey: "gotMonkey", mushroom: "gotMushroom", laser: "gotLaser" }[orb.kind]);
             // Alone, the drone (and the firehawk) start guarding you right away with no button press,
             // and the snowball (with nobody to throw it at) gives you skates
             if (world.solo && orb.kind === "drone") launchDrone(p);
@@ -397,6 +399,7 @@ const Game = (() => {
     else if (p.power === "snowball") throwSnowball(p);
     else if (p.power === "monkey") launchMonkey(p);
     else if (p.power === "mushroom") throwMushroom(p);
+    else if (p.power === "laser") { if (!fireLaser(p, owner)) return; } // (alone, facing away from the fire: keep it)
     else if (p.power === "roots") { if (!rootGrab(p, owner)) return; } // (nobody to grab: keep it)
     else if (p.power === "portalgun" || p.power === "grapple") {
       if (world.monsoon || p.flood) return; // (keep it for after the flood)
@@ -2183,6 +2186,33 @@ const Game = (() => {
       p.sparkle(SPORE_LOOK[kind][1]);
       Sound.play(kind === "green" ? "poisoned" : "spore");
     }
+  }
+
+  // The ruins' laser gun: an aim line along your line for a moment, then a red-hot laser straight out the way you're
+  // facing, through everything, forever, at chest height: anyone on that course it touches is vaporized. Alone it's
+  // for the fire: fired backwards it pushes the fire back a little (facing right, nothing happens: keep it)
+  function fireLaser(p, owner) {
+    if (world.solo && p.facing > 0) return false;
+    world.laserShots.push({ level: world.level, p, owner, x: p.x + HITBOX_W / 2 + p.facing * 4, y: Math.round(p.y + LASER_GUN.chest), dir: p.facing, t: 0 });
+    Sound.play("laserCharge");
+    return true;
+  }
+  function updateLaserShots(dt) {
+    const G = LASER_GUN;
+    for (const s of world.laserShots) {
+      const was = s.t;
+      s.t += dt;
+      if (was < G.charge && s.t >= G.charge) { // it fires
+        Sound.play("laserFire");
+        if (world.solo && s.dir < 0) { world.fire.x = Math.max(world.fire.x - G.push, -1e9); s.p.showHit("FIRE PUSHED BACK!", "#ff6a5a"); }
+      }
+      if (s.t >= G.charge && s.t < G.charge + G.deadly) for (const q of world.players) { // touch it and you're gone (while it's hot)
+        if (q === s.p || q.dead || q.caught || q.held || (q.realm || world.level) !== s.level) continue;
+        const ahead = s.dir > 0 ? q.x + HITBOX_W > s.x : q.x < s.x;
+        if (ahead && q.y < s.y + G.thick / 2 + 1 && q.y + HITBOX_H > s.y - G.thick / 2) { q.die("VAPORIZED!"); if (q.dead) q.sparkle("#ff6a5a"); }
+      }
+    }
+    world.laserShots = world.laserShots.filter((s) => s.t < G.charge + G.beam);
   }
 
   // The forest's mushroom orb: throw a mushroom straight up; it's one of the four spore mushrooms (a 1 in 4 chance each,
