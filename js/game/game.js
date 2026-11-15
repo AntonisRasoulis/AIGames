@@ -1746,7 +1746,7 @@ const Game = (() => {
   }
 
   // The ruins' lightning mortar: one at a time on a course (the one whose stretch the leader's in). It turns to face
-  // whichever runner is farthest from it, however far, glows, and lobs a bomb at where they'll be if they keep going. A
+  // whichever runner is farthest from it, however far, glows, and lobs a bomb at where they are right then. A
   // bomb climbs, glides along the top of the screen if it has far to go, drops like a stone and blows up the moment it
   // lands. Shared by everyone on the course.
   function updateMortars(dt) {
@@ -1770,9 +1770,8 @@ const Game = (() => {
         const p = m.target && runners.includes(m.target) ? m.target : farthest(m);
         if (p) {
           const x0 = m.x + m.face * 11, y0 = m.gy - 25; // (the muzzle, the barrel at 45 degrees)
-          const vx = Math.max(-PHYSICS.runSpeed, Math.min(PHYSICS.runSpeed, p.vx || 0));
           let x1 = p.x + HITBOX_W / 2, T = M.rise + M.fall;
-          for (let i = 0; i < 8; i++) { x1 = p.x + HITBOX_W / 2 + vx * T; T = Math.max(M.rise, Math.abs(x1 - x0) / M.glide) + M.fall; } // (where they'll be when it lands: a far shot takes longer)
+          T = Math.max(M.rise, Math.abs(x1 - x0) / M.glide) + M.fall; // (at where they are as it fires: a far shot takes longer)
           const g = level.groundTop(x1), y1 = (g !== null ? g : m.gy + 24) - 6;
           world.mortarBombs.push({ level, x0, y0, x1, y1, T, top: M.top, age: 0, seed: Math.floor(Math.random() * 1000), face: Math.sign(x1 - x0) || m.face });
           m.firedAt = level.time;
