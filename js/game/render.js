@@ -636,7 +636,7 @@ const Renderer = (() => {
     for (const m of level.mortars) {
       const x = Math.round(m.x - camX), gy = m.gy;
       if (x < -40 || x > VIEW_W + 40) continue;
-      const st = level.mortarState(m, time), face = m.face || 1, from = m.from === undefined ? face : m.from, e = st.turning, ch = st.charge;
+      const st = level.mortarState(m, time), face = m.face || 1, from = m.from === undefined ? face : m.from, e = m.on ? st.turning : 1, ch = m.on ? st.charge : 0;
       const dir = from === face || e >= 2 / 3 ? face : e >= 1 / 3 ? 0 : from; // (it snaps through straight up as it turns)
       const since = m.firedAt !== undefined ? time - m.firedAt : 9, kick = since < 0.12 ? 2 : since < 0.25 ? 1 : 0;
       // the plinth, its ring of runes sliding round as it turns
@@ -688,7 +688,7 @@ const Renderer = (() => {
   const BOOM_FIRE = ["#ffffff", "#fff3b0", "#ffd050", "#ff9a30", "#e0601c", "#9a3418"];
   function drawMortarBombs(world, camX, time) {
     for (const bm of world.mortarBombs) {
-      const { x, y, u } = Game.bombAt(bm), sx = Math.round(x - camX);
+      const { x, y, u, falling } = Game.bombAt(bm), sx = Math.round(x - camX);
       if (sx < -30 || sx > VIEW_W + 30) continue;
       for (let k = 1; k <= 6; k++) { // its trail of sparks
         const ub = { ...bm, age: bm.age - k * 0.05 };
@@ -696,9 +696,9 @@ const Renderer = (() => {
         const q = Game.bombAt(ub), fr = Math.floor(time * 20);
         P(k < 3 ? "#d8fff4" : RUNE, q.x - camX + (hash(k, fr) - 0.5) * 3, q.y + (hash(k + 4, fr) - 0.5) * 3, 1, 1, 1 - k / 7);
       }
-      const fallK = bm.age > MORTAR.rise ? (bm.age - MORTAR.rise) / MORTAR.fall : 0;
+      const fallK = falling;
       if (fallK > 0) { const k = fallK; for (let j = 2; j < 4 + k * 10; j += 2) P("#8af7df", sx + (j % 4) - 1, Math.round(y) - 7 - j, 1, 2, (1 - j / (5 + k * 10)) * 0.6 * k); } // streaking down
-      drawBomb(sx, Math.round(y), bm.face * u * Math.PI * 2, time, bm.seed, fallK);
+      drawBomb(sx, Math.round(y), bm.face * bm.age * Math.PI * 1.4, time, bm.seed, fallK); // (tumbling end over end)
     }
     for (const bm of world.booms) { // the explosion
       const x = bm.x - camX, y = bm.y, t = bm.t, R = MORTAR.blast, gy = bm.gy, seed = bm.seed;

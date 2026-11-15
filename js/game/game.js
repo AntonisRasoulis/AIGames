@@ -1731,43 +1731,48 @@ const Game = (() => {
     world.stormBalls = world.stormBalls.filter((b) => !b.done);
   }
 
-  // The ruins' lightning mortars: each turns to face whichever runner is farthest from it (within range, either way),
-  // glows, and lobs a bomb at where they'll be if they keep going. A bomb flies slowly and blows up the moment it lands.
-  // Shared by everyone on the course.
+  // The ruins' lightning mortar: one at a time on a course (the one whose stretch the leader's in). It turns to face
+  // whichever runner is farthest from it, however far, glows, and lobs a bomb at where they'll be if they keep going. A
+  // bomb climbs, glides along the top of the screen if it has far to go, drops like a stone and blows up the moment it
+  // lands. Shared by everyone on the course.
   function updateMortars(dt) {
     const { level, players } = world, M = MORTAR;
     const runners = players.filter((p) => !p.dead && !p.caught && !p.held && !p.trip);
-    const farthest = (m) => { let best = null, bd = -1; for (const p of runners) { const d = Math.abs(p.x + HITBOX_W / 2 - m.x); if (d < M.range && d > bd) { bd = d; best = p; } } return best; };
+    const lead = runners.length ? Math.max(...runners.map((p) => p.x)) : null;
+    const farthest = (m) => { let best = null, bd = -1; for (const p of runners) { const d = Math.abs(p.x + HITBOX_W / 2 - m.x); if (d > bd) { bd = d; best = p; } } return best; };
+    let awake = null; // (just one at a time: the one whose stretch the leader's in, the newest if two overlap)
+    if (lead !== null) for (const m of level.mortars) if (lead >= (m.x0 ?? -Infinity) && lead < (m.x1 ?? Infinity)) awake = m;
     for (const m of level.mortars) {
-      const st = level.mortarState(m, level.time);
+      const st = level.mortarState(m, level.time), on = m === awake;
+      m.on = on; // (only the mortar whose stretch the leader's in is awake: the others sit still)
       if (m.face === undefined) { m.face = 1; m.from = 1; m.turnK = -1; }
-      if (st.turning > 0 && m.turnK !== st.k) { // time to turn: pick its runner, and face them
+      if (on && st.turning > 0 && m.turnK !== st.k) { // time to turn: pick its runner, and face them
         m.turnK = st.k;
         m.target = farthest(m);
         m.from = m.face;
         if (m.target) m.face = Math.sign(m.target.x + HITBOX_W / 2 - m.x) || m.face;
       }
-      if (m.lastK !== undefined && st.k !== m.lastK) { // fire
-        let p = m.target && runners.includes(m.target) && Math.abs(m.target.x - m.x) < M.range ? m.target : farthest(m);
+      if (on && m.lastK !== undefined && st.k !== m.lastK) { // fire
+        const p = m.target && runners.includes(m.target) ? m.target : farthest(m);
         if (p) {
-          const vx = Math.max(-PHYSICS.runSpeed, Math.min(PHYSICS.runSpeed, p.vx || 0)); // (where they'll be if they keep going)
-          let x1 = p.x + HITBOX_W / 2 + vx * (M.rise + M.fall);
-          x1 = Math.max(m.x - M.reach, Math.min(m.x + M.reach, x1));
-          const g = level.groundTop(x1), y1 = (g !== null ? g : m.gy + 24) - 6;
           const x0 = m.x + m.face * 11, y0 = m.gy - 25; // (the muzzle, the barrel at 45 degrees)
-          world.mortarBombs.push({ level, x0, y0, x1, y1, top: M.top, age: 0, seed: Math.floor(Math.random() * 1000), face: m.face });
+          const vx = Math.max(-PHYSICS.runSpeed, Math.min(PHYSICS.runSpeed, p.vx || 0));
+          let x1 = p.x + HITBOX_W / 2, T = M.rise + M.fall;
+          for (let i = 0; i < 8; i++) { x1 = p.x + HITBOX_W / 2 + vx * T; T = Math.max(M.rise, Math.abs(x1 - x0) / M.glide) + M.fall; } // (where they'll be when it lands: a far shot takes longer)
+          const g = level.groundTop(x1), y1 = (g !== null ? g : m.gy + 24) - 6;
+          world.mortarBombs.push({ level, x0, y0, x1, y1, T, top: M.top, age: 0, seed: Math.floor(Math.random() * 1000), face: Math.sign(x1 - x0) || m.face });
           m.firedAt = level.time;
           Sound.play("mortarFire");
         }
-        m.target = null;
       }
+      if (st.k !== m.lastK) m.target = null;
       m.lastK = st.k;
     }
     for (const b of world.mortarBombs) {
       if (b.level !== level || b.done) continue;
       b.age += dt;
-      if (b.age >= M.rise && !b.whistled) { b.whistled = true; Sound.play("mortarFall"); } // (the whistle as it comes down)
-      if (b.age < M.rise + M.fall) continue;
+      if (b.age >= b.T - M.fall && !b.whistled) { b.whistled = true; Sound.play("mortarFall"); } // (the whistle as it comes down)
+      if (b.age < b.T) continue;
       b.done = true; // it lands: boom. Anyone close is caught in it
       for (const q of runners) {
         if (q.dead) continue;
@@ -1782,13 +1787,15 @@ const Game = (() => {
     world.mortarBombs = world.mortarBombs.filter((b) => !b.done);
   }
 
-  // Where a mortar's bomb is in its flight: { x, y, u (0..1) }. It climbs, slowing to a hang at the top, then drops
-  // like a stone, faster and faster (it's heavy), crossing the ground at a steady pace all the way
+  // Where a mortar's bomb is in its flight: { x, y, u (0..1), falling (0..1) }. It climbs, slowing to the top of the
+  // screen, glides along it if it has far to go (crossing the ground at a steady pace till then), and at the end drops
+  // straight down onto its spot like a stone, faster and faster (it's heavy)
   function bombAt(b) {
-    const M = MORTAR, T = M.rise + M.fall, u = Math.min(1, b.age / T), x = b.x0 + (b.x1 - b.x0) * u;
-    if (b.age < M.rise) { const s = b.age / M.rise; return { x, y: b.y0 + (b.top - b.y0) * (1 - (1 - s) ** 2), u }; }
-    const s = Math.min(1, (b.age - M.rise) / M.fall);
-    return { x, y: b.top + (b.y1 - b.top) * s * s, u };
+    const M = MORTAR, H = b.T - M.fall, u = Math.min(1, b.age / b.T), x = b.x0 + (b.x1 - b.x0) * Math.min(1, b.age / H);
+    if (b.age < M.rise) { const s = b.age / M.rise; return { x, y: b.y0 + (b.top - b.y0) * (1 - (1 - s) ** 2), u, falling: 0 }; }
+    if (b.age < b.T - M.fall) return { x, y: b.top, u, falling: 0 };
+    const s = Math.min(1, (b.age - (b.T - M.fall)) / M.fall);
+    return { x, y: b.top + (b.y1 - b.top) * s * s, u, falling: s };
   }
 
   // Inside the ruins: the exit portal, the clock running out, and (in the last seconds) stones falling

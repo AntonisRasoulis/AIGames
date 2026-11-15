@@ -90,7 +90,7 @@ class Level {
     this.ruinsGates = [];     // the ruins portal on the main course (one per race): { id, x, gy, state: off | on | broken, presses, openedAt, realm, burstAt, brokenAt }
     this.fireRows = [];       // ruins: rows of fire turrets (in place of spikes): { id, x0, n, gy, speed, kind, phase, second }
     this.laserGates = [];     // ruins: laser gates { id, x0, x1 (the emitters), gy, rhythm, phase, sway, swayPhase }
-    this.mortars = [];        // ruins: lightning mortars { id, x, gy, phase }
+    this.mortars = [];        // ruins: lightning mortars { id, x, gy, phase, x0, x1 (it only fires while the leader's between these) }
     this.storms = [];         // ruins: storm engines { id, x, gy, period, phase }
     this.biomeGates = [];     // ruins: portals to a short stretch of another biome { x, gy, biome, forced }
     this.gearLasers = [];     // ruins: gear lasers { id, x (the post's middle), gy, cy (the gear's middle), fast, phase }
@@ -855,6 +855,17 @@ class Level {
       const lastChance = this.realmEnd / TILE - (RUINS.legLength[1] + 30); // (it, its stretch and the calm after it have to fit before the exit)
       if (this.optionalAt !== undefined && this.forcedAt === undefined && (this.col >= this.optionalAt || this.col >= lastChance)) { this.optionalAt = undefined; return SECTIONS.biomeGate.call(this, false); }
     }
+    if (this.biome === "ruins" && !this.leg) { // the lightning mortar: just one at a time (one per trip into the ruins; one per stretch of a race that's all ruins)
+      if (this.mortarAt === undefined) {
+        if (this.realmEnd !== undefined) this.mortarAt = this.col + this.rand(4, Math.max(5, Math.floor(this.realmEnd / TILE - this.col - 40)));
+        else if (this.col >= 60) { const len = this.rand(MORTAR.stretch[0], MORTAR.stretch[1]); this.mortarStretch = [this.col * TILE, (this.col + len) * TILE]; this.mortarAt = this.col + this.rand(10, len - 40); }
+      }
+      if (this.mortarAt !== undefined && this.col >= this.mortarAt && !this.mortarDone) {
+        this.mortarDone = true;
+        return SECTIONS.mortar.call(this);
+      }
+      if (this.realmEnd === undefined && this.mortarStretch && this.col * TILE >= this.mortarStretch[1]) { this.mortarAt = undefined; this.mortarDone = false; this.mortarStretch = null; } // (on to the next stretch)
+    }
     if (this.leg && this.col * TILE < this.realmEnd && this.realmEnd / TILE - this.col < 3) return this.flat(Math.ceil(this.realmEnd / TILE - this.col), false); // (a stretch: dangers right up to its end)
     if (this.realmEnd !== undefined && this.col * TILE >= this.realmEnd) {
       // The forest's over: calm ground from here on, and the fireflies come once you reach it. (The last
@@ -904,7 +915,7 @@ class Level {
       Object.assign(weights, RUINS.mix);
       if (this.realmEnd === undefined) { // (the ruins as the main course, in a race that's all secret biomes: orbs too, and an easy start)
         if (orb) weights.orb = ORBS.weight.ruins;
-        if (this.col <= 60) for (const k of ["shooter", "saw", "gearLaser", "storm", "laserGate", "mortar"]) delete weights[k];
+        if (this.col <= 60) for (const k of ["shooter", "saw", "gearLaser", "storm", "laserGate"]) delete weights[k];
       }
     }
     if (this.biome === "forest") { // (its own mix, so its own dangers and the usual ones all get their turn)
@@ -1456,10 +1467,11 @@ const SECTIONS = {
     this.flat(3, false);
   },
 
-  // The ruins' lightning mortar: on flat ground, with room round it
+  // The ruins' lightning mortar (placed by addSection, one at a time): on flat ground, with room round it
   mortar() {
     this.flat(6, false);
-    this.mortars.push({ id: this.nextId++, x: this.col * TILE + TILE / 2, gy: this.groundRow * TILE, phase: this.rng() });
+    const [x0, x1] = this.realmEnd !== undefined || !this.mortarStretch ? [-Infinity, Infinity] : [this.mortarStretch[0], Math.max(this.mortarStretch[1], (this.col + 30) * TILE)]; // (in the ruins: the whole way)
+    this.mortars.push({ id: this.nextId++, x: this.col * TILE + TILE / 2, gy: this.groundRow * TILE, phase: this.rng(), x0, x1 });
     this.flat(7, false);
   },
 
