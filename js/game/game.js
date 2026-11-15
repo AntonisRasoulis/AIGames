@@ -363,7 +363,7 @@ const Game = (() => {
             return;
           }
           if (orb.kind === "sandstorm") {
-            world.sandstorm = { t: world.sandstorm ? Math.min(world.sandstorm.t, SANDSTORM.fade) : 0, owner: p };
+            world.sandstorm = { t: world.sandstorm ? Math.min(world.sandstorm.t, SANDSTORM.fade) : 0, owner: p, blows: sandOrbTimes(), high: 0 };
             for (const q of world.players) if (!q.caught) q.showHit("SANDSTORM!", "#f0d8a0");
             Sound.play("sandstorm");
             return;
@@ -1174,10 +1174,53 @@ const Game = (() => {
     const st = world.sandstorm;
     if (st) {
       st.t += dt;
+      while (st.blows && st.blows.length && st.t >= st.blows[0]) { st.blows.shift(); blowSandOrb(st); }
       if (st.t >= SANDSTORM.time) world.sandstorm = null;
     }
+    updateSandOrbs(dt);
     const s = sandstormStrength();
     for (const p of world.players) p.windPush = p.caught ? 0 : s * SANDSTORM.push * (st && p === st.owner ? SANDSTORM.ownPush : 1);
+  }
+
+  // The sandstorm blows action orbs along with it: when they come (3-6 of them, at random times through the storm)
+  function sandOrbTimes() {
+    const S = SANDSTORM, n = S.orbs[0] + Math.floor(Math.random() * (S.orbs[1] - S.orbs[0] + 1));
+    return Array.from({ length: n }, () => S.orbsFrom + Math.random() * (S.orbsTo - S.orbsFrom)).sort((a, b) => a - b);
+  }
+  // One comes in from the right of the leader's screen, at a height you can grab (running or with a jump). If the other
+  // player has dropped off the leader's screen, the first two fly past the leader too high to grab and sink slowly, so
+  // they're low enough by the time they reach the one behind. Any action orb (alone, only the ones that do something alone)
+  function blowSandOrb(st) {
+    const S = SANDSTORM, level = world.level, runners = world.players.filter((p) => !p.caught && !p.dead);
+    if (!runners.length) return;
+    const lead = runners.reduce((a, b) => (b.x > a.x ? b : a)), back = runners.find((p) => p !== lead);
+    const kinds = world.solo ? ["wind", "drone", "firehawk", "snowball", "monkey", "mushroom", "laser"] : ["wind", "zap", "hand", "drone", "firehawk", "snowball", "monkey", "mushroom", "laser"];
+    // (heights are the orb's bottom edge: its top is 8 px higher)
+    const x = lead.x + VIEW_W * 0.65 + 12, g = level.groundTop(lead.x + HITBOX_W / 2) ?? lead.y + HITBOX_H;
+    const orb = { x, y: g - S.orbLow - Math.random() * (S.orbHigh - S.orbLow) - 8, w: 8, h: 8, used: false, kind: kinds[Math.floor(Math.random() * kinds.length)], sand: { phase: Math.random() * 6.28, sink: 0, floor: null } };
+    if (back && back.x < lead.x - VIEW_W * 0.35 && st.high < S.behind) { // the one behind is off the leader's screen: this one's for them
+      st.high++;
+      const gb = level.groundTop(back.x + HITBOX_W / 2) ?? back.y + HITBOX_H, closing = S.orbSpeed + PHYSICS.runSpeed;
+      const past = (x - lead.x + 24) / closing, meet = (x - back.x) / closing; // (when it's past the leader; when it reaches the one behind)
+      orb.y = g - S.tooHigh - 8 - S.bob;
+      orb.sand.floor = gb - S.sinkTo - 8;
+      orb.sand.wait = past; // it only starts sinking once it's past the leader...
+      orb.sand.sink = Math.max(0, (orb.sand.floor - orb.y) / Math.max(0.3, (meet - past) * 0.8)); // (...and is low enough a little before it gets to them)
+    }
+    orb.sand.y = orb.y;
+    level.orbs.push(orb);
+  }
+  function updateSandOrbs(dt) {
+    const S = SANDSTORM, level = world.level, players = world.players.filter((p) => !p.caught);
+    const leftmost = players.length ? Math.min(...players.map((p) => p.x)) : 0;
+    for (const o of level.orbs) {
+      if (!o.sand || o.used) continue;
+      o.x -= S.orbSpeed * dt;
+      if (o.sand.sink && (o.sand.wait -= dt) <= 0) o.sand.y = Math.min(o.sand.floor, o.sand.y + o.sand.sink * dt);
+      o.sand.phase += dt * 5;
+      o.y = Math.round(o.sand.y + Math.sin(o.sand.phase) * S.bob);
+      if (o.x < leftmost - VIEW_W) o.used = true; // (blown away, past everyone)
+    }
   }
 
   // ---- The jungle's orbs: monsoon and monkey ----

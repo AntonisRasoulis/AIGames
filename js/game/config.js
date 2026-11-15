@@ -1,7 +1,7 @@
 // The game's version, shown left of the logo. The first number goes up for big updates (a new biome, a new
 // secret world...), the second for smaller additions and fixes (back to 0 with each big update): 6.16 means
 // the 6th big update (the enchanted forest), 16 small ones since. (7: the arcane ruins.)
-const GAME_VERSION = "7.29";
+const GAME_VERSION = "7.30";
 
 // Tunable numbers for the game. Change these to adjust how it feels.
 // Distances are in game pixels; one tile is 8 pixels (about "1 meter").
@@ -79,6 +79,19 @@ const SANDSTORM = {
   push: 34,          // how hard it pushes left (pixels per second; running is 96)
   ownPush: 0.9,      // the one who grabbed it is pushed this much as hard
   fade: 1,           // seconds it takes to blow up, and to die down at the end
+  // it blows action orbs along with it: they come in from the right of the leader's screen, blow left (a bit faster than
+  // you run), bobbing in the wind, and anyone who touches one gets it. One shared set, over the course itself.
+  orbs: [3, 6],      // how many blow through in one sandstorm
+  orbsFrom: 0.6,     // ...coming between this many seconds in...
+  orbsTo: 8.5,       // ...and this many
+  orbSpeed: 125,     // how fast they blow left over the ground (pixels a second; running is 96)
+  orbLow: 2,         // how high they fly (the orb's bottom edge): between this far above the leader's ground (you grab
+                     // it running: you're 11 px tall)...
+  orbHigh: 38,       // ...and this far (a jump: you reach 50)
+  bob: 4,            // how far they bob up and down in the wind (pixels)
+  behind: 2,         // with the other player off the leader's screen, this many fly past the leader too high to grab...
+  tooHigh: 60,       // ...this far above the ground (their bottom edge: a jump reaches 50)...
+  sinkTo: 3,         // ...and once past the leader sinking slowly to this far, by the time they reach the player behind
 };
 // Firehawk (light blue, S / Down): it flies out over the other player and drops a burning stick
 // where they'll be. The stick kills if it hits, and the ground it lands on burns for 10 seconds

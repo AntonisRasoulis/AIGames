@@ -2950,7 +2950,8 @@ const Renderer = (() => {
       if (o.used) continue;
       const sx = Math.round(o.x - camX);
       if (sx < -10 || sx > VIEW_W) continue;
-      const bob = Math.round(Math.sin(time * 3 + o.x) * 1.5);
+      const bob = o.sand ? 0 : Math.round(Math.sin(time * 3 + o.x) * 1.5); // (one in a sandstorm bobs in the wind already)
+      if (o.sand) for (let k = 1; k <= 4; k++) P(k % 2 ? "#e8c890" : "#c8a060", sx + 9 + k * 3, o.y + 2 + ((k * 3 + Math.floor(time * 12)) % 5), 2, 1, 0.8 - k * 0.15); // (sand streaming off it)
       if (Math.floor(time * 4) % 2) {
         const ability = o.kind === "zap" || o.kind === "hand" || o.kind === "wind" || o.kind === "drone" || o.kind === "firehawk" || o.kind === "snowball" || o.kind === "monkey" || o.kind === "mushroom" || o.kind === "laser";
         b.fillStyle = o.purple ? "rgba(215, 160, 255, 0.55)" : ability ? "rgba(170, 225, 255, 0.5)" : "rgba(255, 240, 150, 0.5)";
