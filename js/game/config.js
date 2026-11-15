@@ -1,7 +1,7 @@
 // The game's version, shown left of the logo. The first number goes up for big updates (a new biome, a new
 // secret world...), the second for smaller additions and fixes (back to 0 with each big update): 6.16 means
 // the 6th big update (the enchanted forest), 16 small ones since. (7: the arcane ruins.)
-const GAME_VERSION = "7.42";
+const GAME_VERSION = "7.43";
 
 // Tunable numbers for the game. Change these to adjust how it feels.
 // Distances are in game pixels; one tile is 8 pixels (about "1 meter").
@@ -205,7 +205,7 @@ const LASER_GUN = {
 const BLACKOUT = {
   chance: 0.15,      // on a course where the ruins are the main biome: share of orbs that are blackout orbs
   tripChance: 0.35,  // ...and in a ruins trip (the rest are laser guns)
-  time: 5,           // seconds of darkness
+  time: 8,           // seconds of darkness (v7.43; it was 5)
   flicker: 0.6,      // ...the lights flickering off (and back on at the end) over this long
   light: 16,         // the circle of light round each runner (radius, pixels: 4 tiles across)...
   ownLight: 28,      // ...and round whoever grabbed it (7 tiles across)
