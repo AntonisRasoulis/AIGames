@@ -18,7 +18,7 @@ costs ground to the fire. 1 Player: one big view, race the fire for distance (be
 - Repo: `AntonisRasoulis/VibeCodingPractice`. Development branch: `claude/nice-meitner-muga6l`
   (a fresh chat may be given a different branch: use the one you're told).
 - Published as a claude.ai Artifact (a single bundled HTML file):
-  **https://claude.ai/artifact/Uh5CKSPymdWERadhojnY7P** (Version 151 at the time of writing). Always
+  **https://claude.ai/artifact/Uh5CKSPymdWERadhojnY7P** (Version 152 at the time of writing). Always
   republish to this same URL (pass it as `url`); never create a new artifact for the game.
 
 ## Style
@@ -138,6 +138,8 @@ Scripts load in this order (all globals, no modules), each with a `?v=` cache-bu
   lights glow"): 8 s (v7.43; was 5) of pitch black on that course for everyone there, a circle of light round each runner (4 tiles across;
   the grabber 7), lights flicker off and on; only teal / blue pixels glow (`drawBlackout`, on its own canvas: never read
   pixels back off the main buffer, it makes all later frames ~3x slower). All-ruins course and ruins trips, alone too.
+- **Trips cost no ground** (v7.45, `travelGain`): going into or out of the forest or the ruins, you come out as far on as
+  you'd have run in the time it took (not when the ruins' clock runs out).
 - **Known slow spot:** the mortar's explosion (v7.22, drawn pixel by pixel) adds up to ~12 ms a frame while it's on screen.
 - **Magic feet** (the forest's gift, `MAGIC_FEET`): coming out of the forest, you have it for the rest of
   the race. Magic holds you up over every hole: pits and rivers get a magic bridge as you get near

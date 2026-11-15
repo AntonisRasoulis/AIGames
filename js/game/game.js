@@ -1562,10 +1562,11 @@ const Game = (() => {
       const out = d.kind === "fireflies" ? S.fireflies : 0; // (the fireflies first, then the same fade as falling asleep)
       if (!d.moved && d.t >= out + S.sleep) {
         d.moved = true;
+        // (the time spent falling asleep and waking up isn't lost: you wake as far on as you'd have run in it)
         if (d.kind === "sleep") {
           if (!d.gate.forest) d.gate.forest = makeForest(d.gate);
-          moveTo(p, d.gate.forest, p.x);
-        } else moveTo(p, null, p.x);
+          moveTo(p, d.gate.forest, p.x + travelGain(S.sleep + S.wake));
+        } else moveTo(p, null, p.x + travelGain(S.fireflies + S.sleep + S.wake));
         p.lying = true;
         Sound.play("wakeUp");
       }
@@ -1606,6 +1607,10 @@ const Game = (() => {
   }
 
   // Put someone on a course (realm: a forest, or null for the main course) at x, on safe ground near there
+  // How far a runner would have got running for this long: a trip into or out of a special biome adds it to where you come
+  // out, so travelling there doesn't cost you ground (v7.45)
+  function travelGain(seconds) { return PHYSICS.runSpeed * seconds; }
+
   function moveTo(p, realm, x) {
     if (realm && realm === (world.mainCourse || world.level)) realm = null; // (back onto the main course: no realm)
     const course = realm || world.mainCourse || world.level;
@@ -1672,7 +1677,7 @@ const Game = (() => {
   // The arcane ruins behind a portal: the same stretch as the main course from the portal on, calm ground where you
   // arrive, then RUINS.length tiles to the exit portal
   function makeRuins(g) {
-    const c0 = Math.floor(g.x / TILE) + 2;
+    const c0 = Math.floor(g.x / TILE) + 2 + Math.max(0, Math.round((travelGain(RUINS.pullTime + RUINS.buildTime + RUINS.outTime) - 8 * TILE) / TILE)); // (you arrive as far on as you'd have run while the portal took you: it used to be just 8 tiles on)
     const f = new Level(Math.floor(Math.random() * 1e9), "ruins", { solo: world.solo, biomes: false, wild: world.wild, realmEnd: (c0 + RUINS.arrive + RUINS.length) * TILE });
     f.flat(Math.max(1, c0 - f.col), false);
     f.flat(RUINS.arrive, false);
@@ -1969,7 +1974,7 @@ const Game = (() => {
         // portal builds itself where you land, and stays there afterwards)
         let realm = null, x = p.x;
         if (tr.kind === "in") { realm = tr.portal.realm; x = realm.arriveX; }
-        else if (tr.kind === "out") x = tr.portal.x + 16;
+        else if (tr.kind === "out") x = tr.portal.x + travelGain(RUINS.pullTime + RUINS.buildTime + RUINS.outTime); // (as far on as you'd have run while the portal took you)
         else x = Math.max(0, p.x - RUINS.failBack);
         moveTo(p, realm, x);
         p.held = true;
