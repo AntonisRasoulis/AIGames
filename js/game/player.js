@@ -80,7 +80,7 @@ class Player {
     this.stormHits = 0;           // ...and how many jumps we've cracked the ice with
     this.iceLock = 0;             // seconds left frozen by a snowball (no way out)
     this.skate = 0;               // seconds left on skates (faster on ice)
-    this.iceWalker = false;       // won a snowstorm (2 players): skates for good, faster on ice
+    this.iceWalker = false;       // won a snowstorm (2 players): skates for good, faster on ice (shown as SKATES)
     this.realm = null;            // the enchanted forest we're in (null: the main course)
     this.dream = null;            // falling asleep (to the forest), the fireflies taking us out, or waking up: { kind, t }
     this.trip = null;             // being taken in or out of the arcane ruins by the aurora: { kind: in | out | fail, stage: pull | build | pop, t, ... }

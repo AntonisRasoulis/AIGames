@@ -4315,7 +4315,7 @@ const Renderer = (() => {
       const effects = [["red", "FAST"], ["blue", "HIGH JUMP"], ["pink", "FLOAT"]].filter(([k]) => p.spores[k] > 0);
       if (p.poison > 0 && (p.poisonMax === SPORES.time || p.poisonLethal)) effects.push(["green", "POISON"]); // (a spore's, or a Lobber's deadly one)
       if (p.rootGuard) effects.unshift(["roots", "ROOTS"]);       // (alone: the roots guarding you from the fire, till they're used)
-      if (p.iceWalker) effects.unshift(["ice", "ICE WALKER"]); // (won a snowstorm: for good, till someone wins one from you)
+      if (p.iceWalker) effects.unshift(["ice", "SKATES"]); // (won a snowstorm: for good, till someone wins one from you)
       if (p.magicFeet) effects.unshift(["magic", "MAGIC FEET"]); // (the enchanted forest's gift: for good, so no countdown)
       if (p.aurora) effects.unshift(["aurora", p.aurora.back > 0 ? `AURORA ${Math.ceil(p.aurora.back)}` : "AURORA"]); // (the ruins' gift)
       const ruinsOf = p.realm && (p.realm.biome === "ruins" ? p.realm : p.realm.parent && p.realm.parent.realmEnd !== undefined ? p.realm.parent : null); // (a biome portal's stretch: its ruins' clock still runs)

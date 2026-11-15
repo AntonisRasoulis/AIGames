@@ -18,7 +18,7 @@ costs ground to the fire. 1 Player: one big view, race the fire for distance (be
 - Repo: `AntonisRasoulis/VibeCodingPractice`. Development branch: `claude/nice-meitner-muga6l`
   (a fresh chat may be given a different branch: use the one you're told).
 - Published as a claude.ai Artifact (a single bundled HTML file):
-  **https://claude.ai/artifact/Uh5CKSPymdWERadhojnY7P** (Version 139 at the time of writing). Always
+  **https://claude.ai/artifact/Uh5CKSPymdWERadhojnY7P** (Version 140 at the time of writing). Always
   republish to this same URL (pass it as `url`); never create a new artifact for the game.
 
 ## Style
@@ -124,8 +124,8 @@ Scripts load in this order (all globals, no modules), each with a `?v=` cache-bu
 - **The forest's reverse orb** (v7.29, `REVERSE`, `p.reversed`; gold, icon R1 swapping arrows, symbol A crossed arrows): everyone
   on that course (the grabber too) for 8 s: left/right swap and jump/action swap (in `readInput`). All-forest course (15%) and
   the dream forest (35%, the rest mushroom orbs), alone too.
-- **The ice walker** (v7.33, `crownIceWalker`, `Player.iceWalker`): 2 players: when a snowstorm ends, whoever moved further
-  during it gets the 1-player skates for good (1.5x faster on ice), taking it from the other; a tie changes nothing.
+- **Skates for the snowstorm's winner** (v7.33; the owner likes the name skates: shown as SKATES, code `crownIceWalker`,
+  `Player.iceWalker`): 2 players: when a snowstorm ends, whoever moved further during it gets the 1-player skates for good (1.5x faster on ice), taking it from the other; a tie changes nothing.
 - **The sandstorm blows orbs** (v7.30, `blowSandOrb`, `updateSandOrbs`, `SANDSTORM.orbs` ...): 3-6 random light blue orbs from
   any biome (alone: only ones that work alone) blow in, one at a time (v7.31), from the right of the leader's screen, left at 125 px/s, bobbing; grab
   them. Other player off the leader's screen: 2 fly over the leader too high, then sink for the one behind
