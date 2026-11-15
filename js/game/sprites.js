@@ -1389,6 +1389,8 @@ const MUSHROOM_ORB_ICON = [
   "............",
   "............",
 ];
+// The reverse orb (design R1): a gold coin with two purple arrows swapping places
+const REVERSE_ORB_ROWS = ["..oooo..", ".oykyyo.", "oykkkkyo", "oyykyyyo", "oyyykyyo", "oykkkkyo", ".oyykyo.", "..oooo.."];
 // The blackout orb (design K2, an eclipse): a gold coin gone dark, just a ring of light round its edge
 const BLACKOUT_ORB_ROWS = ["..oooo..", ".owwwwo.", "owkkkkwo", "owkkkkwo", "owkkkkwo", "owkkkkwo", ".owwwwo.", "..oooo.."];
 // The laser gun orb (design G2, the rune blaster): a grey stone gun with teal runes and a glowing teal muzzle
@@ -1757,6 +1759,7 @@ function buildSprites() {
     stormOrb: spriteFromRows(STORM_ORB_ROWS, { o: "#b8860b", y: "#ffd23f", w: "#ffffff" }),
     mushroomOrb: makeMushroomOrb(),
     laserOrb: makeLaserOrb(),
+    reverseOrb: spriteFromRows(REVERSE_ORB_ROWS, { o: "#b8860b", y: "#ffd23f", k: "#5a2290" }),
     blackoutOrb: spriteFromRows(BLACKOUT_ORB_ROWS, { o: "#b8860b", w: "#ffffff", k: "#141826" }),
     snowballOrb: spriteFromRows(SNOWBALL_ORB_ROWS, { o: ABILITY_ORB_PALETTE.o, y: ABILITY_ORB_PALETTE.y, w: "#ffffff", s: "#a8d4f0" }),
     thrownSnowball: spriteFromRows(THROWN_SNOWBALL_ROWS, { w: "#ffffff", s: "#a8d4f0" }),

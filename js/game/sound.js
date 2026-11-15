@@ -306,6 +306,7 @@ const Sound = (() => {
     stormFire: () => { noise({ filter: "highpass", f: 3000, dur: 0.12, vol: 0.25 }); tone({ f: 900, to: 300, dur: 0.25, type: "sawtooth", vol: 0.06 }); },
     stormBoom: () => { noise({ filter: "lowpass", f: 4000, to: 120, dur: 0.6, vol: 0.7 }); noise({ filter: "highpass", f: 2500, dur: 0.15, vol: 0.4 }); tone({ f: 90, to: 30, dur: 0.5, type: "sine", vol: 0.4 }); },
     mortarFire: () => { noise({ filter: "lowpass", f: 700, to: 90, dur: 0.35, vol: 0.55 }); tone({ f: 130, to: 45, dur: 0.3, type: "sine", vol: 0.35 }); noise({ filter: "bandpass", f: 1800, to: 600, q: 3, dur: 0.5, vol: 0.12, at: 0.05 }); },
+    reversed: () => { tone({ f: 900, to: 300, dur: 0.25, type: "square", vol: 0.07 }); tone({ f: 300, to: 900, dur: 0.25, type: "square", vol: 0.07, at: 0.2 }); },
     powerDown: () => { tone({ f: 320, to: 40, dur: 0.9, type: "sawtooth", vol: 0.12 }); noise({ filter: "lowpass", f: 600, to: 80, dur: 0.7, vol: 0.2 }); },
     powerUp: () => tone({ f: 40, to: 320, dur: 0.7, type: "sawtooth", vol: 0.1 }),
     gotLaser: () => { tone({ f: 880, to: 1760, dur: 0.15, type: "sawtooth", vol: 0.07 }); tone({ f: 1320, dur: 0.1, type: "square", vol: 0.05, at: 0.12 }); },

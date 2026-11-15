@@ -1811,7 +1811,12 @@ const SECTIONS = {
       else if (r < LASER_GUN.chance) kind = "laser";
       else if (r < LASER_GUN.chance + BLACKOUT.chance) kind = "blackout";
     }
-    if (this.biome === "forest" && (this.realmEnd !== undefined || this.rng() < MUSHROOM_ORB.chance)) kind = "mushroom"; // the forest's own: the mushroom orb (the only one in the dream forest)
+    if (this.biome === "forest") { // the forest's own: the mushroom orb and the reverse orb (the only ones in the dream forest)
+      const r = this.rng();
+      if (this.realmEnd !== undefined) kind = r < REVERSE.dreamChance ? "reverse" : "mushroom";
+      else if (r < MUSHROOM_ORB.chance) kind = "mushroom";
+      else if (r < MUSHROOM_ORB.chance + REVERSE.chance) kind = "reverse";
+    }
     this.orbs.push({ x: this.col * TILE, y: this.groundRow * TILE - 32, w: 8, h: 8, used: false, kind });
     this.lastOrbCol = this.col;
     this.flat(6);

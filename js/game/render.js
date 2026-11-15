@@ -67,6 +67,19 @@ const Renderer = (() => {
     drawText(ctx, world);
   }
 
+  // ---- The forest's reverse orb: three purple sparkle trails swirling round you, and crossed arrows (pointing the wrong
+  // ways) blinking over your head while your controls are turned round ----
+  const REVERSED_SIGN = [".w...w.", "ww...ww", "www.www", ".w...w.", ".w...w.", ".w...w."];
+  function drawReversed(p, camX, time) {
+    const cx = p.x + HITBOX_W / 2 - camX, cy = p.y + HITBOX_H / 2;
+    for (let i = 0; i < 3; i++) {
+      const a0 = time * 4 + i * 2.09;
+      for (let k = 0; k < 8; k++) { const a = a0 - k * 0.22; P(k === 0 ? "#ffffff" : k < 3 ? "#e0a0ff" : "#9a4ae0", cx + Math.cos(a) * 9, cy + Math.sin(a) * 7, 1, 1, 1 - k / 9); }
+    }
+    const col = Math.floor(time * 4) % 2 ? "#ffffff" : "#e0a0ff", flash = p.reversed < 1.5 && Math.floor(time * 10) % 2; // (blinking fast as it wears off)
+    if (!flash) REVERSED_SIGN.forEach((row, j) => [...row].forEach((ch, i) => { if (ch === "w") { P("#1a0a2a", cx - 3 + i, p.y - 12 + j + 1); P(col, cx - 3 + i, p.y - 12 + j); } }));
+  }
+
   // ---- The ruins' blackout: pitch black, but for a circle of light round each runner on this course (bigger round
   // whoever grabbed it), and the lasers and the ruins' teal and blue lights, which light up a little patch round them.
   // Worked out on the finished picture: a pixel lights up if it's teal or blue and bright, then the light spreads a few
@@ -210,6 +223,7 @@ const Renderer = (() => {
     for (const p of [player, other]) if (p) { drawAuroraLights(p, camX, world.time, p === other); drawTripRibbons(p, camX, world.time); }
     drawCoconuts(world.level, player, camX, world.time); // falling (in front of the runners)
     for (const p of [player, other]) if (p && p.dizzy > 0 && !p.dead) drawDizzy(p, camX, world.time, p === other);
+    for (const p of [player, other]) if (p && p.reversed > 0 && !p.dead && !p.hiddenIn) drawReversed(p, camX, world.time);
     for (const p of [player, other]) if (p && p.asleep > 0 && !p.dead && !p.hiddenIn) drawSleep(p, camX, world.time, p === other);
     for (const p of [player, other]) if (p && !p.dead && !p.caught && !p.hiddenIn) drawSnowIce(p, camX, world.time, p === other);
     drawSpores(world.level, camX, world.time); // (in front of the runners, so you see them land on you)
@@ -2943,7 +2957,7 @@ const Renderer = (() => {
         b.fillRect(sx - 1, o.y + bob + 1, 10, 6);
         b.fillRect(sx + 1, o.y + bob - 1, 6, 10);
       }
-      const sprite = { blackout: sprites.blackoutOrb, freeze: sprites.freezeOrb, dash: sprites.dashOrb, zap: sprites.zapOrb, hand: sprites.handOrb, wind: sprites.windOrb, drone: sprites.droneOrb, sandstorm: sprites.sandOrb, firehawk: sprites.hawkOrb, snowstorm: sprites.stormOrb, snowball: sprites.snowballOrb, monsoon: sprites.monsoonOrb, monkey: sprites.monkeyOrb, portalgun: sprites.portalGunOrb, grapple: sprites.grappleOrb, vine: sprites.vineOrb }[o.kind] || sprites.orb;
+      const sprite = { reverse: sprites.reverseOrb, blackout: sprites.blackoutOrb, freeze: sprites.freezeOrb, dash: sprites.dashOrb, zap: sprites.zapOrb, hand: sprites.handOrb, wind: sprites.windOrb, drone: sprites.droneOrb, sandstorm: sprites.sandOrb, firehawk: sprites.hawkOrb, snowstorm: sprites.stormOrb, snowball: sprites.snowballOrb, monsoon: sprites.monsoonOrb, monkey: sprites.monkeyOrb, portalgun: sprites.portalGunOrb, grapple: sprites.grappleOrb, vine: sprites.vineOrb }[o.kind] || sprites.orb;
       if (o.kind === "wind") drawOrbWisps(sx, o.y + bob, time + o.x);
       if (o.kind === "mushroom" || o.kind === "laser") { b.drawImage(o.kind === "laser" ? sprites.laserOrb : sprites.mushroomOrb, sx - 2, o.y + bob - 2); continue; } // (12 x 12: a little bigger)
       b.drawImage(sprite, sx, o.y + bob);

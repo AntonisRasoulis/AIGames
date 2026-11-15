@@ -74,6 +74,7 @@ class Player {
     this.asleep = 0;              // seconds left asleep on the spot (a sleep dart)
     this.windPush = 0;            // a sandstorm pushing us left (pixels per second)
     this.snowstorm = false;       // a snowstorm is blowing: stand still and you freeze
+    this.reversed = 0;            // the forest's reverse orb: seconds left of your controls turned round
     this.chill = 0;               // ...seconds we've stood still in it so far
     this.stormIce = false;        // ...frozen solid by it (jump to break out)
     this.stormHits = 0;           // ...and how many jumps we've cracked the ice with

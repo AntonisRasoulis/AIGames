@@ -101,13 +101,14 @@ const Game = (() => {
     // In 1-player mode both sets of keys (WASD and the arrows) work
     const sets = solo ? [0, 1] : [i];
     const input = { left: false, right: false, jump: false, jumpPressed: false, firePressed: false };
+    const p = world.players[i], flip = p && p.reversed > 0; // (the forest's reverse orb: left is right, and jump and action swap)
     for (const k of sets) {
       const c = CONTROLS[k];
-      input.left ||= keys.has(c.left);
-      input.right ||= keys.has(c.right);
-      input.jump ||= keys.has(c.jump);
-      input.jumpPressed ||= jumpQueued[k];
-      input.firePressed ||= fireQueued[k];
+      input.left ||= keys.has(flip ? c.right : c.left);
+      input.right ||= keys.has(flip ? c.left : c.right);
+      input.jump ||= keys.has(flip ? c.fire : c.jump);
+      input.jumpPressed ||= flip ? fireQueued[k] : jumpQueued[k];
+      input.firePressed ||= flip ? jumpQueued[k] : fireQueued[k];
       jumpQueued[k] = false;
       fireQueued[k] = false;
     }
@@ -167,6 +168,7 @@ const Game = (() => {
     updateMushroomThrows(dt);
     updateLaserShots(dt);
     updateBlackout(dt);
+    for (const p of players) if (p.reversed > 0) p.reversed -= dt; // (the reverse orb wears off)
     for (const bl of world.blasts) bl.t += dt;
     world.blasts = world.blasts.filter((bl) => bl.t < STORM.boom + 0.5); // (its scorch mark lingers a moment)
     for (const bm of world.booms) bm.t += dt;
@@ -347,6 +349,11 @@ const Game = (() => {
             world.snowstorm = { t: world.snowstorm ? Math.min(world.snowstorm.t, SNOWSTORM.fade) : 0 };
             for (const q of world.players) if (!q.caught) q.showHit("SNOWSTORM! KEEP MOVING!", "#e8f8ff");
             Sound.play("snowstorm");
+            return;
+          }
+          if (orb.kind === "reverse") { // the forest's reverse orb: everyone on this course, the grabber too
+            for (const q of world.players) if (!q.caught) { q.reversed = REVERSE.time; q.showHit("REVERSED!", "#e0a0ff"); }
+            Sound.play("reversed");
             return;
           }
           if (orb.kind === "blackout") { // the ruins' power shuts off (on this course)
