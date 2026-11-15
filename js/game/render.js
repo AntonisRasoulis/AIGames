@@ -1124,7 +1124,7 @@ const Renderer = (() => {
       const cx = bg.x - camX;
       if (cx < -70 || cx > VIEW_W + 70) continue;
       if (bg.forced) { drawBrickPortal("clean", cx, bg.gy, bg.gy - RUINS.gateUp, 1, 0, 1, time, bg.biome); continue; }
-      const cy = bg.gy - 22 + Math.round(Math.sin(time * 2 + bg.x) * 1.5);
+      const cy = bg.gy - RUINS.optUp + Math.round(Math.sin(time * 2 + bg.x) * 1.5);
       drawGlowAt("teal", 1, cx, bg.gy - 1, 0.2); // (its soft light on the ground under it)
       drawVortex(cx, cy, 8, time, bg.biome);
       drawRockRing(cx, cy, 11);

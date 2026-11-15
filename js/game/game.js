@@ -1666,6 +1666,7 @@ const Game = (() => {
     }
   }
 
+  const touchesSwirl = (p, x, y, r) => Math.hypot(clamp(x, p.x, p.x + HITBOX_W) - x, clamp(y, p.y, p.y + HITBOX_H) - y) < r; // (a smaller swirl: the optional biome portals)
   const touchesHole = (p, x, y) => Math.hypot(clamp(x, p.x, p.x + HITBOX_W) - x, clamp(y, p.y, p.y + HITBOX_H) - y) < RUINS.hole + 1; // (anywhere in its swirl; out of reach standing under it)
 
   // The arcane ruins behind a portal: the same stretch as the main course from the portal on, calm ground where you
@@ -1721,7 +1722,7 @@ const Game = (() => {
   function updateBiomeGates(f) {
     for (const g of f.biomeGates) for (const p of world.players) {
       if ((p.realm || world.mainCourse || world.level) !== f || !freeRunner(p) || (g.went && g.went.includes(p))) continue; // (each takes you through once)
-      if (g.forced ? p.x + HITBOX_W / 2 >= g.x : touchesHole(p, g.x, g.gy - 22)) { (g.went = g.went || []).push(p); enterLeg(p, g, f); }
+      if (g.forced ? p.x + HITBOX_W / 2 >= g.x : touchesSwirl(p, g.x, g.gy - RUINS.optUp, RUINS.optHole)) { (g.went = g.went || []).push(p); enterLeg(p, g, f); }
     }
   }
   // In a stretch: reach its end and you're back in the ruins; the ruins' clock still counts down in here
