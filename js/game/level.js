@@ -660,10 +660,18 @@ class Level {
 
   // A laser gate right now: { y (the beam's height, pixels), on, warn (0..1 as it's about to come on) }. From the clock.
   laserState(g, time) {
-    const G = LASER_GATE, on = G.on, off = G.off * g.rhythm, T = on + off, u = ((time / T + g.phase) % 1) * T; // (the beam and its warning last the same on every gate: only the off time is each gate's own)
-    const s = 0.5 - 0.5 * Math.cos(((time / g.sway + g.swayPhase) % 1) * Math.PI * 2);
+    // v7.39: one shot on the way up and one on the way down, at this gate's own point through the slide
+    const G = LASER_GATE, p = ((time / g.sway + g.swayPhase) % 1 + 1) % 1;
+    const s = 0.5 - 0.5 * Math.cos(p * Math.PI * 2);
     const y = g.gy - (G.low + (G.high - G.low) * s);
-    return { y, on: u >= off, warn: u < off && u > off - G.warn ? 1 - (off - u) / G.warn : 0 };
+    const at = (G.shotAt[0] + hash(g.id, 7) * (G.shotAt[1] - G.shotAt[0])) / 2; // (a half trip is half the sway)
+    let on = false, warn = 0;
+    for (const c of [at, at + 0.5]) {
+      const since = (((p - c) % 1) + 1) % 1 * g.sway, until = g.sway - since;
+      if (since < G.on) on = true;
+      else if (until <= G.warn) warn = Math.max(warn, 1 - until / G.warn);
+    }
+    return { y, on, warn: on ? 0 : warn };
   }
 
   // A lightning mortar right now: { k (how many shots it's fired), u (seconds into this shot's cycle), turning (0..1
