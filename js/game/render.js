@@ -693,6 +693,7 @@ const Renderer = (() => {
         const q = Game.bombAt(ub), fr = Math.floor(time * 20);
         P(k < 3 ? SW : SCY, q.x - camX + (hash(k, fr) - 0.5) * 3, q.y + (hash(k + 4, fr) - 0.5) * 3, 1, 1, 1 - k / 7);
       }
+      if (bm.age > MORTAR.rise) { const k = (bm.age - MORTAR.rise) / MORTAR.fall; for (let j = 2; j < 4 + k * 10; j += 2) P(SICE, sx + (j % 4) - 1, Math.round(y) - 7 - j, 1, 2, (1 - j / (5 + k * 10)) * 0.6 * k); } // streaking down
       drawBomb(sx, Math.round(y), bm.face * u * Math.PI * 2, time, bm.seed);
     }
     for (const bm of world.booms) { // the explosion

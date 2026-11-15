@@ -1751,11 +1751,11 @@ const Game = (() => {
         let p = m.target && runners.includes(m.target) && Math.abs(m.target.x - m.x) < M.range ? m.target : farthest(m);
         if (p) {
           const vx = Math.max(-PHYSICS.runSpeed, Math.min(PHYSICS.runSpeed, p.vx || 0)); // (where they'll be if they keep going)
-          let x1 = p.x + HITBOX_W / 2 + vx * M.flight;
+          let x1 = p.x + HITBOX_W / 2 + vx * (M.rise + M.fall);
           x1 = Math.max(m.x - M.reach, Math.min(m.x + M.reach, x1));
           const g = level.groundTop(x1), y1 = (g !== null ? g : m.gy + 24) - 6;
           const x0 = m.x + m.face * 7, y0 = m.gy - 19;
-          world.mortarBombs.push({ level, x0, y0, x1, y1, top: Math.max(10, Math.min(y0, y1) - M.arc), age: 0, seed: Math.floor(Math.random() * 1000), face: m.face });
+          world.mortarBombs.push({ level, x0, y0, x1, y1, top: M.top, age: 0, seed: Math.floor(Math.random() * 1000), face: m.face });
           m.firedAt = level.time;
           Sound.play("mortarFire");
         }
@@ -1766,7 +1766,8 @@ const Game = (() => {
     for (const b of world.mortarBombs) {
       if (b.level !== level || b.done) continue;
       b.age += dt;
-      if (b.age < M.flight) continue;
+      if (b.age >= M.rise && !b.whistled) { b.whistled = true; Sound.play("mortarFall"); } // (the whistle as it comes down)
+      if (b.age < M.rise + M.fall) continue;
       b.done = true; // it lands: boom. Anyone close is caught in it
       for (const q of runners) {
         if (q.dead) continue;
@@ -1781,10 +1782,13 @@ const Game = (() => {
     world.mortarBombs = world.mortarBombs.filter((b) => !b.done);
   }
 
-  // Where a mortar's bomb is in its flight: { x, y, u (0..1) }. A slow lob, highest in the middle
+  // Where a mortar's bomb is in its flight: { x, y, u (0..1) }. It climbs, slowing to a hang at the top, then drops
+  // like a stone, faster and faster (it's heavy), crossing the ground at a steady pace all the way
   function bombAt(b) {
-    const u = Math.min(1, b.age / MORTAR.flight), c = 2 * b.top - (b.y0 + b.y1) / 2;
-    return { x: b.x0 + (b.x1 - b.x0) * u, y: (1 - u) ** 2 * b.y0 + 2 * u * (1 - u) * c + u * u * b.y1, u };
+    const M = MORTAR, T = M.rise + M.fall, u = Math.min(1, b.age / T), x = b.x0 + (b.x1 - b.x0) * u;
+    if (b.age < M.rise) { const s = b.age / M.rise; return { x, y: b.y0 + (b.top - b.y0) * (1 - (1 - s) ** 2), u }; }
+    const s = Math.min(1, (b.age - M.rise) / M.fall);
+    return { x, y: b.top + (b.y1 - b.top) * s * s, u };
   }
 
   // Inside the ruins: the exit portal, the clock running out, and (in the last seconds) stones falling

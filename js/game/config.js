@@ -593,8 +593,9 @@ const MORTAR = {
   period: 4,           // seconds between shots
   turn: 0.5,           // it turns to face its runner over this long...
   charge: 0.8,         // ...then glows for this long, then fires
-  flight: 2.4,         // a bomb's flight (slow: watch where it's coming down)
-  arc: 56,             // the flight's top: this high above the higher of its two ends (pixels)
+  rise: 0.9,           // a bomb climbs for this long, slowing as it goes up...
+  fall: 0.5,           // ...then drops like a stone for this long, faster and faster: it's heavy (1.4 s in all)
+  top: 12,             // the top of its flight: this far below the top of the screen (pixels)
   range: 240,          // it fires at runners within this far of it, either way (pixels: 30 tiles)
   reach: 300,          // ...and its bombs land at most this far from it
   blast: 40,           // the explosion catches anyone this close (pixels: 5 tiles)
