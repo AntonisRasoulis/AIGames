@@ -1,7 +1,7 @@
 // The game's version, shown left of the logo. The first number goes up for big updates (a new biome, a new
 // secret world...), the second for smaller additions and fixes (back to 0 with each big update): 6.16 means
 // the 6th big update (the enchanted forest), 16 small ones since. (7: the arcane ruins.)
-const GAME_VERSION = "7.37";
+const GAME_VERSION = "7.38";
 
 // Tunable numbers for the game. Change these to adjust how it feels.
 // Distances are in game pixels; one tile is 8 pixels (about "1 meter").
@@ -676,10 +676,10 @@ const MORTAR = {
 // slides up and down the whole time and blinks on and off. Time it, and jump it or run under it.
 const LASER_GATE = {
   width: [4, 12],      // tiles between the two emitters
-  on: 0.25,            // seconds the beam's on (exactly, every gate)...
-  off: 0.6,            // ...and off (each gate's off time is stretched a little, below)
+  on: 0.1,             // seconds the beam's on (exactly, every gate): a quick shot...
+  off: 1.2,            // ...and off (each gate's off time is stretched a little, below; always longer than the warning)
   rhythm: [0.85, 1.2], // ...by this much, its own
-  warn: 0.5,           // a dotted line shows where it is for the last this-many seconds before it comes on (exactly)
+  warn: 1,             // a dotted line shows where it is for the last this-many seconds before it comes on (exactly)
   low: 4,              // the beam slides between this high above the ground (at your feet)...
   high: 46,            // ...and this high (above any jump)
   sway: [2.2, 3.6],    // seconds for one trip down and back up (each gate its own)
