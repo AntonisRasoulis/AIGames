@@ -67,17 +67,24 @@ const Renderer = (() => {
     drawText(ctx, world);
   }
 
-  // ---- The forest's reverse orb: three purple sparkle trails swirling round you, and crossed arrows (pointing the wrong
-  // ways) blinking over your head while your controls are turned round ----
-  const REVERSED_SIGN = [".w...w.", "ww...ww", "www.www", ".w...w.", ".w...w.", ".w...w."];
+  // ---- The forest's reverse orb: three purple sparkle trails swirling round you, and a hypnosis spiral spinning over your
+  // head (chosen S2: just the spiral line, no disc) while your controls are turned round ----
   function drawReversed(p, camX, time) {
     const cx = p.x + HITBOX_W / 2 - camX, cy = p.y + HITBOX_H / 2;
     for (let i = 0; i < 3; i++) {
       const a0 = time * 4 + i * 2.09;
       for (let k = 0; k < 8; k++) { const a = a0 - k * 0.22; P(k === 0 ? "#ffffff" : k < 3 ? "#e0a0ff" : "#9a4ae0", cx + Math.cos(a) * 9, cy + Math.sin(a) * 7, 1, 1, 1 - k / 9); }
     }
-    const col = Math.floor(time * 4) % 2 ? "#ffffff" : "#e0a0ff", flash = p.reversed < 1.5 && Math.floor(time * 10) % 2; // (blinking fast as it wears off)
-    if (!flash) REVERSED_SIGN.forEach((row, j) => [...row].forEach((ch, i) => { if (ch === "w") { P("#1a0a2a", cx - 3 + i, p.y - 12 + j + 1); P(col, cx - 3 + i, p.y - 12 + j); } }));
+    if (p.reversed < 1.5 && Math.floor(time * 10) % 2) return; // (blinking fast as it wears off)
+    const sx = Math.round(cx), sy = Math.round(p.y) - 9, R = 5.6;
+    for (const shadow of [true, false]) for (let dy = -6; dy <= 6; dy++) for (let dx = -6; dx <= 6; dx++) {
+      const d = Math.hypot(dx, dy), a = Math.atan2(dy, dx) + time * 5;
+      if (d > R) continue;
+      const band = ((a / (Math.PI * 2) + d * 0.32) % 1 + 1) % 1; // (one line coiling in, turning)
+      if (band >= 0.34) continue;
+      if (shadow) P("#1a0a2a", sx + dx, sy + dy + 1, 1, 1, 0.7);
+      else P(d < 2.5 ? "#ffffff" : "#e0a0ff", sx + dx, sy + dy);
+    }
   }
 
   // ---- The ruins' blackout: pitch black, but for a circle of light round each runner on this course (bigger round

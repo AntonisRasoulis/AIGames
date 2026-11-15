@@ -1,7 +1,7 @@
 // The game's version, shown left of the logo. The first number goes up for big updates (a new biome, a new
 // secret world...), the second for smaller additions and fixes (back to 0 with each big update): 6.16 means
 // the 6th big update (the enchanted forest), 16 small ones since. (7: the arcane ruins.)
-const GAME_VERSION = "7.34";
+const GAME_VERSION = "7.35";
 
 // Tunable numbers for the game. Change these to adjust how it feels.
 // Distances are in game pixels; one tile is 8 pixels (about "1 meter").
@@ -164,7 +164,7 @@ const SNOWSTORM = {
 };
 // The forest's reverse orb (gold, works at once): everyone on that course, whoever grabbed it too, has their controls
 // turned round for a while: left runs right, right runs left, and jump and the action button swap (up is down). A purple
-// swirl round you and crossed arrows over your head while it lasts. Found where the forest is the main course and in the
+// swirl round you and a hypnosis spiral spinning over your head while it lasts. Found where the forest is the main course and in the
 // dream forest, alone too (it floats a jump up: you can run under it).
 const REVERSE = {
   chance: 0.15,      // on a course where the forest is the main biome: share of orbs that are reverse orbs
