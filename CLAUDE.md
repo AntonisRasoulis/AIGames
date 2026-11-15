@@ -18,7 +18,7 @@ costs ground to the fire. 1 Player: one big view, race the fire for distance (be
 - Repo: `AntonisRasoulis/VibeCodingPractice`. Development branch: `claude/nice-meitner-muga6l`
   (a fresh chat may be given a different branch: use the one you're told).
 - Published as a claude.ai Artifact (a single bundled HTML file):
-  **https://claude.ai/artifact/Uh5CKSPymdWERadhojnY7P** (Version 141 at the time of writing). Always
+  **https://claude.ai/artifact/Uh5CKSPymdWERadhojnY7P** (Version 142 at the time of writing). Always
   republish to this same URL (pass it as `url`); never create a new artifact for the game.
 
 ## Style
@@ -121,7 +121,7 @@ Scripts load in this order (all globals, no modules), each with a `?v=` cache-bu
   "?" on a 12 x 12 light blue orb): on an all-forest main course (30% of orbs) and the only orb in the dream forest. S / Down
   throws a mushroom straight up (showing its colour); after 1 s it always lands on you: one of the 4 spore mushrooms, 1 in 4
   each, their effects and times (`giveSpore`). Only affects you.
-- **The forest's reverse orb** (v7.29, `REVERSE`, `p.reversed`; gold, icon R1 swapping arrows; over your head a spinning hypnosis spiral, v7.35: S2, just the line, no disc): everyone
+- **The forest's reverse orb** (v7.29, `REVERSE`, `p.reversed`; gold, icon v7.36: P3, a 12 x 12 gold coin with a spinning purple spiral (`drawReverseOrb`); over your head a spinning hypnosis spiral, v7.35: S2, just the line, no disc): everyone
   on that course (the grabber too) for 8 s: left/right swap and jump/action swap (in `readInput`). All-forest course (15%) and
   the dream forest (35%, the rest mushroom orbs), alone too.
 - **Skates for the snowstorm's winner** (v7.33; the owner likes the name skates: shown as SKATES, code `crownIceWalker`,

@@ -2965,10 +2965,26 @@ const Renderer = (() => {
         b.fillRect(sx - 1, o.y + bob + 1, 10, 6);
         b.fillRect(sx + 1, o.y + bob - 1, 6, 10);
       }
-      const sprite = { reverse: sprites.reverseOrb, blackout: sprites.blackoutOrb, freeze: sprites.freezeOrb, dash: sprites.dashOrb, zap: sprites.zapOrb, hand: sprites.handOrb, wind: sprites.windOrb, drone: sprites.droneOrb, sandstorm: sprites.sandOrb, firehawk: sprites.hawkOrb, snowstorm: sprites.stormOrb, snowball: sprites.snowballOrb, monsoon: sprites.monsoonOrb, monkey: sprites.monkeyOrb, portalgun: sprites.portalGunOrb, grapple: sprites.grappleOrb, vine: sprites.vineOrb }[o.kind] || sprites.orb;
+      const sprite = { blackout: sprites.blackoutOrb, freeze: sprites.freezeOrb, dash: sprites.dashOrb, zap: sprites.zapOrb, hand: sprites.handOrb, wind: sprites.windOrb, drone: sprites.droneOrb, sandstorm: sprites.sandOrb, firehawk: sprites.hawkOrb, snowstorm: sprites.stormOrb, snowball: sprites.snowballOrb, monsoon: sprites.monsoonOrb, monkey: sprites.monkeyOrb, portalgun: sprites.portalGunOrb, grapple: sprites.grappleOrb, vine: sprites.vineOrb }[o.kind] || sprites.orb;
       if (o.kind === "wind") drawOrbWisps(sx, o.y + bob, time + o.x);
+      if (o.kind === "reverse") { drawReverseOrb(sx - 2, o.y + bob - 2, time); continue; } // (12 x 12, its spiral spinning)
       if (o.kind === "mushroom" || o.kind === "laser") { b.drawImage(o.kind === "laser" ? sprites.laserOrb : sprites.mushroomOrb, sx - 2, o.y + bob - 2); continue; } // (12 x 12: a little bigger)
       b.drawImage(sprite, sx, o.y + bob);
+    }
+  }
+
+  // The forest's reverse orb (design P3): a 12 x 12 gold coin with a purple spiral line on it, spinning like the one over a
+  // reversed runner's head
+  function drawReverseOrb(x, y, time) {
+    for (let j = 0; j < 12; j++) for (let i = 0; i < 12; i++) {
+      const dx = i - 5.5, dy = j - 5.5, d = Math.hypot(dx, dy);
+      if (d > 6.1) continue;
+      let col = d > 5 ? "#b8860b" : "#ffd23f";
+      if (d <= 5) {
+        const a = Math.atan2(dy, dx) + time * 5, band = ((a / (Math.PI * 2) + d * 0.3) % 1 + 1) % 1;
+        if (band < 0.36) col = d < 1.2 ? "#9a4ae0" : "#5a2290";
+      }
+      P(col, x + i, y + j);
     }
   }
 
