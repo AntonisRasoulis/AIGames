@@ -611,33 +611,41 @@ const Renderer = (() => {
       if (z < -20 || a > VIEW_W + 20) continue;
       const st = level.laserState(g, time), y = Math.round(st.y), top = g.gy - G.high - 8;
       if (front) {
-        if (st.warn > 0) for (let x = a + 3; x < z - 3; x++) if ((x + Math.floor(time * 20)) % 4 < 2) P(RUNE, x, y, 1, 1, 0.35 + 0.4 * st.warn);
+        if (st.warn > 0) for (let x = a + 5; x < z - 4; x++) if ((x + Math.floor(time * 20)) % 4 < 2) P(RUNE, x, y, 1, 1, 0.35 + 0.4 * st.warn);
         if (!st.on) continue;
         const fr = Math.floor(time * 30);
-        for (let x = a + 3; x < z - 3; x++) {
+        for (let x = a + 5; x < z - 4; x++) {
           const w = hash(fr, x >> 2) > 0.55 ? 1 : 0;
           P("#2fbfa8", x, y - 1 - w, 1, 3 + 2 * w, 0.5); P(RUNE, x, y - 1, 1, 3, 0.8);
           P(((x - time * 300) % 16 + 16) % 16 < 3 ? "#ffffff" : "#eafff8", x, y);
         }
-        for (const ex of [a + 3, z - 3]) drawGlowAt("aurora", 1, ex, y, 0.8);
+        for (const ex of [a + 4, z - 4]) drawGlowAt("aurora", 1, ex, y, 0.8);
         continue;
       }
-      for (const ex of [a, z]) {
-        if (g.style === "pillars") { // a tall carved pillar, a crystal sliding up and down a lit groove
-          for (let yy = top; yy < g.gy; yy++) { P("#262e30", ex - 4, yy, 9, 1); P(yy % 7 === 0 ? "#4a5454" : "#828c8c", ex - 3, yy, 7, 1); P("#c4cccc", ex - 3, yy, 1, 1); P("#646e6e", ex + 3, yy, 1, 1); }
-          P("#262e30", ex - 5, top - 3, 11, 3); P("#c4cccc", ex - 4, top - 3, 9, 1); P("#262e30", ex - 5, g.gy - 3, 11, 3); P("#a0aaaa", ex - 4, g.gy - 3, 9, 1);
-          P("#141c22", ex, top + 2, 1, g.gy - top - 6); for (let yy = top + 2; yy < g.gy - 4; yy += 3) P("#2fbfa8", ex, yy, 1, 1, 0.5);
-          P("#262e30", ex - 2, y - 2, 5, 5); P(st.on ? "#ffffff" : RUNE, ex - 1, y - 1, 3, 3); P("#ffffff", ex, y);
-        } else { // an iron gantry on a stone foot, a lens carriage riding a geared track
-          P("#262e30", ex - 6, g.gy - 4, 13, 4); P("#828c8c", ex - 5, g.gy - 4, 11, 3); P("#c4cccc", ex - 5, g.gy - 4, 11, 1);
-          for (const sx of [-3, 3]) { P("#2a3234", ex + sx - 1, top, 3, g.gy - top - 4); P("#4c5658", ex + sx, top, 1, g.gy - top - 4); }
-          for (let yy = top + 2; yy < g.gy - 4; yy += 4) { P("#7a8688", ex - 3, yy, 7, 1); P("#2a3234", ex - 2, yy + 1); P("#2a3234", ex + 2, yy + 1); }
-          for (let yy = top; yy < g.gy - 4; yy += 2) P("#7a8688", ex, yy + (Math.floor(time * 8) % 2), 1, 1, 0.6);
-          P("#2a3234", ex - 4, top - 2, 9, 2); P("#7a8688", ex - 4, top - 2, 9, 1);
-          P("#2a3234", ex - 3, y - 3, 7, 6); P("#7a8688", ex - 3, y - 3, 7, 1); P("#262e30", ex - 1, y - 1, 3, 3); P(st.on ? "#ffffff" : RUNE, ex, y);
-        }
-        drawGlowAt("aurora", 0, ex, y, st.on ? 0.9 : 0.35);
+      // each emitter (chosen design CH1): a carved post, a big cog and a small drive cog on top, the emitter hanging on
+      // two chains, and a rune-carved stone counterweight rising on the far side as it sinks. The cogs turn as it moves.
+      const lift = (g.gy - G.low - st.y) / (G.high - G.low), ang = lift * 6, postTop = top + 4;
+      for (const [ex, side] of [[a, 1], [z, -1]]) {
+        for (let yy = postTop; yy < g.gy; yy++) { P("#262e30", ex - 4, yy, 9, 1); P(yy % 7 === 0 ? "#4a5454" : "#828c8c", ex - 3, yy, 7, 1); P("#c4cccc", ex - 3, yy, 1, 1); P("#646e6e", ex + 3, yy, 1, 1); }
+        P("#262e30", ex - 6, g.gy - 3, 13, 3); P("#a0aaaa", ex - 5, g.gy - 3, 11, 1);
+        for (let i = 0; i < 8; i++) if (hash(i, g.id + side) > 0.45) P(i % 2 ? "#5aa83a" : "#4a8a3a", ex - 5 + i, g.gy - 4);
+        gateCog(ex, top, 6, ang, RUNE); gateCog(ex - side * 7, top + 4, 3, -ang * 2, "#2a6a62");
+        for (const cx of [ex + side * 3, ex + side * 6]) for (let yy = top + 5; yy < y - 5; yy += 2) { P("#7a8688", cx, yy); P("#2a3234", cx, yy + 1); } // the two chains
+        P("#7a8688", Math.min(ex + side * 3, ex + side * 6), y - 5, 4, 1);
+        const cw = Math.round(top + 6 + (g.gy - 10 - y) * 0.8), wx = ex - side * 5; // the counterweight
+        for (let yy = top + 7; yy < cw; yy += 2) { P("#7a8688", wx, yy); P("#2a3234", wx, yy + 1); }
+        P("#262e30", wx - 3, cw, 7, 6); P("#828c8c", wx - 2, cw + 1, 5, 4); P("#c4cccc", wx - 2, cw + 1, 5, 1); P("#2fbfa8", wx, cw + 3);
+        const lx = ex + side * 4; // the emitter
+        P("#2a3234", lx - 3, y - 3, 7, 6); P("#7a8688", lx - 3, y - 3, 7, 1); P("#262e30", lx - 1, y - 1, 3, 3); P(st.on ? "#ffffff" : RUNE, lx, y);
+        drawGlowAt("aurora", 0, lx, y, st.on ? 0.9 : 0.35);
       }
+    }
+  }
+  function gateCog(x, y, r, ang, hub) { // a little iron cog, its teeth turning with ang
+    for (let yy = -r - 1; yy <= r + 1; yy++) for (let xx = -r - 1; xx <= r + 1; xx++) {
+      const d = Math.hypot(xx, yy), a = Math.atan2(yy, xx) - ang, tooth = Math.cos(a * Math.max(6, r + 2)) > 0.2;
+      if (d > (tooth ? r + 0.2 : r - 1)) continue;
+      P(d > r - 1.6 ? (tooth ? "#4c5658" : "#2a3234") : d > r * 0.5 ? "#7a8688" : d > 1.2 ? "#4c5658" : hub, x + xx, y + yy);
     }
   }
 

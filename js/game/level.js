@@ -89,7 +89,7 @@ class Level {
     this.ruinsOn = options.ruins !== false; // (the arcane ruins turned off in the biome picker: no ruins portal)
     this.ruinsGates = [];     // the ruins portal on the main course (one per race): { id, x, gy, state: off | on | broken, presses, openedAt, realm, burstAt, brokenAt }
     this.fireRows = [];       // ruins: rows of fire turrets (in place of spikes): { id, x0, n, gy, speed, kind, phase, second }
-    this.laserGates = [];     // ruins: laser gates { id, x0, x1 (the emitters), gy, style, rhythm, phase, sway, swayPhase }
+    this.laserGates = [];     // ruins: laser gates { id, x0, x1 (the emitters), gy, rhythm, phase, sway, swayPhase }
     this.storms = [];         // ruins: storm engines { id, x, gy, period, phase }
     this.biomeGates = [];     // ruins: portals to a short stretch of another biome { x, gy, biome, forced }
     this.gearLasers = [];     // ruins: gear lasers { id, x (the post's middle), gy, cy (the gear's middle), fast, phase }
@@ -1443,7 +1443,7 @@ const SECTIONS = {
     this.flat(3, false);
     const x0 = this.col * TILE + 4;
     this.flat(w + 1, false);
-    this.laserGates.push({ id: this.nextId++, x0, x1: x0 + w * TILE + TILE, gy: this.groundRow * TILE, style: this.rng() < 0.5 ? "pillars" : "gantry", rhythm: G.rhythm[0] + this.rng() * (G.rhythm[1] - G.rhythm[0]), phase: this.rng(), sway: G.sway[0] + this.rng() * (G.sway[1] - G.sway[0]), swayPhase: this.rng() });
+    this.laserGates.push({ id: this.nextId++, x0, x1: x0 + w * TILE + TILE, gy: this.groundRow * TILE, rhythm: G.rhythm[0] + this.rng() * (G.rhythm[1] - G.rhythm[0]), phase: this.rng(), sway: G.sway[0] + this.rng() * (G.sway[1] - G.sway[0]), swayPhase: this.rng() });
     this.flat(3, false);
   },
 
