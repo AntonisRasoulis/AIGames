@@ -1,7 +1,7 @@
 // The game's version, shown left of the logo. The first number goes up for big updates (a new biome, a new
 // secret world...), the second for smaller additions and fixes (back to 0 with each big update): 6.16 means
 // the 6th big update (the enchanted forest), 16 small ones since. (7: the arcane ruins.)
-const GAME_VERSION = "7.40";
+const GAME_VERSION = "7.41";
 
 // Tunable numbers for the game. Change these to adjust how it feels.
 // Distances are in game pixels; one tile is 8 pixels (about "1 meter").
@@ -506,7 +506,7 @@ const SLEEP_SHROOM = {
   rate: 12,            // while it puffs, spores drop from under its cap (this many a second)...
   fall: 14,            // ...and float slowly down (pixels a second)...
   drift: 9,            // ...drifting off to one side (left or right, each puff its own way)
-  forest: [100, 250],  // how long the forest it sends you to is (tiles)
+  forest: [180, 264],  // the forest is this many tiles long (15-22 s of running at 12 tiles a second; v7.41, it was 100-250)
   sleep: 0.75,         // falling asleep: seconds to fade to dark (with Zs)...
   wake: 0.75,          // ...then waking up in the forest, lying down at first
   fireflies: 1.3,      // the way out: fireflies swarm round you until there's nothing left but them...
