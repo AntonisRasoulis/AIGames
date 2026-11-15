@@ -18,7 +18,7 @@ costs ground to the fire. 1 Player: one big view, race the fire for distance (be
 - Repo: `AntonisRasoulis/VibeCodingPractice`. Development branch: `claude/nice-meitner-muga6l`
   (a fresh chat may be given a different branch: use the one you're told).
 - Published as a claude.ai Artifact (a single bundled HTML file):
-  **https://claude.ai/artifact/Uh5CKSPymdWERadhojnY7P** (Version 142 at the time of writing). Always
+  **https://claude.ai/artifact/Uh5CKSPymdWERadhojnY7P** (Version 143 at the time of writing). Always
   republish to this same URL (pass it as `url`); never create a new artifact for the game.
 
 ## Style
@@ -312,7 +312,7 @@ Scripts load in this order (all globals, no modules), each with a `?v=` cache-bu
       can hit both). Fairness: test there's always a safe spot and time to get out of the lines.
   - **The laser gate** (v7.20; design chosen after many mockups: CH1, chain lifts: carved posts with a big and a small cog,
     the emitter on two chains, a rune counterweight opposite; v7.21 base B1: carved steps, iron brackets, a rune band lit while it's on): a laser between two of them, 4-12 tiles apart, sliding up
-    and down and blinking 0.6 s on / 0.6 s off, 0.3 s dotted warning. `LASER_GATE`, `laserGates`, `laserState`.
+    and down and blinking: v7.37, on exactly 0.25 s, off 0.6 s (stretched per gate), 0.5 s dotted warning (exactly). `LASER_GATE`, `laserGates`, `laserState`.
   - **The lightning mortar** (v7.22, chosen after mockups: the rune cannon C on a stone plinth, the barrel only at 45 / 90 / 135
     degrees on the pixel diagonals so it's never jagged; bomb T1, the plasma lens orb in the ruins' teal and dark iron). **v7.23:
     just one, infinite range** (owner's answers B, A, B): one per ruins trip; in an all-ruins race one per 250-450-tile stretch
