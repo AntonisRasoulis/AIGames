@@ -2188,7 +2188,7 @@ const Game = (() => {
     }
   }
 
-  // The ruins' laser gun: an aim line along your line for a moment, then a red-hot laser straight out the way you're
+  // The ruins' laser gun: an aim line along your line for a moment, then a teal laser (like the ruins' own) straight out the way you're
   // facing, through everything, forever, at chest height: anyone on that course it touches is vaporized. Alone it's
   // for the fire: fired backwards it pushes the fire back a little (facing right, nothing happens: keep it)
   function fireLaser(p, owner) {
@@ -2204,12 +2204,12 @@ const Game = (() => {
       s.t += dt;
       if (was < G.charge && s.t >= G.charge) { // it fires
         Sound.play("laserFire");
-        if (world.solo && s.dir < 0) { world.fire.x = Math.max(world.fire.x - G.push, -1e9); s.p.showHit("FIRE PUSHED BACK!", "#ff6a5a"); }
+        if (world.solo && s.dir < 0) { world.fire.x = Math.max(world.fire.x - G.push, -1e9); s.p.showHit("FIRE PUSHED BACK!", "#7af0d8"); }
       }
       if (s.t >= G.charge && s.t < G.charge + G.deadly) for (const q of world.players) { // touch it and you're gone (while it's hot)
         if (q === s.p || q.dead || q.caught || q.held || (q.realm || world.level) !== s.level) continue;
         const ahead = s.dir > 0 ? q.x + HITBOX_W > s.x : q.x < s.x;
-        if (ahead && q.y < s.y + G.thick / 2 + 1 && q.y + HITBOX_H > s.y - G.thick / 2) { q.die("VAPORIZED!"); if (q.dead) q.sparkle("#ff6a5a"); }
+        if (ahead && q.y < s.y + G.thick / 2 + 1 && q.y + HITBOX_H > s.y - G.thick / 2) { q.die("VAPORIZED!"); if (q.dead) q.sparkle("#7af0d8"); }
       }
     }
     world.laserShots = world.laserShots.filter((s) => s.t < G.charge + G.beam);

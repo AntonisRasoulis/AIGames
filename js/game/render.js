@@ -605,27 +605,21 @@ const Renderer = (() => {
     }
   }
 
-  // ---- The ruins' laser gun: the aim line while it charges, then a red-hot beam to the edge of the screen (and on,
-  // forever): a white core, red-hot edges crackling, pulses of light racing along it, a flash at the muzzle ----
+  // ---- The ruins' laser gun: the aim line while it charges, then the same teal laser as the ruins' own (the eye-stones'
+  // and gear lasers', drawBeam) straight out to the edge of the screen (and on, forever) ----
   function drawLaserShots(world, camX, time) {
-    const G = LASER_GUN, RED = "#ff6a5a", DARK = "#c8301a";
+    const G = LASER_GUN;
     for (const s of world.laserShots) {
-      const x0 = Math.round(s.x - camX), y = s.y, end = s.dir > 0 ? VIEW_W + 4 : -4;
-      const from = Math.max(-4, Math.min(x0, end)), to = Math.min(VIEW_W + 4, Math.max(x0, end));
+      const x0 = Math.round(s.x - camX), y = s.y;
       if (s.t < G.charge) { // charging: the muzzle glows and a dotted aim line flashes along it
-        const a = 0.45 + 0.45 * Math.sin(time * 40);
-        for (let x = from; x <= to; x++) if ((x - x0) % 3 === 0) P(RED, x, y, 1, 1, a);
-        P("#ffffff", x0 - 1, y - 1, 3, 3, 0.6 + 0.4 * (s.t / G.charge));
-        drawGlowAt("red", 1, x0, y, 0.5 + s.t / G.charge * 0.5);
+        const a = 0.45 + 0.45 * Math.sin(time * 40), from = s.dir > 0 ? x0 : -4, to = s.dir > 0 ? VIEW_W + 4 : x0;
+        for (let x = Math.max(-4, from); x <= Math.min(VIEW_W + 4, to); x++) if ((x - x0) % 3 === 0) P(RUNE, x, y, 1, 1, a);
+        P("#eafff8", x0 - 1, y - 1, 3, 3, 0.6 + 0.4 * (s.t / G.charge));
+        drawGlowAt("aurora", 1, x0, y, 0.5 + (s.t / G.charge) * 0.5);
         continue;
       }
-      const u = (s.t - G.charge) / G.beam, fade = u > 0.7 ? (1 - u) / 0.3 : 1, fr = Math.floor(time * 30);
-      for (let x = from; x <= to; x++) {
-        const j = hash(x, fr) > 0.85 ? 1 : 0;
-        P(DARK, x, y - 2 - j, 1, 1, fade * 0.7); P(RED, x, y - 1, 1, 1, fade); P("#ffffff", x, y, 1, 1, fade); P(RED, x, y + 1, 1, 1, fade); P(DARK, x, y + 2 + j, 1, 1, fade * 0.7);
-      }
-      for (let k = 0; k < 6; k++) { const d = ((time * 600 + k * 70) % (VIEW_W + 40)); P("#ffffff", x0 + s.dir * d - 1, y - 1, 3, 3, fade); } // pulses racing along it
-      P("#ffffff", x0 - 2, y - 3, 4, 7, fade); drawGlowAt("red", 2, x0, y, fade); // the muzzle flash
+      const len = Math.max(0, s.dir > 0 ? VIEW_W + 8 - x0 : x0 + 8); // (to the edge of the screen: it goes on forever)
+      drawBeam({ x: s.x, y, dx: s.dir, dy: 0, len }, camX, time, s.t - G.charge, G.beam);
     }
   }
 
@@ -3174,7 +3168,7 @@ const Renderer = (() => {
         grapple: ["#ffffff", "#d9a3ff", "#b04bff", "#d9a3ff"],
         roots: ["#a898b8", "#2f2934", "#a060ff", "#776b82"],
         mushroom: ["#ff6a7a", "#6ab8ff", "#9aff6a", "#ff9af0"], // (the four mushrooms it could be)
-        laser: ["#ff6a5a", "#7af0d8", "#ffffff", "#c8301a"],
+        laser: ["#7af0d8", "#2fbfa8", "#ffffff", "#eafff8"],
       }[p.power][k];
       b.fillRect(Math.round(cx + Math.cos(a) * r), Math.round(cy + Math.sin(a) * r), 1, 1);
     }
@@ -4258,7 +4252,7 @@ const Renderer = (() => {
         const key = world.solo ? "S/DOWN" : i === 0 ? "S" : "DOWN";
         const arrow = p.facing > 0 ? ">>" : "<<"; // follows the way you're facing
         const label = { laser: "LASER GUN", mushroom: "MUSHROOM", zap: "ZAP", hand: "HAND", wind: "WIND DASH", drone: "DRONE", firehawk: "FIREHAWK", snowball: "SNOWBALL", monkey: "MONKEY", portalgun: "PORTAL GUN", grapple: "GRAPPLE", roots: "ROOTS" }[p.power] || p.power.toUpperCase();
-        const color = { laser: "#ff6a5a", mushroom: "#ff6a7a", zap: "#fff27a", hand: "#c9a3ff", wind: "#ffffff", drone: "#4fc0ff", firehawk: "#ff7a1a", snowball: "#e8f8ff", monkey: "#e8c090", portalgun: "#d9a3ff", grapple: "#d9a3ff", roots: "#a898b8" }[p.power] || "#ffffff";
+        const color = { laser: "#7af0d8", mushroom: "#ff6a7a", zap: "#fff27a", hand: "#c9a3ff", wind: "#ffffff", drone: "#4fc0ff", firehawk: "#ff7a1a", snowball: "#e8f8ff", monkey: "#e8c090", portalgun: "#d9a3ff", grapple: "#d9a3ff", roots: "#a898b8" }[p.power] || "#ffffff";
         text(ctx, `${label} ${arrow} press ${key}`, 12, top + 36, color, 10);
       }
       // Spore mushroom effects, with the seconds left on each
