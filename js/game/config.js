@@ -1,7 +1,7 @@
 // The game's version, shown left of the logo. The first number goes up for big updates (a new biome, a new
 // secret world...), the second for smaller additions and fixes (back to 0 with each big update): 6.16 means
 // the 6th big update (the enchanted forest), 16 small ones since. (7: the arcane ruins.)
-const GAME_VERSION = "7.30";
+const GAME_VERSION = "7.31";
 
 // Tunable numbers for the game. Change these to adjust how it feels.
 // Distances are in game pixels; one tile is 8 pixels (about "1 meter").
@@ -81,9 +81,10 @@ const SANDSTORM = {
   fade: 1,           // seconds it takes to blow up, and to die down at the end
   // it blows action orbs along with it: they come in from the right of the leader's screen, blow left (a bit faster than
   // you run), bobbing in the wind, and anyone who touches one gets it. One shared set, over the course itself.
-  orbs: [3, 6],      // how many blow through in one sandstorm
+  orbs: [3, 6],      // how many blow through in one sandstorm (as many as fit: they come one at a time)...
   orbsFrom: 0.6,     // ...coming between this many seconds in...
-  orbsTo: 8.5,       // ...and this many
+  orbsTo: 9.6,       // ...and this many
+  orbGap: [0.1, 0.35],// one at a time: the next one comes this long after the last one is grabbed or has blown past the leader
   orbSpeed: 125,     // how fast they blow left over the ground (pixels a second; running is 96)
   orbLow: 2,         // how high they fly (the orb's bottom edge): between this far above the leader's ground (you grab
                      // it running: you're 11 px tall)...

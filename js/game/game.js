@@ -363,7 +363,7 @@ const Game = (() => {
             return;
           }
           if (orb.kind === "sandstorm") {
-            world.sandstorm = { t: world.sandstorm ? Math.min(world.sandstorm.t, SANDSTORM.fade) : 0, owner: p, blows: sandOrbTimes(), high: 0 };
+            world.sandstorm = { t: world.sandstorm ? Math.min(world.sandstorm.t, SANDSTORM.fade) : 0, owner: p, ...sandOrbPlan() };
             for (const q of world.players) if (!q.caught) q.showHit("SANDSTORM!", "#f0d8a0");
             Sound.play("sandstorm");
             return;
@@ -1174,7 +1174,7 @@ const Game = (() => {
     const st = world.sandstorm;
     if (st) {
       st.t += dt;
-      while (st.blows && st.blows.length && st.t >= st.blows[0]) { st.blows.shift(); blowSandOrb(st); }
+      if (st.left) blowSandOrbs(st);
       if (st.t >= SANDSTORM.time) world.sandstorm = null;
     }
     updateSandOrbs(dt);
@@ -1182,24 +1182,33 @@ const Game = (() => {
     for (const p of world.players) p.windPush = p.caught ? 0 : s * SANDSTORM.push * (st && p === st.owner ? SANDSTORM.ownPush : 1);
   }
 
-  // The sandstorm blows action orbs along with it: when they come (3-6 of them, at random times through the storm)
-  function sandOrbTimes() {
+  // The sandstorm blows action orbs along with it (3-6 of them): one at a time, each once the last one's been grabbed or
+  // has blown past the leader. If the other player has dropped off the leader's screen, two of them fly past the leader
+  // too high to grab and sink slowly, so they're low enough by the time they reach the one behind: those come at their own
+  // times (they can be out with another one)
+  function sandOrbPlan() {
     const S = SANDSTORM, n = S.orbs[0] + Math.floor(Math.random() * (S.orbs[1] - S.orbs[0] + 1));
-    return Array.from({ length: n }, () => S.orbsFrom + Math.random() * (S.orbsTo - S.orbsFrom)).sort((a, b) => a - b);
+    return { left: n, next: S.orbsFrom, high: 0, highAt: Array.from({ length: S.behind }, () => S.orbsFrom + Math.random() * (S.orbsTo - S.orbsFrom)).sort((a, b) => a - b) };
   }
-  // One comes in from the right of the leader's screen, at a height you can grab (running or with a jump). If the other
-  // player has dropped off the leader's screen, the first two fly past the leader too high to grab and sink slowly, so
-  // they're low enough by the time they reach the one behind. Any action orb (alone, only the ones that do something alone)
-  function blowSandOrb(st) {
-    const S = SANDSTORM, level = world.level, runners = world.players.filter((p) => !p.caught && !p.dead);
-    if (!runners.length) return;
+  function blowSandOrbs(st) {
+    const S = SANDSTORM, runners = world.players.filter((p) => !p.caught && !p.dead);
+    if (!runners.length || st.t > S.orbsTo) return;
     const lead = runners.reduce((a, b) => (b.x > a.x ? b : a)), back = runners.find((p) => p !== lead);
+    if (back && back.x < lead.x - VIEW_W * 0.35 && st.high < S.behind && st.t >= st.highAt[st.high]) { st.high++; st.left--; blowSandOrb(lead, back); }
+    const coming = world.level.orbs.some((o) => o.sand && !o.sand.sink && !o.used && o.x > lead.x - 10); // (one still on its way to the leader)
+    if (coming) st.next = Math.max(st.next, st.t + S.orbGap[0] + Math.random() * (S.orbGap[1] - S.orbGap[0]));
+    else if (st.left > 0 && st.t >= st.next) { st.left--; blowSandOrb(lead, null); st.next = st.t + 0.1; }
+  }
+  // One comes in from the right of the leader's screen, at a height you can grab (running or with a jump); or, for the one
+  // behind (back), too high for the leader, sinking once it's past them. Any action orb (alone, only the ones that do
+  // something alone)
+  function blowSandOrb(lead, back) {
+    const S = SANDSTORM, level = world.level;
     const kinds = world.solo ? ["wind", "drone", "firehawk", "snowball", "monkey", "mushroom", "laser"] : ["wind", "zap", "hand", "drone", "firehawk", "snowball", "monkey", "mushroom", "laser"];
     // (heights are the orb's bottom edge: its top is 8 px higher)
     const x = lead.x + VIEW_W * 0.65 + 12, g = level.groundTop(lead.x + HITBOX_W / 2) ?? lead.y + HITBOX_H;
     const orb = { x, y: g - S.orbLow - Math.random() * (S.orbHigh - S.orbLow) - 8, w: 8, h: 8, used: false, kind: kinds[Math.floor(Math.random() * kinds.length)], sand: { phase: Math.random() * 6.28, sink: 0, floor: null } };
-    if (back && back.x < lead.x - VIEW_W * 0.35 && st.high < S.behind) { // the one behind is off the leader's screen: this one's for them
-      st.high++;
+    if (back) {
       const gb = level.groundTop(back.x + HITBOX_W / 2) ?? back.y + HITBOX_H, closing = S.orbSpeed + PHYSICS.runSpeed;
       const past = (x - lead.x + 24) / closing, meet = (x - back.x) / closing; // (when it's past the leader; when it reaches the one behind)
       orb.y = g - S.tooHigh - 8 - S.bob;
