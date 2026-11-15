@@ -66,6 +66,7 @@ const Game = (() => {
       wisps: [],       // the magic trailing behind a loose saw: little glowing wisps drifting up and fading
       builtPortals: [], // brick portals you come out of: they build, open, close and rest again, never removed { level, x, gy, cy, style, state, t }
       stormBalls: [],   // the ruins' balls of lightning { level, x, y, angle, age }
+      mushroomThrows: [], // the forest's mushroom orb: a mushroom thrown up, coming back down on its thrower { p, kind, t }
       mortarBombs: [],  // the ruins' mortar bombs in flight { level, x0, y0, x1, y1, top, age, seed }
       booms: [],        // ...and their explosions { level, x, y, gy, t, seed }
       blasts: [],       // ...and their explosions { level, x, y, t }
@@ -161,6 +162,7 @@ const Game = (() => {
     updateDreams(dt);
     updateTrips(dt);
     updateBuiltPortals(dt);
+    updateMushroomThrows(dt);
     for (const bl of world.blasts) bl.t += dt;
     world.blasts = world.blasts.filter((bl) => bl.t < STORM.boom + 0.5); // (its scorch mark lingers a moment)
     for (const bm of world.booms) bm.t += dt;
@@ -171,7 +173,7 @@ const Game = (() => {
     for (const f of forests()) {
       if (f.biome === "ruins") onCourse(f, () => { updateBridges(dt); updateRuins(f, dt); updateBiomeGates(f); updateStorms(dt); updateMortars(dt); levelSounds(); });
       else if (f.leg) onCourse(f, () => { updateBridges(dt); updateFlytraps(dt); checkThinIce(); levelSounds(); updateLeg(f); });
-      else onCourse(f, () => { updateBridges(dt); updateLooseSaws(dt); updateLooseMaces(dt); updateSpores(); updateLobbers(dt); updateAliveTrees(dt); levelSounds(); });
+      else onCourse(f, () => { world.players.forEach((p, i) => { if (inputs[i].firePressed && p.power === "mushroom") usePower(p, i); }); checkOrbs(); updateBridges(dt); updateLooseSaws(dt); updateLooseMaces(dt); updateSpores(); updateLobbers(dt); updateAliveTrees(dt); levelSounds(); });
     }
     checkFire();
   }
@@ -313,9 +315,9 @@ const Game = (() => {
         if (p.dead || p.held || p.caught || (orb.kind === "swap" && (!other || other.dead || other.caught))) continue;
         if (overlaps(p.x, p.y, HITBOX_W, HITBOX_H, orb.x, orb.y, orb.w, orb.h)) {
           orb.used = true;
-          if (orb.kind === "zap" || orb.kind === "hand" || orb.kind === "wind" || orb.kind === "drone" || orb.kind === "firehawk" || orb.kind === "snowball" || orb.kind === "monkey") {
-            p.sparkle({ zap: "#bff4ff", hand: "#c9a3ff", wind: "#ffffff", drone: "#4fc0ff", firehawk: "#ff7a1a", snowball: "#e8f8ff", monkey: "#c8946a" }[orb.kind]);
-            Sound.play({ zap: "gotZap", hand: "gotHand", wind: "gotWind", drone: "gotDrone", firehawk: "gotHawk", snowball: "gotSnowball", monkey: "gotMonkey" }[orb.kind]);
+          if (orb.kind === "zap" || orb.kind === "hand" || orb.kind === "wind" || orb.kind === "drone" || orb.kind === "firehawk" || orb.kind === "snowball" || orb.kind === "monkey" || orb.kind === "mushroom") {
+            p.sparkle({ zap: "#bff4ff", hand: "#c9a3ff", wind: "#ffffff", drone: "#4fc0ff", firehawk: "#ff7a1a", snowball: "#e8f8ff", monkey: "#c8946a", mushroom: "#ff6a7a" }[orb.kind]);
+            Sound.play({ zap: "gotZap", hand: "gotHand", wind: "gotWind", drone: "gotDrone", firehawk: "gotHawk", snowball: "gotSnowball", monkey: "gotMonkey", mushroom: "gotMushroom" }[orb.kind]);
             // Alone, the drone (and the firehawk) start guarding you right away with no button press,
             // and the snowball (with nobody to throw it at) gives you skates
             if (world.solo && orb.kind === "drone") launchDrone(p);
@@ -394,6 +396,7 @@ const Game = (() => {
     else if (p.power === "firehawk") launchHawk(p);
     else if (p.power === "snowball") throwSnowball(p);
     else if (p.power === "monkey") launchMonkey(p);
+    else if (p.power === "mushroom") throwMushroom(p);
     else if (p.power === "roots") { if (!rootGrab(p, owner)) return; } // (nobody to grab: keep it)
     else if (p.power === "portalgun" || p.power === "grapple") {
       if (world.monsoon || p.flood) return; // (keep it for after the flood)
@@ -2165,16 +2168,37 @@ const Game = (() => {
       for (const m of level.sporeShrooms) {
         if (Math.abs(m.x - (p.x + HITBOX_W / 2)) > SPORES.capW + SPORES.lean) continue;
         if (!level.sporesOf(m, world.time).some((sp) => overlaps(p.x - 1, p.y - 2, HITBOX_W + 2, 6, sp.x - 1, sp.y - 1, 2, 2))) continue; // (one has to land on your head)
-        const fresh = m.kind === "green" ? p.poison <= 0 : !(p.spores[m.kind] > 0);
-        if (m.kind === "green") { p.poison = SPORES.time; p.poisonMax = SPORES.time; }
-        else p.spores[m.kind] = m.kind === "pink" ? SPORES.floatTime : SPORES.time;
-        if (fresh) {
-          p.showHit(...SPORE_LOOK[m.kind]);
-          p.sparkle(SPORE_LOOK[m.kind][1]);
-          Sound.play(m.kind === "green" ? "poisoned" : "spore");
-        }
+        giveSpore(p, m.kind);
       }
     }
+  }
+
+  // A spore mushroom's effect on someone (catching more of the same color just starts its time over; different colors stack)
+  function giveSpore(p, kind, always) {
+    const fresh = kind === "green" ? p.poison <= 0 : !(p.spores[kind] > 0);
+    if (kind === "green") { p.poison = SPORES.time; p.poisonMax = SPORES.time; }
+    else p.spores[kind] = kind === "pink" ? SPORES.floatTime : SPORES.time;
+    if (fresh || always) {
+      p.showHit(...SPORE_LOOK[kind]);
+      p.sparkle(SPORE_LOOK[kind][1]);
+      Sound.play(kind === "green" ? "poisoned" : "spore");
+    }
+  }
+
+  // The forest's mushroom orb: throw a mushroom straight up; it's one of the four spore mushrooms (a 1 in 4 chance each,
+  // its colour showing all the way) and it always comes back down on your head, wherever you've run to
+  function throwMushroom(p) {
+    world.mushroomThrows.push({ p, kind: SPORES.kinds[Math.floor(Math.random() * SPORES.kinds.length)], t: 0 });
+    Sound.play("mushroomThrow");
+  }
+  function updateMushroomThrows(dt) {
+    for (const m of world.mushroomThrows) {
+      m.t += dt;
+      if (m.t < MUSHROOM_ORB.flight) continue;
+      m.done = true;
+      if (!m.p.dead && !m.p.caught) giveSpore(m.p, m.kind, true); // (it lands on you)
+    }
+    world.mushroomThrows = world.mushroomThrows.filter((m) => !m.done);
   }
 
   // ---- The enchanted forest's saws that break loose ----

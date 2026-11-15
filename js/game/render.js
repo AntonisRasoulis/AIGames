@@ -45,7 +45,7 @@ const Renderer = (() => {
       // Each player sees their own course: the main one, or the enchanted forest they're in
       const course = p.realm || world.level, other = world.players[1 - i];
       const mine = (list) => list.filter((e) => (e.level || world.level) === course);
-      const view = Object.assign(Object.create(world), { level: course, sawBits: mine(world.sawBits), wisps: mine(world.wisps), quakes: mine(world.quakes), builtPortals: mine(world.builtPortals), stormBalls: mine(world.stormBalls), blasts: mine(world.blasts), mortarBombs: mine(world.mortarBombs), booms: mine(world.booms) });
+      const view = Object.assign(Object.create(world), { level: course, sawBits: mine(world.sawBits), wisps: mine(world.wisps), quakes: mine(world.quakes), builtPortals: mine(world.builtPortals), stormBalls: mine(world.stormBalls), blasts: mine(world.blasts), mortarBombs: mine(world.mortarBombs), booms: mine(world.booms), mushroomThrows: world.mushroomThrows.filter((m) => (m.p.realm || world.level) === course) });
       if (p.realm) Object.assign(view, { inForest: true, monsoon: null, missiles: [], bears: [], jaguars: [], decoys: [], arrows: [], vultures: [], hawks: [], sticks: [], burns: [], drones: [], hands: [], roots: [], bolts: [], monkeys: [], thrownSnowballs: [], grapples: [], vines: [], warps: [] });
       drawView(view, p, other && other.realm === p.realm && !other.dream ? other : null, camX);
       drawDream(p, camX, world.time);
@@ -163,6 +163,7 @@ const Renderer = (() => {
     drawGearLasers(world.level, camX, world.time, true);
     drawStormBalls(world, camX, world.time);
     drawMortarBombs(world, camX, world.time);
+    drawMushroomThrows(world, camX);
     drawLaserGates(world.level, camX, world.time, true);
     for (const p of [player, other]) if (p) { drawAuroraLights(p, camX, world.time, p === other); drawTripRibbons(p, camX, world.time); }
     drawCoconuts(world.level, player, camX, world.time); // falling (in front of the runners)
@@ -600,6 +601,23 @@ const Renderer = (() => {
       drawGlowAt("white", 4, x, bl.y, fade);
       for (let i = 0; i < 10; i++) { const an = hash(i, 5) * Math.PI * 2, len = R * (0.9 + hash(i, 6) * 0.7) * Math.min(1, u * 4); stormArc(x, bl.y, x + Math.cos(an) * len, bl.y + Math.sin(an) * len, 900 + i * 17 + Math.floor(u * 30), i % 3 ? SW : SICE, fade); }
       for (let i = 0; i < 18; i++) { const an = hash(i, 7) * Math.PI * 2, d = R * (0.3 + 1.3 * u) * (0.6 + hash(i, 8) * 0.6); P(i % 4 ? SW : "#8a9494", x + Math.cos(an) * d, bl.y + Math.sin(an) * d + u * u * 20, i % 4 ? 1 : 2, 1, fade); }
+    }
+  }
+
+  // ---- The forest's mushroom orb: a mushroom thrown straight up, spinning, coming back down onto its thrower's head ----
+  const THROWN_MUSHROOM = [ // 7 x 6, a quarter turn each frame as it spins
+    [".hcccd.", "hcwcccd", "ccccccd", "..sss..", "..sss..", "...s..."],
+    ["..hcd..", ".hccd..", ".ccccss", ".ccccss", ".hccd..", "..hcd.."],
+    ["...s...", "..sss..", "..sss..", "dcccccc", "dcccwch", ".dccch."],
+    ["..dch..", "..dcch.", "ssccccd", "ssccccd", "..dcch.", "..dch.."],
+  ];
+  function drawMushroomThrows(world, camX) {
+    for (const m of world.mushroomThrows) {
+      const u = Math.min(1, m.t / MUSHROOM_ORB.flight), p = m.p, C = SPORE_COLORS[m.kind];
+      const x = Math.round(p.x + HITBOX_W / 2 - camX), y = Math.round(p.y - 4 - Math.sin(u * Math.PI) * MUSHROOM_ORB.height);
+      const pal = { c: C.cap, h: C.capHi, d: C.capDk, w: "#ffffff", s: "#f4ead8" }, fr = THROWN_MUSHROOM[Math.floor(u * 12) % 4];
+      fr.forEach((row, j) => [...row].forEach((ch, i) => { if (ch !== ".") { P("#1a0a1a", x - 3 + i, y - 3 + j + 1); } })); // (a dark shadow edge so it reads on the dark forest)
+      fr.forEach((row, j) => [...row].forEach((ch, i) => { if (ch !== ".") P(pal[ch], x - 3 + i, y - 3 + j); }));
     }
   }
 
@@ -2860,13 +2878,14 @@ const Renderer = (() => {
       if (sx < -10 || sx > VIEW_W) continue;
       const bob = Math.round(Math.sin(time * 3 + o.x) * 1.5);
       if (Math.floor(time * 4) % 2) {
-        const ability = o.kind === "zap" || o.kind === "hand" || o.kind === "wind" || o.kind === "drone" || o.kind === "firehawk" || o.kind === "snowball" || o.kind === "monkey";
+        const ability = o.kind === "zap" || o.kind === "hand" || o.kind === "wind" || o.kind === "drone" || o.kind === "firehawk" || o.kind === "snowball" || o.kind === "monkey" || o.kind === "mushroom";
         b.fillStyle = o.purple ? "rgba(215, 160, 255, 0.55)" : ability ? "rgba(170, 225, 255, 0.5)" : "rgba(255, 240, 150, 0.5)";
         b.fillRect(sx - 1, o.y + bob + 1, 10, 6);
         b.fillRect(sx + 1, o.y + bob - 1, 6, 10);
       }
       const sprite = { freeze: sprites.freezeOrb, dash: sprites.dashOrb, zap: sprites.zapOrb, hand: sprites.handOrb, wind: sprites.windOrb, drone: sprites.droneOrb, sandstorm: sprites.sandOrb, firehawk: sprites.hawkOrb, snowstorm: sprites.stormOrb, snowball: sprites.snowballOrb, monsoon: sprites.monsoonOrb, monkey: sprites.monkeyOrb, portalgun: sprites.portalGunOrb, grapple: sprites.grappleOrb, vine: sprites.vineOrb }[o.kind] || sprites.orb;
       if (o.kind === "wind") drawOrbWisps(sx, o.y + bob, time + o.x);
+      if (o.kind === "mushroom") { b.drawImage(sprites.mushroomOrb, sx - 2, o.y + bob - 2); continue; } // (12 x 12: a little bigger)
       b.drawImage(sprite, sx, o.y + bob);
     }
   }
@@ -3129,6 +3148,7 @@ const Renderer = (() => {
         portalgun: ["#5ff0d0", "#b04bff", "#ffffff", "#7b3fd0"],
         grapple: ["#ffffff", "#d9a3ff", "#b04bff", "#d9a3ff"],
         roots: ["#a898b8", "#2f2934", "#a060ff", "#776b82"],
+        mushroom: ["#ff6a7a", "#6ab8ff", "#9aff6a", "#ff9af0"], // (the four mushrooms it could be)
       }[p.power][k];
       b.fillRect(Math.round(cx + Math.cos(a) * r), Math.round(cy + Math.sin(a) * r), 1, 1);
     }
@@ -4211,8 +4231,8 @@ const Renderer = (() => {
       if (p.power) {
         const key = world.solo ? "S/DOWN" : i === 0 ? "S" : "DOWN";
         const arrow = p.facing > 0 ? ">>" : "<<"; // follows the way you're facing
-        const label = { zap: "ZAP", hand: "HAND", wind: "WIND DASH", drone: "DRONE", firehawk: "FIREHAWK", snowball: "SNOWBALL", monkey: "MONKEY", portalgun: "PORTAL GUN", grapple: "GRAPPLE", roots: "ROOTS" }[p.power] || p.power.toUpperCase();
-        const color = { zap: "#fff27a", hand: "#c9a3ff", wind: "#ffffff", drone: "#4fc0ff", firehawk: "#ff7a1a", snowball: "#e8f8ff", monkey: "#e8c090", portalgun: "#d9a3ff", grapple: "#d9a3ff", roots: "#a898b8" }[p.power] || "#ffffff";
+        const label = { mushroom: "MUSHROOM", zap: "ZAP", hand: "HAND", wind: "WIND DASH", drone: "DRONE", firehawk: "FIREHAWK", snowball: "SNOWBALL", monkey: "MONKEY", portalgun: "PORTAL GUN", grapple: "GRAPPLE", roots: "ROOTS" }[p.power] || p.power.toUpperCase();
+        const color = { mushroom: "#ff6a7a", zap: "#fff27a", hand: "#c9a3ff", wind: "#ffffff", drone: "#4fc0ff", firehawk: "#ff7a1a", snowball: "#e8f8ff", monkey: "#e8c090", portalgun: "#d9a3ff", grapple: "#d9a3ff", roots: "#a898b8" }[p.power] || "#ffffff";
         text(ctx, `${label} ${arrow} press ${key}`, 12, top + 36, color, 10);
       }
       // Spore mushroom effects, with the seconds left on each

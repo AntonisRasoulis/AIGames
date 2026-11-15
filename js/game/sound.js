@@ -306,6 +306,8 @@ const Sound = (() => {
     stormFire: () => { noise({ filter: "highpass", f: 3000, dur: 0.12, vol: 0.25 }); tone({ f: 900, to: 300, dur: 0.25, type: "sawtooth", vol: 0.06 }); },
     stormBoom: () => { noise({ filter: "lowpass", f: 4000, to: 120, dur: 0.6, vol: 0.7 }); noise({ filter: "highpass", f: 2500, dur: 0.15, vol: 0.4 }); tone({ f: 90, to: 30, dur: 0.5, type: "sine", vol: 0.4 }); },
     mortarFire: () => { noise({ filter: "lowpass", f: 700, to: 90, dur: 0.35, vol: 0.55 }); tone({ f: 130, to: 45, dur: 0.3, type: "sine", vol: 0.35 }); noise({ filter: "bandpass", f: 1800, to: 600, q: 3, dur: 0.5, vol: 0.12, at: 0.05 }); },
+    gotMushroom: () => { tone({ f: 523, to: 784, dur: 0.12, type: "triangle", vol: 0.12 }); tone({ f: 784, to: 1046, dur: 0.15, type: "triangle", vol: 0.1, at: 0.1 }); },
+    mushroomThrow: () => tone({ f: 300, to: 900, dur: 0.35, type: "triangle", vol: 0.1 }),
     mortarFall: () => tone({ f: 1500, to: 420, dur: 0.5, type: "sine", vol: 0.07 }),
     mortarBoom: () => { noise({ filter: "lowpass", f: 3500, to: 70, dur: 1.2, vol: 0.9 }); tone({ f: 75, to: 24, dur: 1, type: "sine", vol: 0.5 }); noise({ filter: "highpass", f: 2500, dur: 0.22, vol: 0.4 }); noise({ filter: "lowpass", f: 400, to: 60, dur: 0.9, vol: 0.4, at: 0.12 }); },
     gearClick: () => { noise({ filter: "highpass", f: 2500, dur: 0.03, vol: 0.18 }); tone({ f: 900, to: 500, dur: 0.04, type: "square", vol: 0.05 }); },

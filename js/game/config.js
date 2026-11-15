@@ -1,7 +1,7 @@
 // The game's version, shown left of the logo. The first number goes up for big updates (a new biome, a new
 // secret world...), the second for smaller additions and fixes (back to 0 with each big update): 6.16 means
 // the 6th big update (the enchanted forest), 16 small ones since. (7: the arcane ruins.)
-const GAME_VERSION = "7.23";
+const GAME_VERSION = "7.24";
 
 // Tunable numbers for the game. Change these to adjust how it feels.
 // Distances are in game pixels; one tile is 8 pixels (about "1 meter").
@@ -144,6 +144,16 @@ const SNOWSTORM = {
   fade: 1,           // seconds it takes to blow up, and to die down at the end
   freezeAfter: 0.5,  // seconds of not moving before you freeze solid
   jumpsToBreak: 3,   // frozen: jumps it takes to break out
+};
+// The forest's mushroom orb (light blue, S / Down): you throw a mushroom straight up and it always lands back on your
+// head, giving you whichever spore mushroom it turned out to be (you see its colour on the way). Red, blue, green or
+// pink, a 1 in 4 chance each, with the spore mushrooms' own effects (see SPORES: faster, higher jumps, poison screen,
+// float up), which stack with any you already have. It only ever affects you. It's the one power you can use in the
+// enchanted forest you fall asleep into, where it's the only orb you find.
+const MUSHROOM_ORB = {
+  chance: 0.3,       // on a course where the forest is the main biome: share of orbs that are mushroom orbs
+  flight: 1,         // seconds it's up in the air before it lands on you
+  height: 42,        // how high you throw it (pixels: about 5 tiles)
 };
 // Snowball (light blue, S / Down): thrown the way you're facing, in a short low arc. It's small and
 // hard to hit, but if it hits the other player they're frozen for 7 seconds, with no way out.
