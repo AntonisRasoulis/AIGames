@@ -18,7 +18,7 @@ costs ground to the fire. 1 Player: one big view, race the fire for distance (be
 - Repo: `AntonisRasoulis/VibeCodingPractice`. Development branch: `claude/nice-meitner-muga6l`
   (a fresh chat may be given a different branch: use the one you're told).
 - Published as a claude.ai Artifact (a single bundled HTML file):
-  **https://claude.ai/artifact/Uh5CKSPymdWERadhojnY7P** (Version 137 at the time of writing). Always
+  **https://claude.ai/artifact/Uh5CKSPymdWERadhojnY7P** (Version 138 at the time of writing). Always
   republish to this same URL (pass it as `url`); never create a new artifact for the game.
 
 ## Style
@@ -96,7 +96,9 @@ Scripts load in this order (all globals, no modules), each with a `?v=` cache-bu
   monsoon in their biomes). **Light blue** is used with S / Down (wind dash, lightning, mystic hand,
   rescue drone; firehawk, snowball, monkey in their biomes). **Purple** catch-up orbs appear only for
   whoever has fallen off the leader's screen (alone: when the fire is on your screen), out of sight of
-  both, just one per player per race (`catchupGiven`): portal gun, grapple (2 players only), vine.
+  both, just one per player per race (`catchupGiven`): portal gun, grapple (2 players only), vine. **The portal gun** (v7.32):
+  to the start of the next biome, but never past the leader (at most one obstacle left between you); fired with the leader on
+  your screen, one obstacle ahead of them; alone, the next biome; biomes off, 3 obstacles (never past the leader).
 - **The enchanted forest** (a hidden biome, never in the normal rotation): reached by falling asleep
   under a **sleep mushroom** (purple, spore-mushroom style, exactly one per race, on the main course after
   400 m: one chance at the forest, `sleepPlaced`; a slow light rain of spores for 3-10 s, then 10 s rest; its cap glows just before). You wake in

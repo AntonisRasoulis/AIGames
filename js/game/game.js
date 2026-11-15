@@ -2553,14 +2553,68 @@ const Game = (() => {
     return close() ? (cur.end + 1) * TILE : null;
   }
 
-  // The portal gun: a portal opens right in front of you, you're pulled in, and you come out
-  // of another one on safe ground past the next 3 obstacles
+  // The obstacles between two places, as runs of columns [{ start, end }] (counted the same way as obstaclesEnd: pits,
+  // dangers and long runs of spikes or quicksand; a single spike doesn't count; dangers close together count as one)
+  function obstacleRuns(x0, x1) {
+    const { level } = world, runs = [];
+    let cur = null;
+    const close = () => { if (cur && (cur.big || cur.cols >= PORTAL_GUN.bigRun)) runs.push({ start: cur.start, end: cur.end }); cur = null; };
+    const first = Math.floor(x0 / TILE) + 1, last = Math.min(Math.floor(x1 / TILE), level.cols.length - 3);
+    for (let c = first; c <= last; c++) {
+      const g = level.groundTop(c * TILE);
+      let big = false, small = false;
+      if (g === null) big = true;
+      else {
+        if (level.tile(c, g / TILE - 1) === T_SPIKE || level.isQuick(c)) small = true;
+        if (level.threatened(c * TILE + TILE / 2 - HITBOX_W / 2, g - HITBOX_H)) big = true;
+      }
+      if (!big && !small) { if (cur && c - cur.end > PORTAL_GUN.merge) close(); continue; }
+      if (!cur) cur = { start: c, end: c, cols: 0, big: false };
+      cur.end = c;
+      cur.cols++;
+      cur.big ||= big;
+    }
+    close();
+    return runs;
+  }
+  // A safe place to come out between two x positions (after `from`, before `to`), or null
+  function spotBetween(from, to) {
+    const spot = world.level.safeSpotAfter(from, Math.max(0, to - from)) || landingAfter(from);
+    return spot && spot.x > from - TILE && spot.x + HITBOX_W < to ? spot : null;
+  }
+
+  // The portal gun (v7.32): a portal opens right in front of you, you're pulled in, and you come out at the start of the
+  // next biome. Never past the leader: at most as far as one obstacle behind them. Save it until you can see the leader
+  // and it puts you one obstacle ahead of them instead. Alone it's just the next biome; with biomes off (no next biome),
+  // past the next 3 obstacles as before (never past the leader either). Nowhere to go: keep it.
   function firePortalGun(p) {
     const { level } = world;
-    level.ensure(p.x + VIEW_W * 8);
-    const end = obstaclesEnd(p.x + HITBOX_W, PORTAL_GUN.passes);
-    const spot = end !== null && (level.safeSpotAfter(end) || landingAfter(end));
-    if (!spot) return false;
+    level.ensure(p.x + VIEW_W * 12);
+    const lead = world.players.find((q) => q !== p && !q.caught && q.x > p.x + HITBOX_W);
+    const leadX = lead ? lead.x : null;
+    if (lead && leadX - p.x < VIEW_W * 0.65) { // you can see them: one obstacle ahead of them
+      level.ensure(leadX + VIEW_W * 6);
+      const runs = obstacleRuns(leadX + HITBOX_W, leadX + VIEW_W * 6);
+      const spot = runs.length && spotBetween((runs[0].end + 1) * TILE, runs[1] ? runs[1].start * TILE : leadX + VIEW_W * 6);
+      return spot ? warpTo(p, spot) : false;
+    }
+    // where it would take you: the next biome (just past its sign), or with no biomes, past the next 3 obstacles
+    const sign = level.signs.find((sg) => sg.x > p.x + VIEW_W * 0.65); // (not one you can already see: the one after it)
+    let spot = null;
+    if (sign) spot = level.safeSpotAfter(sign.x) || landingAfter(sign.x);
+    else { const end = obstaclesEnd(p.x + HITBOX_W, PORTAL_GUN.passes); spot = end !== null && (level.safeSpotAfter(end) || landingAfter(end)); }
+    if (lead) { // never past the leader: no further than with one obstacle left between you and them
+      const runs = obstacleRuns(p.x + HITBOX_W, leadX);
+      const lastRun = runs[runs.length - 1], cap = lastRun ? lastRun.start * TILE : leadX - TILE * 2; // (that last obstacle stays between you)
+      if (!spot || spot.x + HITBOX_W >= cap) {
+        const before = runs[runs.length - 2];
+        spot = lastRun && before ? spotBetween((before.end + 1) * TILE, cap) : null; // (just past the obstacle before it)
+      }
+    }
+    if (!spot || spot.x <= p.x + TILE) return false;
+    return warpTo(p, spot);
+  }
+  function warpTo(p, spot) {
     world.warps.push({ owner: p, from: { x: p.x, y: p.y }, door: p.x + HITBOX_W / 2 + 10, to: spot, t: 0, out: false });
     grab(p);
     p.facing = 1;
@@ -3399,6 +3453,8 @@ const Game = (() => {
     tripDark,
     ruinsLeft,
     bombAt,
+    firePortalGun, // (for tests)
+    obstacleRuns,
     blackoutDark,
     sandstormStrength,
     floodSurface,
