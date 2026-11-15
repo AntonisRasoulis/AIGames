@@ -18,7 +18,7 @@ costs ground to the fire. 1 Player: one big view, race the fire for distance (be
 - Repo: `AntonisRasoulis/VibeCodingPractice`. Development branch: `claude/nice-meitner-muga6l`
   (a fresh chat may be given a different branch: use the one you're told).
 - Published as a claude.ai Artifact (a single bundled HTML file):
-  **https://claude.ai/artifact/Uh5CKSPymdWERadhojnY7P** (Version 132 at the time of writing). Always
+  **https://claude.ai/artifact/Uh5CKSPymdWERadhojnY7P** (Version 133 at the time of writing). Always
   republish to this same URL (pass it as `url`); never create a new artifact for the game.
 
 ## Style
@@ -123,6 +123,11 @@ Scripts load in this order (all globals, no modules), each with a `?v=` cache-bu
   all-ruins main course (30%) and the only orb inside a ruins trip (usable there). 0.3 s aim line, then a laser the way you
   face, chest height, through everything, forever, 0.5 s (deadly only the first 0.25 s so a jump during the aim line clears
   it: tested). Kills ("VAPORIZED!"). Alone: fired backwards it pushes the fire back 6 tiles; facing right, you keep it.
+- **The ruins' blackout orb** (v7.27, `BLACKOUT`; gold, icon K2 eclipse; darkness D1 pitch black, owner: "only LASERS/the blue
+  lights glow"): 5 s of pitch black on that course for everyone there, a circle of light round each runner (4 tiles across;
+  the grabber 7), lights flicker off and on; only teal / blue pixels glow (`drawBlackout`, on its own canvas: never read
+  pixels back off the main buffer, it makes all later frames ~3x slower). All-ruins course and ruins trips, alone too.
+- **Known slow spot:** the mortar's explosion (v7.22, drawn pixel by pixel) adds up to ~12 ms a frame while it's on screen.
 - **Magic feet** (the forest's gift, `MAGIC_FEET`): coming out of the forest, you have it for the rest of
   the race. Magic holds you up over every hole: pits and rivers get a magic bridge as you get near
   (`updateBridges`); quicksand, sinkholes and thin ice still go off, then a bridge catches you

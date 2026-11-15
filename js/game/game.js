@@ -66,6 +66,7 @@ const Game = (() => {
       wisps: [],       // the magic trailing behind a loose saw: little glowing wisps drifting up and fading
       builtPortals: [], // brick portals you come out of: they build, open, close and rest again, never removed { level, x, gy, cy, style, state, t }
       stormBalls: [],   // the ruins' balls of lightning { level, x, y, angle, age }
+      blackout: null,   // the ruins' blackout orb: the lights out on one course { level, owner, t }
       laserShots: [],   // the ruins' laser gun: { level, p, owner, x, y, dir, t }
       mushroomThrows: [], // the forest's mushroom orb: a mushroom thrown up, coming back down on its thrower { p, kind, t }
       mortarBombs: [],  // the ruins' mortar bombs in flight { level, x0, y0, x1, y1, top, age, seed }
@@ -165,6 +166,7 @@ const Game = (() => {
     updateBuiltPortals(dt);
     updateMushroomThrows(dt);
     updateLaserShots(dt);
+    updateBlackout(dt);
     for (const bl of world.blasts) bl.t += dt;
     world.blasts = world.blasts.filter((bl) => bl.t < STORM.boom + 0.5); // (its scorch mark lingers a moment)
     for (const bm of world.booms) bm.t += dt;
@@ -345,6 +347,12 @@ const Game = (() => {
             world.snowstorm = { t: world.snowstorm ? Math.min(world.snowstorm.t, SNOWSTORM.fade) : 0 };
             for (const q of world.players) if (!q.caught) q.showHit("SNOWSTORM! KEEP MOVING!", "#e8f8ff");
             Sound.play("snowstorm");
+            return;
+          }
+          if (orb.kind === "blackout") { // the ruins' power shuts off (on this course)
+            world.blackout = { level: world.level, owner: p, t: 0, back: false };
+            for (const q of world.players) if (!q.caught) q.showHit("BLACKOUT!", "#7af0d8");
+            Sound.play("powerDown");
             return;
           }
           if (orb.kind === "sandstorm") {
@@ -2188,6 +2196,22 @@ const Game = (() => {
     }
   }
 
+  // The ruins' blackout: the lights flicker off, pitch black for a few seconds, then they flicker back on
+  function updateBlackout(dt) {
+    const bo = world.blackout;
+    if (!bo) return;
+    bo.t += dt;
+    if (!bo.back && bo.t >= BLACKOUT.time - BLACKOUT.flicker) { bo.back = true; Sound.play("powerUp"); }
+    if (bo.t >= BLACKOUT.time) world.blackout = null;
+  }
+  // How dark a course is right now: 0 (lit) or 1 (black), flickering at the start and the end
+  function blackoutDark(level, time) {
+    const bo = world.blackout;
+    if (!bo || bo.level !== level) return 0;
+    const F = BLACKOUT.flicker, u = bo.t < F ? bo.t / F : bo.t > BLACKOUT.time - F ? (BLACKOUT.time - bo.t) / F : 1;
+    return u >= 1 || hash(Math.floor(time * 20), 77) < u ? 1 : 0;
+  }
+
   // The ruins' laser gun: an aim line along your line for a moment, then a teal laser (like the ruins' own) straight out the way you're
   // facing, through everything, forever, at chest height: anyone on that course it touches is vaporized. Alone it's
   // for the fire: fired backwards it pushes the fire back a little (facing right, nothing happens: keep it)
@@ -3317,6 +3341,7 @@ const Game = (() => {
     tripDark,
     ruinsLeft,
     bombAt,
+    blackoutDark,
     sandstormStrength,
     floodSurface,
     monsoonStrength: () => (world.monsoon ? Math.max(0, Math.min(1, world.monsoon.t / 0.6, (MONSOON.time - world.monsoon.t) / 0.6)) : 0),

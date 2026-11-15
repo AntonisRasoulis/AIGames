@@ -49,6 +49,7 @@ const Renderer = (() => {
       if (p.realm) Object.assign(view, { inForest: true, monsoon: null, missiles: [], bears: [], jaguars: [], decoys: [], arrows: [], vultures: [], hawks: [], sticks: [], burns: [], drones: [], hands: [], roots: [], bolts: [], monkeys: [], thrownSnowballs: [], grapples: [], vines: [], warps: [] });
       drawView(view, p, other && other.realm === p.realm && !other.dream ? other : null, camX);
       drawDream(p, camX, world.time);
+      if (Game.blackoutDark(course, world.time)) drawBlackout(i * (VIEW_H + DIVIDER), camX, world, course); // (the ruins' power cut: pitch black)
       const dark = Game.tripDark(p); // (the aurora taking you across: the screen fading out and back)
       if (dark > 0) { b.fillStyle = `rgba(6, 14, 18, ${dark})`; b.fillRect(0, 0, VIEW_W, VIEW_H); }
       if (p.warpFlash > 0) { b.fillStyle = `rgba(234, 255, 248, ${p.warpFlash * 2.4})`; b.fillRect(0, 0, VIEW_W, VIEW_H); } // (through a biome portal: a flash of light)
@@ -64,6 +65,46 @@ const Renderer = (() => {
     ctx.imageSmoothingEnabled = false;
     ctx.drawImage(buffer, 0, 0, VIEW_W, height, 0, 0, VIEW_W * SCALE, height * SCALE);
     drawText(ctx, world);
+  }
+
+  // ---- The ruins' blackout: pitch black, but for a circle of light round each runner on this course (bigger round
+  // whoever grabbed it), and the lasers and the ruins' teal and blue lights, which light up a little patch round them.
+  // Worked out on the finished picture: a pixel lights up if it's teal or blue and bright, then the light spreads a few
+  // pixels (in 2 x 2 cells, three blurs) ----
+  // (it's done on a canvas of its own: reading the picture back off the main one would make every later frame draw slower)
+  let blackoutCells = null, blackoutCanvas = null, bk = null;
+  function drawBlackout(y0, camX, world, course) {
+    const W = VIEW_W, H = VIEW_H, CW = W >> 1, CH = H >> 1;
+    if (!blackoutCanvas) { blackoutCanvas = makeCanvas(W, H); bk = blackoutCanvas.getContext("2d", { willReadFrequently: true }); }
+    bk.clearRect(0, 0, W, H);
+    bk.drawImage(buffer, 0, y0, W, H, 0, 0, W, H);
+    const img = bk.getImageData(0, 0, W, H), px = img.data;
+    if (!blackoutCells) blackoutCells = [new Float32Array(CW * CH), new Float32Array(CW * CH)];
+    const [a1, a2] = blackoutCells;
+    a1.fill(0);
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { // the glowing teal and blue
+      const k = (y * W + x) * 4, r = px[k], g = px[k + 1], bl = px[k + 2];
+      if ((g > 150 && bl > 120 && r < 160) || (bl > 190 && r < 140 && g > 100)) a1[(y >> 1) * CW + (x >> 1)] += 0.25;
+    }
+    for (let pass = 0; pass < 3; pass++) { // its light spreading out a little (a box blur, across then down, never dimmer than it was)
+      for (let y = 0; y < CH; y++) { const r = y * CW; for (let x = 0; x < CW; x++) a2[r + x] = (a1[r + x] + (x > 0 ? a1[r + x - 1] : 0) + (x < CW - 1 ? a1[r + x + 1] : 0)) / 3; }
+      for (let y = 0; y < CH; y++) { const r = y * CW; for (let x = 0; x < CW; x++) { const v = (a2[r + x] + (y > 0 ? a2[r - CW + x] : 0) + (y < CH - 1 ? a2[r + CW + x] : 0)) / 3 * 1.4; if (v > a1[r + x]) a1[r + x] = v; } }
+    }
+    const bo = world.blackout, lights = world.players.filter((p) => !p.caught && (p.realm || Game.world.level) === course && !p.dead)
+      .map((p) => ({ x: p.x + HITBOX_W / 2 - camX, y: p.y + HITBOX_H / 2, R: bo && p === bo.owner ? BLACKOUT.ownLight : BLACKOUT.light }));
+    for (let y = 0; y < H; y++) {
+      const row = (y >> 1) * CW;
+      for (let x = 0; x < W; x++) {
+        let L = a1[row + (x >> 1)] * BLACKOUT.glow;
+        if (L >= 1) continue;
+        for (const l of lights) { const dx = x - l.x, dy = y - l.y, d2 = dx * dx + dy * dy; if (d2 < l.R * l.R) { L = 1; break; } if (d2 < (l.R + 2) * (l.R + 2) && L < 0.45) L = 0.45; }
+        if (L >= 1) continue;
+        const k = (y * W + x) * 4, M = 1 - L;
+        px[k] = px[k] * L + 3 * M; px[k + 1] = px[k + 1] * L + 4 * M; px[k + 2] = px[k + 2] * L + 6 * M;
+      }
+    }
+    bk.putImageData(img, 0, 0);
+    b.drawImage(blackoutCanvas, 0, 0); // (this view is where it was drawn from: b is still moved to it)
   }
 
   // ---- One player's half of the screen ----
@@ -2902,7 +2943,7 @@ const Renderer = (() => {
         b.fillRect(sx - 1, o.y + bob + 1, 10, 6);
         b.fillRect(sx + 1, o.y + bob - 1, 6, 10);
       }
-      const sprite = { freeze: sprites.freezeOrb, dash: sprites.dashOrb, zap: sprites.zapOrb, hand: sprites.handOrb, wind: sprites.windOrb, drone: sprites.droneOrb, sandstorm: sprites.sandOrb, firehawk: sprites.hawkOrb, snowstorm: sprites.stormOrb, snowball: sprites.snowballOrb, monsoon: sprites.monsoonOrb, monkey: sprites.monkeyOrb, portalgun: sprites.portalGunOrb, grapple: sprites.grappleOrb, vine: sprites.vineOrb }[o.kind] || sprites.orb;
+      const sprite = { blackout: sprites.blackoutOrb, freeze: sprites.freezeOrb, dash: sprites.dashOrb, zap: sprites.zapOrb, hand: sprites.handOrb, wind: sprites.windOrb, drone: sprites.droneOrb, sandstorm: sprites.sandOrb, firehawk: sprites.hawkOrb, snowstorm: sprites.stormOrb, snowball: sprites.snowballOrb, monsoon: sprites.monsoonOrb, monkey: sprites.monkeyOrb, portalgun: sprites.portalGunOrb, grapple: sprites.grappleOrb, vine: sprites.vineOrb }[o.kind] || sprites.orb;
       if (o.kind === "wind") drawOrbWisps(sx, o.y + bob, time + o.x);
       if (o.kind === "mushroom" || o.kind === "laser") { b.drawImage(o.kind === "laser" ? sprites.laserOrb : sprites.mushroomOrb, sx - 2, o.y + bob - 2); continue; } // (12 x 12: a little bigger)
       b.drawImage(sprite, sx, o.y + bob);

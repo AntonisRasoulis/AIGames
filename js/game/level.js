@@ -1805,7 +1805,12 @@ const SECTIONS = {
       if (r < SANDSTORM.chance) kind = "sandstorm";
       else if (r < SANDSTORM.chance + FIREHAWK.chance) kind = "firehawk";
     }
-    if (this.biome === "ruins" && (this.realmEnd !== undefined || this.rng() < LASER_GUN.chance)) kind = "laser"; // the ruins' own: the laser gun (the only one in a ruins trip)
+    if (this.biome === "ruins") { // the ruins' own: the laser gun and the blackout (the only ones in a ruins trip)
+      const r = this.rng();
+      if (this.realmEnd !== undefined) kind = r < BLACKOUT.tripChance ? "blackout" : "laser";
+      else if (r < LASER_GUN.chance) kind = "laser";
+      else if (r < LASER_GUN.chance + BLACKOUT.chance) kind = "blackout";
+    }
     if (this.biome === "forest" && (this.realmEnd !== undefined || this.rng() < MUSHROOM_ORB.chance)) kind = "mushroom"; // the forest's own: the mushroom orb (the only one in the dream forest)
     this.orbs.push({ x: this.col * TILE, y: this.groundRow * TILE - 32, w: 8, h: 8, used: false, kind });
     this.lastOrbCol = this.col;
