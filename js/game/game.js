@@ -1754,7 +1754,7 @@ const Game = (() => {
           let x1 = p.x + HITBOX_W / 2 + vx * (M.rise + M.fall);
           x1 = Math.max(m.x - M.reach, Math.min(m.x + M.reach, x1));
           const g = level.groundTop(x1), y1 = (g !== null ? g : m.gy + 24) - 6;
-          const x0 = m.x + m.face * 7, y0 = m.gy - 19;
+          const x0 = m.x + m.face * 11, y0 = m.gy - 25; // (the muzzle, the barrel at 45 degrees)
           world.mortarBombs.push({ level, x0, y0, x1, y1, top: M.top, age: 0, seed: Math.floor(Math.random() * 1000), face: m.face });
           m.firedAt = level.time;
           Sound.play("mortarFire");

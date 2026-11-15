@@ -608,79 +608,82 @@ const Renderer = (() => {
   // They blow up the moment they land: a real explosion (a flash, a fireball, iron shards, a shockwave, smoke) ----
 
   const MIR = { d: "#2a3234", m: "#4c5658", l: "#7a8688", hi: "#a8b4b6" };
-  const BOMB = ["#151a1f", "#232b31", "#33404a", "#4a5a64", "#6c7f88", "#a4b6bc"]; // the bomb's iron: dark rim .. shine
-  function mortarBarrel(cx, cy, ang, len, rad, rimR, kick, bore) { // a round iron tube from the breech up along ang, a thick rim and an open bore
-    const ca = Math.cos(ang), sa = Math.sin(ang), bx = cx - ca * kick, by = cy - sa * kick, mx = bx + ca * len, my = by + sa * len;
-    for (let yy = Math.floor(Math.min(by, my) - rimR - 2); yy <= Math.max(by, my) + rimR + 2; yy++) for (let xx = Math.floor(Math.min(bx, mx) - rimR - 2); xx <= Math.max(bx, mx) + rimR + 2; xx++) {
-      const px = xx + 0.5 - bx, py = yy + 0.5 - by, u = Math.max(0, Math.min(len, px * ca + py * sa)), v = -px * sa + py * ca, d = Math.hypot(px - ca * u, py - sa * u);
-      const rim = u > len - 2.5, R = rim ? rimR : rad;
-      if (d > R) continue;
-      const up = ca > 0 ? v < -R * 0.35 : v > R * 0.35, down = ca > 0 ? v > R * 0.35 : v < -R * 0.35; // (lit from above, whichever way it faces)
-      let col = d > R - 1 ? MIR.d : up ? MIR.hi : down ? "#3a4446" : MIR.m;
-      if (!rim && d <= R - 1 && [2, 6, 9].some((bu) => Math.abs(u - bu) < 0.7)) col = MIR.l; // iron bands
-      P(col, xx, yy);
+  const IRN = ["#1c2224", "#3a4446", "#4c5658", "#66727a", "#8a969a", "#b4c0c2"]; // the mortar's iron: outline .. shine
+  // The barrel, built on the pixel grid's own diagonals so every edge is an even staircase: it only ever points 45
+  // degrees right, straight up or 45 degrees left (at 45 degrees "along" is x - y or -x - y and "across" is x + y or
+  // y - x, whole numbers; straight up, along is -y and across is x). Lit from above; rings: raised coils round it.
+  function mortarBarrel(px, py, dir, len, rad, rimR, kick, rings, bore) { // dir: 1 right, 0 up, -1 left
+    const q = dir ? Math.SQRT2 : 1, L = Math.round(len * q), W = Math.round(rad * q), WR = Math.round(rimR * q);
+    const ux = dir / Math.SQRT2 || 0, uy = dir ? -1 / Math.SQRT2 : -1, bx = Math.round(px - ux * kick), by = Math.round(py - uy * kick);
+    for (let yy = -WR - L; yy <= WR + 2; yy++) for (let xx = -WR - L; xx <= WR + L; xx++) {
+      const al = !dir ? -yy : dir > 0 ? xx - yy : -xx - yy, ac = !dir ? xx : dir > 0 ? xx + yy : yy - xx; // ac < 0: the upper, lit side
+      if (al < -W || al > L) continue;
+      const ring = rings.find((r) => al >= Math.round(r.u * q) && al < Math.round(r.u * q) + 2), rim = al > L - Math.round(3 * q);
+      const R = rim ? WR : ring ? W + 1 : W;
+      if (Math.abs(ac) > R || (al < 0 && al * al + ac * ac > W * W + 1)) continue;
+      const edge = Math.abs(ac) >= R - (dir ? 1 : 0) || al === L || (al < 0 && al * al + ac * ac > (W - q) * (W - q));
+      const f = ac / R, k = edge ? 0 : f < -0.55 ? 5 : f < -0.1 ? 4 : f < 0.35 ? 3 : f < 0.7 ? 2 : 1;
+      let col = IRN[k];
+      if (ring && !edge) col = f < -0.3 ? "#d8fff4" : ring.col;
+      if (rim && al >= L - Math.round(q) && Math.abs(ac) < R - Math.round(1.5 * q)) col = bore; // the bore, seen end-on
+      P(col, bx + xx, by + yy);
     }
-    for (let yy = -rad; yy <= rad; yy++) for (let xx = -rad; xx <= rad; xx++) { // the bore, seen end-on and tilted
-      const a = xx * ca + yy * sa, b2 = -xx * sa + yy * ca;
-      if ((a * a) / 2.2 + (b2 * b2) / ((rad - 1) * (rad - 1)) <= 1) P(bore, mx + xx, my + yy);
-    }
-    return [mx, my];
+    return [bx + ux * len, by + uy * len];
   }
+  // The lightning mortar, a rune cannon: a carved stone pedestal on a round plinth ringed with teal runes, an iron yoke,
+  // and a short fat barrel with three teal coils that flicker white one after another as it powers up a shot
   function drawMortars(level, camX, time) {
-    const M = MORTAR, R = Math.PI / 3.2;
     for (const m of level.mortars) {
-      const cx = Math.round(m.x - camX), gy = m.gy;
-      if (cx < -40 || cx > VIEW_W + 40) continue;
-      const st = level.mortarState(m, time), face = m.face || 1, from = m.from || face, e = st.turning, ease = e * e * (3 - 2 * e);
-      const angOf = (f) => (f > 0 ? -R : -Math.PI + R);
-      const ang = from === face ? angOf(face) : angOf(from) + (angOf(face) - angOf(from)) * ease;
-      const since = m.firedAt !== undefined ? time - m.firedAt : 9, kick = since < 0.15 ? 2 : since < 0.3 ? 1 : 0;
-      // the turntable: a round stone plinth, its marks sliding round as it turns
-      for (let yy = -2; yy <= 0; yy++) for (let xx = -11; xx <= 11; xx++) if ((xx * xx) / 121 + (yy * yy) / 4 <= 1) P(yy <= -2 ? SST.hi : SST.mid, cx + xx, gy - 1 + yy);
-      const turn = (from === face ? 0 : ease * (face - from)) + (face > 0 ? 0 : 2);
-      for (let i = 0; i < 4; i++) { const a = ((i / 4 + turn / 4) % 1) * Math.PI * 2, x = Math.cos(a) * 10; if (Math.sin(a) > 0) P(SST.deep, cx + x, gy - 1); }
-      P(SST.edge, cx - 6, gy - 6, 13, 4); P(SST.light, cx - 5, gy - 6, 11, 1);
-      const [mx, my] = mortarBarrel(cx, gy - 9, ang, 12, 3.8, 4.8, kick, st.charge > 0 ? SCY : "#141c22");
-      for (let yy = -3; yy <= 3; yy++) for (let xx = -3; xx <= 3; xx++) { const d = Math.hypot(xx, yy); if (d <= 3) P(d > 2.3 ? MIR.d : xx + yy < 0 ? MIR.hi : MIR.m, cx + xx, gy - 9 + yy); } // the ball breech
-      // the rune cog on the plinth: it spins as it turns, and its runes glow as it charges
-      const spin = time * 2 + (e > 0 && e < 1 ? e * 8 : 0);
-      for (let yy = -3; yy <= 3; yy++) for (let xx = -3; xx <= 3; xx++) { const d = Math.hypot(xx, yy), a = Math.atan2(yy, xx) - spin; if (d > (Math.cos(a * 6) > 0.2 ? 3.2 : 2.4)) continue; P(d > 2.2 ? MIR.m : st.charge > 0 ? SCY : RUNE, cx - 9 * face + xx, gy - 6 + yy); }
-      if (st.charge > 0) { drawGlowAt("ice", st.charge > 0.6 ? 2 : 1, mx, my, 0.3 + st.charge * 0.6); if (st.charge > 0.5 && hash(Math.floor(time * 20), m.id) > 0.5) stormArc(mx - 3, my, mx + 3, my - 2, Math.floor(time * 20), SW, 0.8); }
+      const x = Math.round(m.x - camX), gy = m.gy;
+      if (x < -40 || x > VIEW_W + 40) continue;
+      const st = level.mortarState(m, time), face = m.face || 1, from = m.from === undefined ? face : m.from, e = st.turning, ch = st.charge;
+      const dir = from === face || e >= 2 / 3 ? face : e >= 1 / 3 ? 0 : from; // (it snaps through straight up as it turns)
+      const since = m.firedAt !== undefined ? time - m.firedAt : 9, kick = since < 0.12 ? 2 : since < 0.25 ? 1 : 0;
+      // the plinth, its ring of runes sliding round as it turns
+      for (let yy = -3; yy <= 0; yy++) for (let xx = -15; xx <= 15; xx++) { const el = (xx * xx) / 225 + ((yy + 1.5) * (yy + 1.5)) / 4; if (el <= 1) P(el > 0.75 ? SST.edge : yy <= -3 ? SST.hi : yy === -2 ? SST.light : SST.mid, x + xx, gy - 1 + yy); }
+      const off = from === face ? 0 : Math.round(e * 3 * (face - from) / 2);
+      for (let xx = -12; xx <= 12; xx += 3) P(ch > 0 ? SW : RUNE, x + xx + off, gy - 2, 1, 1, 0.6 + ch * 0.4);
+      P(SST.edge, x - 8, gy - 10, 17, 7); P(SST.mid, x - 7, gy - 9, 15, 5); P(SST.hi, x - 7, gy - 9, 15, 1); P(SST.light, x - 7, gy - 8, 1, 4); P(SST.dark, x + 7, gy - 8, 1, 4); P(SST.dark, x - 6, gy - 5, 13, 1); // the pedestal
+      P(RUNE, x - 3, gy - 7, 7, 1, 0.5 + ch * 0.5);
+      P(IRN[0], x - 8, gy - 18, 4, 10); P(IRN[2], x - 7, gy - 17, 2, 8); P(IRN[4], x - 7, gy - 17, 2, 1); // the yoke's back arm
+      const coil = (k) => (ch > k / 3 ? (Math.sin(time * 30 + k) > 0 ? SW : RUNE) : "#2fbfa8");
+      const [mx, my] = mortarBarrel(x, gy - 14, dir, 15, 4.6, 5.4, kick, [{ u: 5, col: coil(0) }, { u: 7.5, col: coil(1) }, { u: 10, col: coil(2) }], ch > 0 ? "#d8fff4" : "#0a0e10");
+      for (let yy = -3; yy <= 3; yy++) for (let xx = -3; xx <= 3; xx++) { const d = Math.hypot(xx, yy); if (d <= 2.6) P(d > 1.8 ? IRN[0] : d < 0.8 ? (ch > 0 ? SW : RUNE) : xx + yy < 0 ? IRN[5] : IRN[3], x + xx, gy - 14 + yy); } // the pivot, a rune at its pin
+      P(IRN[0], x + 4, gy - 18, 4, 10); P(IRN[3], x + 5, gy - 17, 2, 8); P(IRN[4], x + 5, gy - 17, 2, 1); P(IRN[0], x - 7, gy - 10, 14, 2); P(IRN[3], x - 6, gy - 10, 12, 1); // ...its front arm
+      if (ch > 0) drawGlowAt("aurora", ch > 0.6 ? 2 : 1, mx, my, 0.3 + ch * 0.6);
       if (since < 0.8) for (let i = 0; i < 6; i++) { // smoke from the muzzle after a shot
         const k = since / 0.8, r = 1 + Math.round(k * 2 + hash(i, m.id) * 1.5);
-        const sx = mx + Math.cos(ang) * (2 + k * 8) + (hash(i, 3) - 0.5) * 6 * k, sy = my + Math.sin(ang) * (2 + k * 6) - k * 8 - hash(i, 4) * 4 * k;
+        const sx = mx + face * (2 + k * 6) + (hash(i, 3) - 0.5) * 6 * k, sy = my - 2 - k * 12 - hash(i, 4) * 4 * k;
         P(i % 2 ? "#6a6e72" : "#8a8e92", sx - r / 2, sy - r / 2, r, r, (1 - k) * 0.7);
       }
     }
   }
-  // A bomb in flight (or a close-up for tests): tumbling, its lightning pulsing behind the porthole, sparks off its fuse
-  function drawBomb(x, y, ang, t, seed) {
-    const Rb = 6, pulse = 0.5 + 0.5 * Math.sin(t * 9), c = Math.cos(ang), s = Math.sin(ang);
-    drawGlowAt("ice", 2, x, y, 0.35 + 0.35 * pulse);
-    const fr = Math.floor(t * 20);
+  // A bomb in flight: a dark iron orb with a big lens on its front (the lightning pulsing inside), a teal ring round the
+  // lens with a light running round it, teal lines out to its rim, and a beacon on an antenna blinking faster as it falls
+  const BOMB = ["#14191b", "#22292c", "#2f3a3d", "#44524f", "#66787a", "#b8c8c4"]; // dark iron: rim .. shine
+  function drawBomb(x, y, ang, t, seed, falling) {
+    const Rb = 6, pulse = 0.5 + 0.5 * Math.sin(t * 9), c = Math.cos(ang), s = Math.sin(ang), fr = Math.floor(t * 20);
+    drawGlowAt("aurora", 2, x, y, 0.35 + 0.3 * pulse);
     for (let yy = -Rb; yy <= Rb; yy++) for (let xx = -Rb; xx <= Rb; xx++) {
       const d = Math.hypot(xx, yy);
       if (d > Rb + 0.4) continue;
-      const u = xx * c + yy * s, v = -xx * s + yy * c, w = Math.hypot(u, v - 0.5);
+      const u = xx * c + yy * s, v = -xx * s + yy * c, w = Math.hypot(u, v);
       let col;
-      if (w < 2.8) { // the porthole: the lightning inside
-        col = w < 0.9 + pulse * 1.4 ? SW : hash(fr + seed, Math.round(xx * 7 + yy * 3)) > 0.5 ? SICE : SCY;
-      } else if (w < 3.8) col = Math.round(u + v) % 3 === 0 ? MIR.hi : xx + yy < 0 ? MIR.l : MIR.m; // its riveted frame
+      if (w < 2.6) col = w < 0.8 + pulse * 1.6 ? SW : hash(fr + seed, Math.round(u * 7 + v * 3 + 50)) > 0.45 ? "#d8fff4" : "#8af7df"; // the lens
+      else if (w < 3.5) col = (Math.floor(t * 14) + Math.round(Math.atan2(v, u) * 3)) % 5 === 0 ? SW : RUNE; // its ring
+      else if (Math.abs(u) < 0.5 || Math.abs(v) < 0.5) col = d > Rb - 0.7 ? BOMB[0] : "#2fbfa8"; // lines to the rim
       else {
         const light = ((-xx * 0.55 - yy * 0.75) / Rb) * 0.9 + Math.sqrt(Math.max(0, 1 - (d * d) / (Rb * Rb))) * 0.8 - 0.1;
         col = BOMB[d > Rb - 0.6 ? 0 : Math.max(1, Math.min(4, Math.round(1 + light * 3)))];
-        if (Math.hypot(xx + 2.5, yy + 3) < 1.2) col = BOMB[5]; // the shine
+        if (Math.hypot(xx + 2.4, yy + 3) < 1.1) col = BOMB[5]; // the shine
       }
       P(col, x + xx, y + yy);
     }
-    // the electric fuse: a cap, a little copper coil, a spark at its tip
-    const up = (n) => [x + Math.round(s * n), y - Math.round(c * n)];
-    for (let n = Rb - 1; n <= Rb + 1; n++) for (let w = -1; w <= 1; w++) { const [fx, fy] = up(n); P(n === Rb + 1 ? MIR.d : w < 0 ? MIR.hi : MIR.l, fx + Math.round(c * w), fy + Math.round(s * w)); }
-    for (let n = Rb + 2; n <= Rb + 4; n++) { const [fx, fy] = up(n), w = n % 2 ? 1 : -1; P("#8a5a2a", fx, fy); P(n % 2 ? "#e0a050" : "#c08040", fx + Math.round(c * w), fy + Math.round(s * w)); }
-    const [tx, ty] = up(Rb + 5);
-    P(SW, tx, ty); drawGlowAt("white", 0, tx, ty, 0.6 + 0.4 * pulse);
-    for (let i = 0; i < 3; i++) { const a = hash(fr + seed, i) * 6.28, dd = 1 + hash(fr + seed, i + 9) * 2; P(hash(fr, i + 3) > 0.4 ? SW : SCY, tx + Math.cos(a) * dd, ty + Math.sin(a) * dd); }
-    if (hash(Math.floor(t * 18), seed + 8) < 0.18) { const a = hash(Math.floor(t * 18), 4) * 6.28; stormArc(tx, ty, x + Math.round(Math.cos(a) * Rb), y + Math.round(Math.sin(a) * Rb), Math.floor(t * 18), SW, 0.8); } // lightning licking down the shell
+    const up = (n) => [x + Math.round(s * n), y - Math.round(c * n)]; // the antenna, and its beacon
+    for (let n = Rb; n <= Rb + 2; n++) { const [fx, fy] = up(n); P(n === Rb ? IRN[3] : IRN[4], fx, fy); }
+    const [tx, ty] = up(Rb + 3), on = Math.sin(t * (8 + falling * 40)) > 0;
+    P(on ? SW : RUNE, tx, ty);
+    if (on) drawGlowAt("aurora", 0, tx, ty, 0.9);
   }
   const BOOM_FIRE = ["#ffffff", "#fff3b0", "#ffd050", "#ff9a30", "#e0601c", "#9a3418"];
   function drawMortarBombs(world, camX, time) {
@@ -691,10 +694,11 @@ const Renderer = (() => {
         const ub = { ...bm, age: bm.age - k * 0.05 };
         if (ub.age <= 0) break;
         const q = Game.bombAt(ub), fr = Math.floor(time * 20);
-        P(k < 3 ? SW : SCY, q.x - camX + (hash(k, fr) - 0.5) * 3, q.y + (hash(k + 4, fr) - 0.5) * 3, 1, 1, 1 - k / 7);
+        P(k < 3 ? "#d8fff4" : RUNE, q.x - camX + (hash(k, fr) - 0.5) * 3, q.y + (hash(k + 4, fr) - 0.5) * 3, 1, 1, 1 - k / 7);
       }
-      if (bm.age > MORTAR.rise) { const k = (bm.age - MORTAR.rise) / MORTAR.fall; for (let j = 2; j < 4 + k * 10; j += 2) P(SICE, sx + (j % 4) - 1, Math.round(y) - 7 - j, 1, 2, (1 - j / (5 + k * 10)) * 0.6 * k); } // streaking down
-      drawBomb(sx, Math.round(y), bm.face * u * Math.PI * 2, time, bm.seed);
+      const fallK = bm.age > MORTAR.rise ? (bm.age - MORTAR.rise) / MORTAR.fall : 0;
+      if (fallK > 0) { const k = fallK; for (let j = 2; j < 4 + k * 10; j += 2) P("#8af7df", sx + (j % 4) - 1, Math.round(y) - 7 - j, 1, 2, (1 - j / (5 + k * 10)) * 0.6 * k); } // streaking down
+      drawBomb(sx, Math.round(y), bm.face * u * Math.PI * 2, time, bm.seed, fallK);
     }
     for (const bm of world.booms) { // the explosion
       const x = bm.x - camX, y = bm.y, t = bm.t, R = MORTAR.blast, gy = bm.gy, seed = bm.seed;

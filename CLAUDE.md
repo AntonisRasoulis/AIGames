@@ -18,7 +18,7 @@ costs ground to the fire. 1 Player: one big view, race the fire for distance (be
 - Repo: `AntonisRasoulis/VibeCodingPractice`. Development branch: `claude/nice-meitner-muga6l`
   (a fresh chat may be given a different branch: use the one you're told).
 - Published as a claude.ai Artifact (a single bundled HTML file):
-  **https://claude.ai/artifact/Uh5CKSPymdWERadhojnY7P** (Version 127 at the time of writing). Always
+  **https://claude.ai/artifact/Uh5CKSPymdWERadhojnY7P** (Version 128 at the time of writing). Always
   republish to this same URL (pass it as `url`); never create a new artifact for the game.
 
 ## Style
@@ -289,6 +289,11 @@ Scripts load in this order (all globals, no modules), each with a `?v=` cache-bu
   - **The laser gate** (v7.20; design chosen after many mockups: CH1, chain lifts: carved posts with a big and a small cog,
     the emitter on two chains, a rune counterweight opposite; v7.21 base B1: carved steps, iron brackets, a rune band lit while it's on): a laser between two of them, 4-12 tiles apart, sliding up
     and down and blinking 0.6 s on / 0.6 s off, 0.3 s dotted warning. `LASER_GATE`, `laserGates`, `laserState`.
+  - **The lightning mortar** (v7.22, chosen after mockups: the rune cannon C on a stone plinth, the barrel only at 45 / 90 / 135
+    degrees on the pixel diagonals so it's never jagged; bomb T1, the plasma lens orb in the ruins' teal and dark iron): every 4 s
+    it turns to the farthest runner (either way, within 30 tiles) and lobs a heavy bomb at where they'll be (climbs 0.9 s, drops
+    0.5 s); no ground warning, blows up on landing (5 tiles, a real fireball), touching the bomb is safe. `MORTAR`, `mortars`,
+    `mortarState`, `updateMortars`, `bombAt`, `drawMortars`, `drawMortarBombs`.
   - **The storm engine** (v7.16, chosen after many mockups: the arcane engine base with the clockwork tower's cog, a gyroscope
     of two stone rings on an iron yoke): fires a ball of lightning on its own timer; the ball bursts straight out (1 s), then
     drifts after whoever is nearest at half your speed, pulsing white (a turning 4-point star at its heart, no purple) and
