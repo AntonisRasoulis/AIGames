@@ -626,9 +626,15 @@ const Renderer = (() => {
       // two chains, and a rune-carved stone counterweight rising on the far side as it sinks. The cogs turn as it moves.
       const lift = (g.gy - G.low - st.y) / (G.high - G.low), ang = lift * 6, postTop = top + 4;
       for (const [ex, side] of [[a, 1], [z, -1]]) {
-        for (let yy = postTop; yy < g.gy; yy++) { P("#262e30", ex - 4, yy, 9, 1); P(yy % 7 === 0 ? "#4a5454" : "#828c8c", ex - 3, yy, 7, 1); P("#c4cccc", ex - 3, yy, 1, 1); P("#646e6e", ex + 3, yy, 1, 1); }
-        P("#262e30", ex - 6, g.gy - 3, 13, 3); P("#a0aaaa", ex - 5, g.gy - 3, 11, 1);
-        for (let i = 0; i < 8; i++) if (hash(i, g.id + side) > 0.45) P(i % 2 ? "#5aa83a" : "#4a8a3a", ex - 5 + i, g.gy - 4);
+        for (let yy = postTop; yy < g.gy - 8; yy++) { P("#262e30", ex - 4, yy, 9, 1); P(yy % 7 === 0 ? "#4a5454" : "#828c8c", ex - 3, yy, 7, 1); P("#c4cccc", ex - 3, yy, 1, 1); P("#646e6e", ex + 3, yy, 1, 1); }
+        // its base (chosen B1): two carved steps, riveted iron corner brackets, a band of runes that lights up while the beam's on
+        P("#262e30", ex - 9, g.gy - 4, 19, 4); P("#828c8c", ex - 8, g.gy - 4, 17, 3); P("#c4cccc", ex - 8, g.gy - 4, 17, 1); P("#4a5454", ex - 8, g.gy - 1, 17, 1);
+        P("#262e30", ex - 7, g.gy - 8, 15, 4); P("#a0aaaa", ex - 6, g.gy - 8, 13, 3); P("#c4cccc", ex - 6, g.gy - 8, 13, 1);
+        for (let dx = -5; dx <= 5; dx += 2) P(st.on ? RUNE : "#2a6a62", ex + dx, g.gy - 6, 1, 1, st.on ? 1 : 0.8);
+        if (st.on) drawGlowAt("aurora", 1, ex, g.gy - 6, 0.5);
+        for (const dx of [-9, 8]) { P("#2a3234", ex + dx, g.gy - 5, 2, 5); P("#7a8688", ex + dx, g.gy - 5, 2, 1); P("#2a3234", ex + dx, g.gy - 2); P("#7a8688", ex + dx, g.gy - 3); }
+        P("#2a3234", ex + 4 * side, g.gy - 3); P("#2a3234", ex + 5 * side, g.gy - 2); // a little crack
+        for (let i = 0; i < 10; i++) if (hash(i, g.id + side) > 0.4) P(i % 2 ? "#5aa83a" : "#4a8a3a", ex - 8 + i * 2, g.gy - 9);
         gateCog(ex, top, 6, ang, RUNE); gateCog(ex - side * 7, top + 4, 3, -ang * 2, "#2a6a62");
         for (const cx of [ex + side * 3, ex + side * 6]) for (let yy = top + 5; yy < y - 5; yy += 2) { P("#7a8688", cx, yy); P("#2a3234", cx, yy + 1); } // the two chains
         P("#7a8688", Math.min(ex + side * 3, ex + side * 6), y - 5, 4, 1);
