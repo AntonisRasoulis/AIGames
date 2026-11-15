@@ -18,7 +18,7 @@ costs ground to the fire. 1 Player: one big view, race the fire for distance (be
 - Repo: `AntonisRasoulis/VibeCodingPractice`. Development branch: `claude/nice-meitner-muga6l`
   (a fresh chat may be given a different branch: use the one you're told).
 - Published as a claude.ai Artifact (a single bundled HTML file):
-  **https://claude.ai/artifact/Uh5CKSPymdWERadhojnY7P** (Version 147 at the time of writing). Always
+  **https://claude.ai/artifact/Uh5CKSPymdWERadhojnY7P** (Version 149 at the time of writing). Always
   republish to this same URL (pass it as `url`); never create a new artifact for the game.
 
 ## Style
@@ -102,7 +102,7 @@ Scripts load in this order (all globals, no modules), each with a `?v=` cache-bu
 - **The enchanted forest** (a hidden biome, never in the normal rotation): reached by falling asleep
   under a **sleep mushroom** (purple, spore-mushroom style, exactly one per race, on the main course after
   400 m: one chance at the forest, `sleepPlaced`; a slow light rain of spores for 3-10 s, then 10 s rest; its cap glows just before). You wake in
-  a twilight forest 180-264 tiles long (v7.41: 15-22 s of running; it was 100-250) (fireflies, glowing mushrooms, thorn-vine spikes, all obstacles
+  a twilight forest 156-216 tiles long (v7.42: 13-18 s of running, the shortest as long as a ruins trip; it was 100-250, then 180-264) (fireflies, glowing mushrooms, thorn-vine spikes, all obstacles
   restyled in dark purple wood: no brown). The forest is "secretly out to get you": 1 in 5 saws breaks
   loose with a faint magic, bursts out and rolls at you half-buried with a magic trail; spike shooters
   float left and right (rideable), sometimes stacked 2-3 high; crumbling platforms are rotten branches that
