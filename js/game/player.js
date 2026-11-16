@@ -889,6 +889,15 @@ class Player {
       if (overlaps(this.x, this.y, HITBOX_W, HITBOX_H, st.x - st.w / 2, y - 6, st.w, 6)) return this.die("CRUSHED!");
     }
 
+    // The ruins' laser swords: the blade, from its hilt down to the ground, while it's on
+    for (const sw of level.laserSwords) {
+      if (Math.abs(sw.x - cx) > level.swordReach() + 10) continue;
+      const st = level.swordState(sw, level.time);
+      if (!st.on) continue;
+      const top = sw.gy - LASER_SWORD.up + 8, len = (sw.gy - top) / Math.cos(st.ang), half = LASER_SWORD.thick / 2;
+      for (let d = 0; d <= len; d += 2) { const px = sw.x + Math.sin(st.ang) * d, py = top + Math.cos(st.ang) * d; if (px + half > this.x && px - half < this.x + HITBOX_W && py > this.y && py < this.y + HITBOX_H) return this.die("SLICED!"); }
+    }
+
     // The ruins' laser gates: the beam, while it's on
     for (const g of level.laserGates) {
       if (this.x + HITBOX_W < g.x0 || this.x > g.x1) continue;

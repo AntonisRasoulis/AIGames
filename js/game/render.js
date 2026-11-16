@@ -159,6 +159,7 @@ const Renderer = (() => {
     drawStormEngines(world.level, camX, world.time);
     drawMortars(world.level, camX, world.time);
     drawLaserGates(world.level, camX, world.time, false);
+    drawLaserSwords(world.level, camX, world.time, false);
     drawTurretDust(world.level, camX, world.time);
     drawSawTracks(world.level, camX);
     drawPalms(world.level, player, camX);
@@ -228,6 +229,7 @@ const Renderer = (() => {
     drawMushroomThrows(world, camX);
     drawLaserShots(world, camX, world.time);
     drawLaserGates(world.level, camX, world.time, true);
+    drawLaserSwords(world.level, camX, world.time, true);
     for (const p of [player, other]) if (p) { drawAuroraLights(p, camX, world.time, p === other); drawTripRibbons(p, camX, world.time); }
     drawCoconuts(world.level, player, camX, world.time); // falling (in front of the runners)
     for (const p of [player, other]) if (p && p.dizzy > 0 && !p.dead) drawDizzy(p, camX, world.time, p === other);
@@ -1004,6 +1006,55 @@ const Renderer = (() => {
     P(SIRON.d, x - 2, lensY - 1, 5, 1); P(w > 0 ? (w > 0.6 ? "#eafff8" : RUNE) : "#1d6a5c", x - 1, lensY - 1, 3, 1);
     if (w > 0) drawGlowAt("aurora", 1, x, lensY, 0.3 + 0.6 * w);
   }
+  // ---- The laser sword (v7.52): the vertical gate's stone arch, a gear at its top, and a laser blade hanging from the
+  // gear's hub on a carved hilt, swinging like a mace and stretching so its tip always touches the ground. Off for a
+  // moment in the middle of each swing: just the hilt's lens glowing, then its outline flickering back ----
+  function drawLaserSwords(level, camX, time, front) {
+    const L = LASER_SWORD;
+    for (const sw of level.laserSwords) {
+      const x = Math.round(sw.x - camX), gy = sw.gy, reach = level.swordReach(), a = Math.round(x - reach - 12), b = Math.round(x + reach + 12);
+      if (b < -20 || a > VIEW_W + 20) continue;
+      const st = level.swordState(sw, time), py = gy - L.up, hx = x + Math.sin(st.ang) * 8, hy = py + Math.cos(st.ang) * 8;
+      if (front) { // the blade (in front of the runners)
+        const len = (gy - hy) / Math.cos(st.ang), sx = Math.sin(st.ang), cy = Math.cos(st.ang), fr = Math.floor(time * 30);
+        if (st.on) {
+          for (let d = 0; d < len; d++) {
+            const bx = hx + sx * d, by = hy + cy * d, j = hash(d, fr) > 0.8 ? 1 : 0;
+            P("#2fbfa8", bx - 2 - j, by, 1, 1, 0.5); P(RUNE, bx - 1, by); P("#eafff8", bx, by); P(RUNE, bx + 1, by); P("#2fbfa8", bx + 2 + j, by, 1, 1, 0.5);
+            if ((d + time * 260) % 16 < 2) P("#ffffff", bx - 1, by, 3, 1);
+          }
+          const tx = hx + sx * len; // sparks and a scorch where its tip drags along the ground
+          for (let i = 0; i < 5; i++) { const an = Math.PI + hash(i, fr) * Math.PI; P(i % 2 ? "#eafff8" : RUNE, tx + Math.cos(an) * hash(i + 3, fr) * 6, gy - 1 + Math.sin(an) * hash(i + 5, fr) * 4); }
+          P("#1a2226", tx - 2, gy, 5, 1, 0.6);
+          drawGlowAt("aurora", 1, hx, hy, 0.6);
+        } else if (st.ghost > 0 && Math.floor(time * 40) % 2) { // its outline flickering back
+          for (let d = 0; d < len; d += 2) P(RUNE, hx + sx * d, hy + cy * d, 1, 1, 0.25 + 0.5 * st.ghost);
+        }
+        continue;
+      }
+      // the arch and its pillars
+      const archY = (xx) => { const u = (xx - a) / (b - a); return py - 10 - Math.round(Math.sin(Math.max(0, Math.min(1, u)) * Math.PI) * 10); };
+      for (const px of [a, b]) {
+        agBox(px - 4, py - 6, 9, gy - py + 6);
+        for (let yy = py; yy < gy - 6; yy += 10) { P(SIRON.d, px - 4, yy, 9, 1); P(SIRON.l, px - 4, yy - 1, 9, 1, 0.5); }
+        for (let yy = py - 2; yy < gy - 6; yy += 3) P(st.on ? "#1d6a5c" : RUNE, px, yy, 1, 2, st.on ? 1 : 0.8);
+        agBox(px - 6, gy - 4, 13, 4); agBox(px - 7, gy - 2, 15, 2);
+        for (let i = -6; i < 7; i++) if (hash(i, px + sw.id) > 0.45) P("#5aa83a", px + i, gy - 5);
+      }
+      for (let xx = a - 6; xx <= b + 6; xx++) { const yy = archY(xx); P(SST.edge, xx, yy - 1, 1, 7); P((xx - a) % 9 === 0 ? SST.deep : SST.mid, xx, yy, 1, 5); P(SST.hi, xx, yy, 1, 1); P(SST.deep, xx, yy + 4, 1, 1); }
+      for (let xx = a + 6; xx < b - 4; xx += 9) P(st.on ? RUNE : "#2a6a62", xx, archY(xx) + 2, 2, 1);
+      // a strut from the keystone down to the gear, the gear (turning with the swing), and the hilt on its hub
+      P(SIRON.d, x - 1, archY(x) + 4, 3, py - archY(x) - 6); P(SIRON.l, x, archY(x) + 4, 1, py - archY(x) - 6);
+      agCog(x, py, 6, st.ang * 3, st.on ? 0 : 1);
+      const sx = Math.sin(st.ang), cy = Math.cos(st.ang);
+      for (let d = 0; d <= 8; d++) for (let k = -2; k <= 2; k++) { // the hilt: a carved grip, a crossguard, a lens at its end
+        const w = d >= 6 ? 2 : 1;
+        if (Math.abs(k) > w) continue;
+        P(d >= 7 ? (st.on ? "#eafff8" : RUNE) : Math.abs(k) === w ? SIRON.d : d % 2 ? SIRON.l : SIRON.m, x + sx * d + cy * k, py + cy * d - sx * k);
+      }
+    }
+  }
+
   const level_laserX = (g, t, a) => { const G = LASER_GATE, p = ((t / g.sway + g.swayPhase) % 1 + 1) % 1, s = 0.5 - 0.5 * Math.cos(p * Math.PI * 2); return Math.round(a + G.edge + (g.x1 - g.x0 - 2 * G.edge) * s); };
 
   function gateCog(x, y, r, ang, hub) { // a little iron cog, its teeth turning with ang

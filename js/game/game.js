@@ -295,6 +295,12 @@ const Game = (() => {
       if (on && g.wasOn === false) Sound.play("gateOn");
       g.wasOn = on;
     }
+    for (const sw of level.laserSwords) { // the ruins' laser swords: a hum each time one lights again
+      if (!near(sw.x)) continue;
+      const on = level.swordState(sw, level.time).on;
+      if (on && sw.wasOn === false) Sound.play("gateOn");
+      sw.wasOn = on;
+    }
     for (const m of level.maces) {
       if (!near(m.x) || m.loose) continue;
       const half = Math.floor(2 * (level.time / m.period + m.phase)); // changes as it swings through the bottom

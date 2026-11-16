@@ -1,7 +1,7 @@
 // The game's version, shown left of the logo. The first number goes up for big updates (a new biome, a new
 // secret world...), the second for smaller additions and fixes (back to 0 with each big update): 6.16 means
 // the 6th big update (the enchanted forest), 16 small ones since. (7: the arcane ruins.)
-const GAME_VERSION = "7.51";
+const GAME_VERSION = "7.52";
 
 // Tunable numbers for the game. Change these to adjust how it feels.
 // Distances are in game pixels; one tile is 8 pixels (about "1 meter").
@@ -583,7 +583,7 @@ const RUINS = {
   stoneEvery: 0.7,     // last 4 s: a stone falls near each runner about this often (seconds)
   stoneWarn: 0.6,      // ...its shadow grows on the ground this long first
   stoneFall: 0.35,     // ...then it drops this fast (seconds from the top to the ground)
-  mix: { flat: 1, step: 3, spikes: 7, gap: 4, floating: 3, moving: 2, falling: 2, mace: 3, shooter: 5, gearLaser: 5, storm: 3, laserGate: 7, runeTile: 4 }, // the ruins' sections (spikes are its fire turrets, shooters its laser eye-stones, saws its laser gates: v7.51)
+  mix: { flat: 1, step: 3, spikes: 7, gap: 4, floating: 3, moving: 2, falling: 2, laserSword: 3, shooter: 5, gearLaser: 5, storm: 3, laserGate: 7, runeTile: 4 }, // the ruins' sections (spikes are its fire turrets, shooters its laser eye-stones, saws its laser gates: v7.51; maces its laser swords: v7.52)
   gap: 1,              // flat tiles between its sections: 0 to this
   // biome portals: each visit has two, one on the path (forced: a clean gateway you run through) and one optional
   // (a small floating ring of stones you jump into), each sending you through a short, packed stretch of a biome
@@ -661,6 +661,19 @@ const STORM = {
   rise: 50,            // where the ball forms: this high above the ground
   sense: 300,          // it only fires with a runner this close (so balls don't pile up with no one near)
   boom: 0.35,          // the explosion lasts this long
+};
+
+// The ruins' laser sword (v7.52, in place of the mace there): a laser blade hanging from a gear under a stone arch,
+// swinging like a mace. It stretches as it swings, so its tip always touches the ground: you can't jump it or slip under
+// it. Each time it swings through the middle it switches off for a moment: that's when you go. Just before it lights
+// again its outline flickers back faintly.
+const LASER_SWORD = {
+  period: [2, 3.5],    // seconds for one swing there and back (each sword its own)
+  swing: 25,           // how far it swings each way (degrees from straight down)
+  up: 60,              // its pivot (the gear's hub) this high above the ground
+  off: 0.4,            // seconds it's off around the middle of each swing
+  ghost: 0.2,          // ...its outline flickering back for the last this-many of them
+  thick: 3,            // how thick the blade is (pixels)
 };
 
 // The ruins' rune tiles: ground tiles like any other (grass on top), with a crack of blue light in them. Set one off and
