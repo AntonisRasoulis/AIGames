@@ -18,7 +18,7 @@ costs ground to the fire. 1 Player: one big view, race the fire for distance (be
 - Repo: `AntonisRasoulis/VibeCodingPractice`. Development branch: `claude/nice-meitner-muga6l`
   (a fresh chat may be given a different branch: use the one you're told).
 - Published as a claude.ai Artifact (a single bundled HTML file):
-  **https://claude.ai/artifact/Uh5CKSPymdWERadhojnY7P** (Version 158 at the time of writing). Always
+  **https://claude.ai/artifact/Uh5CKSPymdWERadhojnY7P** (Version 159 at the time of writing). Always
   republish to this same URL (pass it as `url`); never create a new artifact for the game.
 
 ## Style
@@ -221,7 +221,7 @@ Scripts load in this order (all globals, no modules), each with a `?v=` cache-bu
 
 - Maybe a forest animal / chaser (a shadow wolf or an owl were offered).
 - The floating shooters' stumps and thorns are small and dark: could be made easier to see.
-- The **arcane ruins**: a first version is built (see above). **Still to build:** the old obstacles' stone-and-teal restyle (maces and saws are still steel), more of its own dangers (to be
+- The **arcane ruins**: a first version is built (see above). **Still to build:** (v7.51-7.52: saws and maces are replaced by laser gates and laser swords there), more of its own dangers (to be
   talked through), teal mist in its pits. The full design the owner settled:
   - **A race against the clock:** you have **20 seconds to reach a set point** (v7.6: cut from 60 s, which is a long time in this game; v7.12: 130 tiles after 12 calm ones, so one death is fine but two are too many) in the ruins. Fail and you
     die and come back on the main course ("back at the top somehow": details to settle). Make it and you
@@ -321,6 +321,9 @@ Scripts load in this order (all globals, no modules), each with a `?v=` cache-bu
     5-12 tiles; half are **vertical** (chosen V3-H: a stone arch, a gear on a chain under it with the laser hanging off its hub,
     firing straight down as it slides left and right; energy runs along the chain from both ends into the gear while it warns;
     `g.vertical`, `drawArchGate`).
+  - **Laser swords** (v7.52, `LASER_SWORD`, `laserSwords`, `swordState`, `drawLaserSwords`; in place of the ruins' maces): a laser
+    blade hanging from a gear under the arch, swinging like a mace and stretching so its tip always touches the ground (no
+    jumping it); off 0.4 s in the middle of each swing, outline flickering back for the last 0.2 s; each its own speed 2-3.5 s.
   - **Rune tiles** (v7.40, `RUNE_TILE`, `runeTiles`, `updateRuneTiles`, `drawRuneTiles`; the ruins' own trap): a ground tile
     (flush, grass on top) with a crack of blue light; small (step on, 0.3 s: thrown forward), medium (over its middle: launched
     up 76 px), very cracked (comes near: thrown back). The blast pushes away from its middle, never hurts, once for everyone.
