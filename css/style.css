@@ -155,37 +155,83 @@ section {
   border-radius: var(--radius);
 }
 
-/* the multipliers, in the start screen's top right corner */
+/* the multipliers, in the start screen's top right corner: a button that opens them, like the biome picker */
 .tuning {
   position: absolute;
   top: 0.6rem;
   right: 0.8rem;
+  z-index: 4;
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
-  padding: 0.4rem 0.6rem;
-  background: rgba(0, 0, 0, 0.45);
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.tune-button {
+  background: var(--surface);
+}
+
+.tune-arrow::after {
+  content: "\25B8";
+  display: inline-block;
+  margin-left: 0.3rem;
+  transition: transform 0.15s;
+}
+
+.tune-button[aria-expanded="true"] .tune-arrow::after {
+  transform: rotate(90deg);
+}
+
+.tune-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding: 0.5rem 0.7rem 0.6rem;
+  background: var(--surface);
   border: 1px solid var(--muted);
-  border-radius: 8px;
-  font-size: 0.7rem;
+  border-radius: var(--radius);
+  font-size: 0.75rem;
   font-weight: 700;
+}
+
+.tune-panel[hidden] {
+  display: none;
+}
+
+.tune-panel label {
+  display: grid;
+  grid-template-columns: 4.6rem 7rem 2.6rem;
+  align-items: center;
+  gap: 0.5rem;
   text-align: right;
 }
 
-.tuning label {
+.tune-track {
   display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 0.4rem;
+  flex-direction: column;
 }
 
-.tuning input {
-  width: 6rem;
+.tune-track input {
+  width: 100%;
+  margin: 0;
   accent-color: #ffd23f;
 }
 
-.tuning output {
-  min-width: 2.4rem;
+/* a little mark under the slider for every step */
+.ticks {
+  display: flex;
+  justify-content: space-between;
+  padding: 0 7px; /* (lined up with the middle of the knob at each end) */
+  margin-top: 2px;
+}
+
+.ticks i {
+  width: 1px;
+  height: 5px;
+  background: var(--muted);
+}
+
+.tune-panel output {
   text-align: left;
   color: #ffd23f;
 }

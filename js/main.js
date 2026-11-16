@@ -132,6 +132,13 @@ for (const k of TUNE_IDS) {
   show();
 }
 
+// ...behind a button, like the biome picker: click it to open them (anywhere else, or Escape, closes them)
+const tuneButton = document.getElementById("tune-button"), tunePanel = document.getElementById("tune-panel");
+function openTune(open) { tunePanel.hidden = !open; tuneButton.setAttribute("aria-expanded", String(open)); }
+tuneButton.addEventListener("click", () => openTune(tunePanel.hidden));
+document.addEventListener("click", (e) => { if (!tunePanel.hidden && !e.target.closest(".tuning")) openTune(false); });
+document.addEventListener("keydown", (e) => { if (e.code === "Escape") openTune(false); });
+
 const biomesButton = document.getElementById("biomes-button");
 const biomeArrow = document.getElementById("biome-arrow");
 const biomePanel = document.getElementById("biome-panel");
