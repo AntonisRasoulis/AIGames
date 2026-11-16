@@ -1,7 +1,7 @@
 // The game's version, shown left of the logo. The first number goes up for big updates (a new biome, a new
 // secret world...), the second for smaller additions and fixes (back to 0 with each big update): 6.16 means
 // the 6th big update (the enchanted forest), 16 small ones since. (7: the arcane ruins.)
-const GAME_VERSION = "7.48";
+const GAME_VERSION = "7.49";
 
 // Tunable numbers for the game. Change these to adjust how it feels.
 // Distances are in game pixels; one tile is 8 pixels (about "1 meter").
@@ -24,6 +24,14 @@ const PHYSICS = {
   jumpCut: 0.45,     // letting go of jump early cuts the jump short
   coyoteTime: 0.08,  // can still jump this long after running off a ledge
   jumpBuffer: 0.1,   // a jump pressed this long before landing still counts
+};
+
+// The multipliers on the start screen (top right), set for each race by Game.start: how fast you run, how high you jump,
+// and how fast the wall of fire comes. 1 is the normal game.
+const TUNING = {
+  speed: 1,          // your running speed x this (1 to 2, in steps of 0.2)
+  jump: 1,           // your jump's height x this (1 to 2, in steps of 0.2)
+  fire: 1,           // the fire's speed x this (0.5 to 1.5, in steps of 0.1)
 };
 
 const FIRE = {

@@ -116,10 +116,21 @@ function startGame(players) {
   startButton.blur();
   soloButton.blur();
   canvas.scrollIntoView({ behavior: "smooth", block: "center" });
-  Game.start(players, { biomes, biomeList, secretList, secretRegular, wild });
+  Game.start(players, { biomes, biomeList, secretList, secretRegular, wild, tuning: readTuning() });
 }
 
 startButton.addEventListener("click", () => startGame(2));
+
+// The multipliers on the start screen: speed, jump and the fire wall (remembered by the browser)
+const TUNE_IDS = ["speed", "jump", "fire"];
+function readTuning() { const t = {}; for (const k of TUNE_IDS) t[k] = Number(document.getElementById("tune-" + k).value); return t; }
+for (const k of TUNE_IDS) {
+  const input = document.getElementById("tune-" + k), out = document.getElementById("tune-" + k + "-out");
+  try { const saved = localStorage.getItem("fire-run-tune-" + k); if (saved) input.value = saved; } catch (e) { /* storage blocked */ }
+  const show = () => { out.textContent = Number(input.value).toFixed(1).replace(/\.0$/, "") + "x"; };
+  input.addEventListener("input", () => { show(); try { localStorage.setItem("fire-run-tune-" + k, input.value); } catch (e) { /* storage blocked */ } });
+  show();
+}
 
 const biomesButton = document.getElementById("biomes-button");
 const biomeArrow = document.getElementById("biome-arrow");

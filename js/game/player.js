@@ -314,8 +314,8 @@ class Player {
       let accel = this.onGround ? (this.onIce ? SNOW.iceAccel * (skating ? SNOWBALL.skateAccel : 1) : PHYSICS.groundAccel) : PHYSICS.airAccel;
       if (Math.sign(this.vx) === -dir && !(this.onGround && this.onIce)) accel *= 2; // turn around quickly (not on ice)
       const fast = this.spores.red > 0 ? SPORES.speed : 1; // a red spore makes you faster
-      accel *= fast;
-      const top = PHYSICS.runSpeed * fast * (this.honey > 0 ? BEAR.honeySpeed : 1) * (skating ? SNOWBALL.skateSpeed : 1); // sticky honey slows you down; skates speed you up on ice
+      accel *= fast * TUNING.speed;
+      const top = PHYSICS.runSpeed * fast * TUNING.speed * (this.honey > 0 ? BEAR.honeySpeed : 1) * (skating ? SNOWBALL.skateSpeed : 1); // sticky honey slows you down; skates speed you up on ice
       this.vx = clamp(this.vx + dir * accel * dt, -top, top);
       this.facing = dir;
     } else if (this.onGround) {
@@ -329,12 +329,12 @@ class Player {
       // jumping off thin ice breaks it
       const pond = this.onGround && !this.standingOn && level.pondAt(this.x + HITBOX_W / 2);
       if (pond && pond.state === "ice") level.breakPond(pond, this.x + HITBOX_W / 2);
-      this.vy = -PHYSICS.jumpSpeed * this.jumpBoost();
+      this.vy = -PHYSICS.jumpSpeed * this.jumpBoost() * Math.sqrt(TUNING.jump); // (the start screen's jump multiplier is on its height)
       this.jumpBuffer = 0;
       this.coyote = 0;
       Sound.play("jump");
     }
-    const minRise = -PHYSICS.jumpSpeed * this.jumpBoost() * PHYSICS.jumpCut;
+    const minRise = -PHYSICS.jumpSpeed * this.jumpBoost() * Math.sqrt(TUNING.jump) * PHYSICS.jumpCut;
     // (a thrown player isn't holding jump, so don't cut their throw short)
     if (this.noCut > 0) this.noCut -= dt;
     if (!input.jump && this.vy < minRise && this.stun <= 0 && this.noCut <= 0) this.vy = minRise;

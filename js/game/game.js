@@ -140,7 +140,7 @@ const Game = (() => {
 
     world.time += dt;
     const { fire, level, players } = world;
-    fire.speed = FIRE.startSpeed + FIRE.speedGain * world.time;
+    fire.speed = (FIRE.startSpeed + FIRE.speedGain * world.time) * TUNING.fire; // (the start screen's fire multiplier)
     if (!(world.rootWall && world.rootWall.t < ROOTS.wallTime)) fire.x += fire.speed * dt; // (alone: the roots can hold it back)
 
     level.ensure(Math.max(...players.map((p) => p.x)) + VIEW_W * 2);
@@ -3566,6 +3566,8 @@ const Game = (() => {
         ruinsOn = false;
       }
       wild = options.wild === true;
+      const tune = options.tuning || {};
+      TUNING.speed = tune.speed || 1; TUNING.jump = tune.jump || 1; TUNING.fire = tune.fire || 1;
       canvas.height = (solo ? VIEW_H : VIEW_H * 2 + DIVIDER) * SCALE;
       canvas.style.aspectRatio = `auto ${canvas.width} / ${canvas.height}`;
       Sound.unlock(); // the Start click lets the browser play sound
