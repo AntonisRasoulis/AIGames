@@ -390,6 +390,28 @@ kbd {
 .biome-choice.forest { --chip: #c080ff; }
 .biome-choice.ruins { --chip: #7af0d8; }
 
+/* the switch under the secret biomes: special (found in special ways) or regular (in the rotation like any biome) */
+.secret-mode {
+  flex-basis: 100%;
+  max-width: max-content;
+  margin: 2px auto 0;
+  padding: 0.3rem 0.7rem;
+  border: 2px dashed #c080ff;
+  border-radius: 999px;
+  background: transparent;
+  color: #e0c8ff;
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.secret-mode[aria-pressed="true"] {
+  border-style: solid;
+  background: #c080ff;
+  color: #1a1b33;
+}
+
 /* the secret biomes get their own row, under a little heading */
 .biome-group-label {
   flex-basis: 100%;

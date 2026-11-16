@@ -34,6 +34,9 @@ try {
   localStorage.setItem("fire-run-secret-known", JSON.stringify(SECRET_BIOMES));
 } catch (e) { /* storage blocked, or nothing saved */ }
 if (!biomeList.length && !secretList.length) biomeList = BIOMES.slice();
+// ...and whether they're found in special ways (a sleep mushroom, a portal) or come up like any other biome (remembered)
+let secretRegular = false;
+try { secretRegular = localStorage.getItem("fire-run-secret-regular") === "1"; } catch (e) { /* storage blocked */ }
 let wild = false; // Wild mode (the hard one): off until you pick it (remembered by the browser)
 try { wild = localStorage.getItem("fire-run-mode") === "wild"; } catch (e) { /* storage blocked */ }
 // best distance in 1-player mode, one for each mode (remembered by the browser)
@@ -113,7 +116,7 @@ function startGame(players) {
   startButton.blur();
   soloButton.blur();
   canvas.scrollIntoView({ behavior: "smooth", block: "center" });
-  Game.start(players, { biomes, biomeList, secretList, wild });
+  Game.start(players, { biomes, biomeList, secretList, secretRegular, wild });
 }
 
 startButton.addEventListener("click", () => startGame(2));
@@ -121,6 +124,12 @@ startButton.addEventListener("click", () => startGame(2));
 const biomesButton = document.getElementById("biomes-button");
 const biomeArrow = document.getElementById("biome-arrow");
 const biomePanel = document.getElementById("biome-panel");
+const secretModeButton = document.getElementById("secret-mode");
+secretModeButton.addEventListener("click", () => {
+  secretRegular = !secretRegular;
+  try { localStorage.setItem("fire-run-secret-regular", secretRegular ? "1" : "0"); } catch (e) { /* storage blocked */ }
+  showBiomes();
+});
 function showBiomes() {
   biomesButton.textContent = `Biomes: ${biomes ? "on" : "off"}`;
   biomesButton.setAttribute("aria-pressed", String(biomes));
@@ -132,6 +141,8 @@ function showBiomes() {
     chip.setAttribute("aria-pressed", String(on));
     if (!chip.dataset.secret) chip.title = on && total === 1 ? "At least one biome has to be on" : "";
   }
+  secretModeButton.textContent = `Secret biomes: ${secretRegular ? "regular" : "special"}`;
+  secretModeButton.setAttribute("aria-pressed", String(secretRegular));
 }
 function openBiomePanel(open) {
   biomePanel.hidden = !open;

@@ -3560,6 +3560,11 @@ const Game = (() => {
       biomeList = options.biomes !== true ? ["prairie"] : picked.length ? picked : allSecret.length ? allSecret : ["prairie"];
       sleepShrooms = options.biomes !== true || secret.includes("forest"); // (the forest turned off: no way into it)
       ruinsOn = options.biomes !== true || secret.includes("ruins");       // (the ruins turned off: no portal)
+      if (options.biomes === true && options.secretRegular && secret.length) { // secret biomes as regular ones: in the rotation like any biome, no sleep mushroom or portal
+        biomeList = picked.concat(secret);
+        sleepShrooms = false;
+        ruinsOn = false;
+      }
       wild = options.wild === true;
       canvas.height = (solo ? VIEW_H : VIEW_H * 2 + DIVIDER) * SCALE;
       canvas.style.aspectRatio = `auto ${canvas.width} / ${canvas.height}`;
