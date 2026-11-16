@@ -18,7 +18,7 @@ costs ground to the fire. 1 Player: one big view, race the fire for distance (be
 - Repo: `AntonisRasoulis/VibeCodingPractice`. Development branch: `claude/nice-meitner-muga6l`
   (a fresh chat may be given a different branch: use the one you're told).
 - Published as a claude.ai Artifact (a single bundled HTML file):
-  **https://claude.ai/artifact/Uh5CKSPymdWERadhojnY7P** (Version 157 at the time of writing). Always
+  **https://claude.ai/artifact/Uh5CKSPymdWERadhojnY7P** (Version 158 at the time of writing). Always
   republish to this same URL (pass it as `url`); never create a new artifact for the game.
 
 ## Style
@@ -317,7 +317,10 @@ Scripts load in this order (all globals, no modules), each with a `?v=` cache-bu
   - **The laser gate** (v7.20; design chosen after many mockups: CH1, chain lifts: carved posts with a big and a small cog,
     the emitter on two chains, a rune counterweight opposite; v7.21 base B1: carved steps, iron brackets, a rune band lit while it's on): a laser between two of them, 4-12 tiles apart, sliding up
     and down, firing (v7.39) one 0.25 s shot going up and one going down (each gate at its own point 25-75% through the
-    slide), 1 s dotted warning before each. `LASER_GATE`, `laserGates`, `laserState`.
+    slide), 1 s dotted warning before each. `LASER_GATE`, `laserGates`, `laserState`. **v7.51:** they replace the ruins' saws (no saws there);
+    5-12 tiles; half are **vertical** (chosen V3-H: a stone arch, a gear on a chain under it with the laser hanging off its hub,
+    firing straight down as it slides left and right; energy runs along the chain from both ends into the gear while it warns;
+    `g.vertical`, `drawArchGate`).
   - **Rune tiles** (v7.40, `RUNE_TILE`, `runeTiles`, `updateRuneTiles`, `drawRuneTiles`; the ruins' own trap): a ground tile
     (flush, grass on top) with a crack of blue light; small (step on, 0.3 s: thrown forward), medium (over its middle: launched
     up 76 px), very cracked (comes near: thrown back). The blast pushes away from its middle, never hurts, once for everyone.

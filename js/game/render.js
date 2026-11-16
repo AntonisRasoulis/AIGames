@@ -912,6 +912,7 @@ const Renderer = (() => {
       const a = g.x0 - camX, z = g.x1 - camX;
       if (z < -20 || a > VIEW_W + 20) continue;
       const st = level.laserState(g, time), y = Math.round(st.y), top = g.gy - G.high - 8;
+      if (g.vertical) { drawArchGate(g, st, a, z, time, front); continue; }
       if (front) {
         if (st.warn > 0) for (let x = a + 5; x < z - 4; x++) if ((x + Math.floor(time * 20)) % 4 < 2) P(RUNE, x, y, 1, 1, 0.35 + 0.4 * st.warn);
         if (!st.on) continue;
@@ -949,6 +950,62 @@ const Renderer = (() => {
       }
     }
   }
+  // ---- The vertical laser gate (v7.51, chosen V3-H): a stone arch over the course on two pillars, a chain under it, and
+  // a gear rolling along the chain with the laser hanging off its hub (a pipe of energy from the hub down into a finned
+  // housing and its lens). While it warns, energy climbs the pillars and runs along the chain from both ends into the
+  // gear, the arch's runes light up from the gear outwards and the lens glows; then the beam fires straight down ----
+  function agBox(x, y, w, h) { P(SST.edge, x - 1, y - 1, w + 2, h + 2); P(SST.mid, x, y, w, h); P(SST.hi, x, y, w, 1); P(SST.light, x, y + 1, 1, h - 1); P(SST.dark, x + w - 1, y + 1, 1, h - 1); P(SST.deep, x + 1, y + h - 1, w - 2, 1); }
+  function agCog(cx, cy, r, ang, glow) {
+    for (let yy = -r - 1; yy <= r + 1; yy++) for (let xx = -r - 1; xx <= r + 1; xx++) {
+      const d = Math.hypot(xx, yy), tooth = Math.cos((Math.atan2(yy, xx) - ang) * 8) > 0.2;
+      if (d > (tooth ? r + 0.8 : r - 0.2)) continue;
+      P(d > r - 1.2 ? SIRON.m : d > 2.2 ? SIRON.l : glow > 0 ? (glow > 0.6 ? "#eafff8" : RUNE) : "#2a6a62", cx + xx, cy + yy);
+    }
+  }
+  function drawArchGate(g, st, a, b, time, front) {
+    const G = LASER_GATE, gy = g.gy, top = gy - G.archUp, w = st.on ? 1 : st.warn, x = Math.round(st.x - (g.x0 - a)), gearY = top + 9, lensY = gearY + 14;
+    if (front) { // the beam and its warning (in front of the runners)
+      if (st.warn > 0) { const al = 0.4 + 0.5 * Math.sin(time * 30); for (let yy = lensY + 1; yy < gy; yy += 3) P(RUNE, x, yy, 1, 1, al * (0.4 + st.warn * 0.6)); }
+      if (st.on) {
+        const fr = Math.floor(time * 30);
+        for (let yy = lensY + 1; yy < gy; yy++) {
+          const j = hash(yy, fr) > 0.8 ? 1 : 0;
+          P("#2fbfa8", x - 2 - j, yy, 1, 1, 0.5); P(RUNE, x - 1, yy); P("#eafff8", x, yy); P(RUNE, x + 1, yy); P("#2fbfa8", x + 2 + j, yy, 1, 1, 0.5);
+          if ((yy + time * 300) % 14 < 2) P("#ffffff", x - 1, yy, 3, 1);
+        }
+        drawGlowAt("white", 1, x, lensY, 0.7);
+        for (let i = 0; i < 6; i++) { const an = Math.PI + hash(i, fr) * Math.PI; P(i % 2 ? "#eafff8" : RUNE, x + Math.cos(an) * hash(i + 3, fr) * 6, gy - 1 + Math.sin(an) * hash(i + 5, fr) * 5); }
+        for (let i = -3; i <= 3; i++) P("#1a2226", x + i, gy, 1, 1, 0.6);
+      }
+      return;
+    }
+    const archY = (xx) => { const u = (xx - a) / (b - a); return top - 4 - Math.round(Math.sin(Math.max(0, Math.min(1, u)) * Math.PI) * 12); };
+    for (const px of [a, b]) { // the pillars: energy climbing up their middle as it charges, a vine with a little flower
+      agBox(px - 4, top + 2, 9, gy - top - 2);
+      for (let yy = top + 8; yy < gy - 6; yy += 10) { P(SIRON.d, px - 4, yy, 9, 1); P(SIRON.l, px - 4, yy - 1, 9, 1, 0.5); }
+      for (let yy = top + 6; yy < gy - 6; yy += 3) P(w > 0 && (gy - yy) / (gy - top) < w * 1.4 ? (hash(Math.floor(time * 20), yy) > 0.3 ? "#eafff8" : RUNE) : "#1d6a5c", px, yy, 1, 2);
+      agBox(px - 6, gy - 4, 13, 4); agBox(px - 7, gy - 2, 15, 2);
+      for (let i = -6; i < 7; i++) if (hash(i, px + g.id) > 0.45) P("#5aa83a", px + i, gy - 5);
+      const vx = px + (px === a ? 4 : -4); for (let k = 0; k < 5; k++) P(k % 2 ? "#4a8a3a" : "#5aa83a", vx, top + 4 + k * 2, 1, 2); P("#ff9af0", vx, top + 14);
+    }
+    for (let xx = a - 6; xx <= b + 6; xx++) { const yy = archY(xx); P(SST.edge, xx, yy - 1, 1, 7); P((xx - a) % 9 === 0 ? SST.deep : SST.mid, xx, yy, 1, 5); P(SST.hi, xx, yy, 1, 1); P(SST.deep, xx, yy + 4, 1, 1); }
+    for (let xx = a + 8; xx < b - 6; xx += 10) { const yy = archY(xx) + 2, on = w > 0 && Math.abs(xx - x) / (b - a) < w; P(on ? (Math.sin(time * 25 + xx) > 0 ? "#eafff8" : RUNE) : "#2a6a62", xx, yy, 2, 1); }
+    const kx = Math.round((a + b) / 2), kp = 0.5 + 0.5 * Math.sin(time * 3); // the keystone, pulsing
+    agBox(kx - 3, top - 21, 7, 6); P(kp > 0.5 ? "#eafff8" : RUNE, kx, top - 19, 1, 3); P(RUNE, kx - 1, top - 18, 3, 1); drawGlowAt("aurora", 0, kx, top - 18, 0.3 + 0.3 * kp);
+    // the chain, its links running as the gear rolls; while it charges, sparks of energy run along it from both ends into the gear
+    for (let xx = a + 5; xx < b - 4; xx++) { const k = (((xx - Math.floor(x * 0.5)) >> 1) % 2 + 2) % 2; P(k ? SIRON.l : SIRON.d, xx, top + 3 + (k ? 0 : 1)); }
+    if (w > 0) for (const [from, dir] of [[a + 5, 1], [b - 5, -1]]) { const len = Math.abs(x - from); for (let k = 0; k < 3; k++) { const d = ((time * 90 + k * 22) % Math.max(8, len)); P("#eafff8", from + dir * d, top + 3, 2, 1); P(RUNE, from + dir * (d - 2), top + 3, 1, 1, 0.7); } }
+    const fr = Math.floor(time * 24), was = level_laserX(g, time - 0.05, a);
+    if (Math.abs(was - x) > 0) for (let i = 0; i < 2; i++) P(hash(fr, i) > 0.5 ? "#ffd23f" : "#eafff8", x + (hash(fr, i + 3) - 0.5) * 8, top + 4 + hash(fr, i + 5) * 3);
+    // the gear, and the laser hanging off its hub
+    agCog(x, gearY, 6, (st.x - g.x0) * 0.25, w);
+    P(SIRON.d, x - 1, gearY + 3, 3, 5); P(w > 0 ? RUNE : "#1d6a5c", x, gearY + 3, 1, 5);
+    agBox(x - 4, gearY + 8, 9, 5); P(SIRON.l, x - 4, gearY + 8, 9, 1); P(SIRON.d, x - 5, gearY + 10, 1, 2); P(SIRON.d, x + 5, gearY + 10, 1, 2);
+    P(SIRON.d, x - 2, lensY - 1, 5, 1); P(w > 0 ? (w > 0.6 ? "#eafff8" : RUNE) : "#1d6a5c", x - 1, lensY - 1, 3, 1);
+    if (w > 0) drawGlowAt("aurora", 1, x, lensY, 0.3 + 0.6 * w);
+  }
+  const level_laserX = (g, t, a) => { const G = LASER_GATE, p = ((t / g.sway + g.swayPhase) % 1 + 1) % 1, s = 0.5 - 0.5 * Math.cos(p * Math.PI * 2); return Math.round(a + G.edge + (g.x1 - g.x0 - 2 * G.edge) * s); };
+
   function gateCog(x, y, r, ang, hub) { // a little iron cog, its teeth turning with ang
     for (let yy = -r - 1; yy <= r + 1; yy++) for (let xx = -r - 1; xx <= r + 1; xx++) {
       const d = Math.hypot(xx, yy), a = Math.atan2(yy, xx) - ang, tooth = Math.cos(a * Math.max(6, r + 2)) > 0.2;

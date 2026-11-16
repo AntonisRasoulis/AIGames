@@ -1,7 +1,7 @@
 // The game's version, shown left of the logo. The first number goes up for big updates (a new biome, a new
 // secret world...), the second for smaller additions and fixes (back to 0 with each big update): 6.16 means
 // the 6th big update (the enchanted forest), 16 small ones since. (7: the arcane ruins.)
-const GAME_VERSION = "7.50";
+const GAME_VERSION = "7.51";
 
 // Tunable numbers for the game. Change these to adjust how it feels.
 // Distances are in game pixels; one tile is 8 pixels (about "1 meter").
@@ -583,7 +583,7 @@ const RUINS = {
   stoneEvery: 0.7,     // last 4 s: a stone falls near each runner about this often (seconds)
   stoneWarn: 0.6,      // ...its shadow grows on the ground this long first
   stoneFall: 0.35,     // ...then it drops this fast (seconds from the top to the ground)
-  mix: { flat: 1, step: 3, spikes: 7, gap: 4, floating: 3, moving: 2, falling: 2, mace: 3, saw: 3, shooter: 5, gearLaser: 5, storm: 3, laserGate: 4, runeTile: 4 }, // the ruins' sections (spikes are its fire turrets, shooters its laser eye-stones)
+  mix: { flat: 1, step: 3, spikes: 7, gap: 4, floating: 3, moving: 2, falling: 2, mace: 3, shooter: 5, gearLaser: 5, storm: 3, laserGate: 7, runeTile: 4 }, // the ruins' sections (spikes are its fire turrets, shooters its laser eye-stones, saws its laser gates: v7.51)
   gap: 1,              // flat tiles between its sections: 0 to this
   // biome portals: each visit has two, one on the path (forced: a clean gateway you run through) and one optional
   // (a small floating ring of stones you jump into), each sending you through a short, packed stretch of a biome
@@ -706,7 +706,7 @@ const MORTAR = {
 // The ruins' laser gate: two chain lifts (carved posts with cogs, the emitters hanging on chains, counterweights) with a laser strung between them that
 // slides up and down the whole time and blinks on and off. Time it, and jump it or run under it.
 const LASER_GATE = {
-  width: [4, 12],      // tiles between the two emitters
+  width: [5, 12],      // tiles between the two emitters (v7.51; it was 4-12)
   on: 0.25,            // seconds each shot lasts. It shoots just twice per trip down and back up: once on the way up,
                        // once on the way down (each gate at its own point, somewhere through the middle of the slide)
   shotAt: [0.25, 0.75],// ...how far through the slide (0: one end, 1: the other)
@@ -717,6 +717,10 @@ const LASER_GATE = {
   high: 46,            // ...and this high (above any jump)
   sway: [2.2, 3.6],    // seconds for one trip down and back up (each gate its own)
   thick: 3,            // how thick the beam is (pixels)
+  vertical: 0.5,       // share of gates that are vertical (v7.51): an arch over the course, the laser in a gear on a chain
+                       // under it, its beam straight down to the ground, sliding left and right (same shots and warning)
+  archUp: 66,          // ...the arch's chain this high above the ground (the beam starts lower, at the lens: you can't jump it)
+  edge: 12,            // ...the gear runs between this far in from each pillar
 };
 
 // The ruins' gift: the aurora's preservation. Aurora lights circle round you: they block one death (anything

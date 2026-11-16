@@ -673,7 +673,8 @@ class Level {
       if (since < G.on) on = true;
       else if (until <= G.warn) warn = Math.max(warn, 1 - until / G.warn);
     }
-    return { y, on, warn: on ? 0 : warn };
+    const x = g.vertical ? g.x0 + G.edge + (g.x1 - g.x0 - 2 * G.edge) * s : null; // (a vertical one slides left and right)
+    return { y, x, on, warn: on ? 0 : warn };
   }
 
   // A lightning mortar right now: { k (how many shots it's fired), u (seconds into this shot's cycle), turning (0..1
@@ -1474,7 +1475,7 @@ const SECTIONS = {
     this.flat(3, false);
     const x0 = this.col * TILE + 4;
     this.flat(w + 1, false);
-    this.laserGates.push({ id: this.nextId++, x0, x1: x0 + w * TILE + TILE, gy: this.groundRow * TILE, rhythm: G.rhythm[0] + this.rng() * (G.rhythm[1] - G.rhythm[0]), phase: this.rng(), sway: G.sway[0] + this.rng() * (G.sway[1] - G.sway[0]), swayPhase: this.rng() });
+    this.laserGates.push({ id: this.nextId++, x0, x1: x0 + w * TILE + TILE, gy: this.groundRow * TILE, rhythm: G.rhythm[0] + this.rng() * (G.rhythm[1] - G.rhythm[0]), phase: this.rng(), sway: G.sway[0] + this.rng() * (G.sway[1] - G.sway[0]), swayPhase: this.rng(), vertical: this.rng() < G.vertical });
     this.flat(3, false);
   },
 

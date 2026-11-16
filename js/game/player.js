@@ -893,6 +893,7 @@ class Player {
     for (const g of level.laserGates) {
       if (this.x + HITBOX_W < g.x0 || this.x > g.x1) continue;
       const st = level.laserState(g, level.time);
+      if (g.vertical) { if (st.on && st.x + LASER_GATE.thick / 2 > this.x && st.x - LASER_GATE.thick / 2 < this.x + HITBOX_W) return this.die("ZAPPED!"); continue; } // (an upright beam from the arch down to the ground)
       if (st.on && st.y + LASER_GATE.thick / 2 > this.y && st.y - LASER_GATE.thick / 2 < this.y + HITBOX_H) return this.die("ZAPPED!");
     }
 
