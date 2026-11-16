@@ -18,7 +18,7 @@ costs ground to the fire. 1 Player: one big view, race the fire for distance (be
 - Repo: `AntonisRasoulis/VibeCodingPractice`. Development branch: `claude/nice-meitner-muga6l`
   (a fresh chat may be given a different branch: use the one you're told).
 - Published as a claude.ai Artifact (a single bundled HTML file):
-  **https://claude.ai/artifact/Uh5CKSPymdWERadhojnY7P** (Version 159 at the time of writing). Always
+  **https://claude.ai/artifact/Uh5CKSPymdWERadhojnY7P** (Version 160 at the time of writing). Always
   republish to this same URL (pass it as `url`); never create a new artifact for the game.
 
 ## Style
@@ -330,8 +330,8 @@ Scripts load in this order (all globals, no modules), each with a `?v=` cache-bu
   - **The lightning mortar** (v7.22, chosen after mockups: the rune cannon C on a stone plinth, the barrel only at 45 / 90 / 135
     degrees on the pixel diagonals so it's never jagged; bomb T1, the plasma lens orb in the ruins' teal and dark iron). **v7.23:
     just one, infinite range** (owner's answers B, A, B): one per ruins trip; in an all-ruins race one per 250-450-tile stretch
-    (only the leader's stretch's one fires). Every 4 s it turns to the farthest runner (however far) and lobs a heavy bomb at where
-    they are as it fires (v7.28, owner's ask; it used to lead them): climbs 0.9 s, far shots glide along the top of the screen (4x your speed), then a straight drop 0.5 s; no ground
+    (only the leader's stretch's one fires). Every 4 s it turns to the farthest runner (however far) and lobs a heavy bomb just behind where
+    they'll be if they keep going, a near miss (v7.53, owner's ask; v7.28 it aimed at where they were, before that it led them): climbs 0.9 s, far shots glide along the top of the screen (4x your speed), then a straight drop 0.5 s; no ground
     warning (not even for bombs coming from off-screen), blows up on landing (5 tiles, a real fireball), touching the bomb is safe.
     `MORTAR`, `mortars`, `mortarState`, `updateMortars`, `bombAt`, `drawMortars`, `drawMortarBombs`.
   - **The storm engine** (v7.16, chosen after many mockups: the arcane engine base with the clockwork tower's cog, a gyroscope

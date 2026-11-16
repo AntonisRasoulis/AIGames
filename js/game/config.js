@@ -1,7 +1,7 @@
 // The game's version, shown left of the logo. The first number goes up for big updates (a new biome, a new
 // secret world...), the second for smaller additions and fixes (back to 0 with each big update): 6.16 means
 // the 6th big update (the enchanted forest), 16 small ones since. (7: the arcane ruins.)
-const GAME_VERSION = "7.52";
+const GAME_VERSION = "7.53";
 
 // Tunable numbers for the game. Change these to adjust how it feels.
 // Distances are in game pixels; one tile is 8 pixels (about "1 meter").
@@ -698,7 +698,8 @@ const RUNE_TILE = {
 
 // The ruins' lightning mortar: a rune cannon on a turntable, just one at a time (one per trip into the ruins; in a race
 // that's all ruins, one per stretch of the course). Every few seconds it turns to face whichever runner is farthest from
-// it, however far, and lobs a heavy iron bomb with lightning glowing in its lens at where they are as it fires (keep moving).
+// it, however far, and lobs a heavy iron bomb with lightning glowing in its lens just behind where they'll be if they keep going: its blast only
+// just misses them (slow down, stop or turn back, and it's on you).
 // There's no mark on the ground: watch the sky. It blows up the moment it lands, a real explosion that catches anyone
 // close. Touching the bomb itself doesn't hurt.
 const MORTAR = {
@@ -713,6 +714,7 @@ const MORTAR = {
   top: 12,             // the top of its flight: this far below the top of the screen (pixels)
   stretch: [250, 450], // a race that's all ruins: one mortar per stretch of this many tiles (only that one fires)
   blast: 40,           // the explosion catches anyone this close (pixels: 5 tiles)
+  miss: 3,             // v7.53: it lands just behind where you'll be if you keep going, its blast's edge this far short of you
   boom: 1.6,           // the explosion (fireball, shards, smoke) lasts this long; its scorch mark a little longer
 };
 

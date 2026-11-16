@@ -1842,8 +1842,12 @@ const Game = (() => {
         const p = m.target && runners.includes(m.target) ? m.target : farthest(m);
         if (p) {
           const x0 = m.x + m.face * 11, y0 = m.gy - 25; // (the muzzle, the barrel at 45 degrees)
-          let x1 = p.x + HITBOX_W / 2, T = M.rise + M.fall;
-          T = Math.max(M.rise, Math.abs(x1 - x0) / M.glide) + M.fall; // (at where they are as it fires: a far shot takes longer)
+          // (v7.53: just behind where they'll be when it lands if they keep going, its blast's edge only just missing them: a far
+          // shot takes longer, so work out when it lands and where they'll be then)
+          const vx = Math.max(-PHYSICS.runSpeed * TUNING.speed, Math.min(PHYSICS.runSpeed * TUNING.speed, p.vx || 0)), back = vx !== 0 ? -Math.sign(vx) : -(p.facing || 1);
+          const miss = (y) => (back < 0 ? y : y + HITBOX_W) + back * (M.blast + M.miss); // (the blast's edge just short of their nearer side)
+          let x1 = miss(p.x), T = M.rise + M.fall;
+          for (let i = 0; i < 8; i++) { x1 = miss(p.x + vx * T); T = Math.max(M.rise, Math.abs(x1 - x0) / M.glide) + M.fall; }
           const g = level.groundTop(x1), y1 = (g !== null ? g : m.gy + 24) - 6;
           world.mortarBombs.push({ level, x0, y0, x1, y1, T, top: M.top, age: 0, seed: Math.floor(Math.random() * 1000), face: Math.sign(x1 - x0) || m.face });
           m.firedAt = level.time;
