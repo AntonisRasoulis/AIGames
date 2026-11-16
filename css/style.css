@@ -390,10 +390,14 @@ kbd {
 .biome-choice.forest { --chip: #c080ff; }
 .biome-choice.ruins { --chip: #7af0d8; }
 
+/* (starts a new row in the panel) */
+.biome-break {
+  flex-basis: 100%;
+  height: 0;
+}
+
 /* the switch under the secret biomes: special (found in special ways) or regular (in the rotation like any biome) */
 .secret-mode {
-  flex-basis: 100%;
-  max-width: max-content;
   margin: 2px auto 0;
   padding: 0.3rem 0.7rem;
   border: 2px dashed #c080ff;
