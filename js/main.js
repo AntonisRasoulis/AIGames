@@ -141,7 +141,7 @@ function showBiomes() {
     chip.setAttribute("aria-pressed", String(on));
     if (!chip.dataset.secret) chip.title = on && total === 1 ? "At least one biome has to be on" : "";
   }
-  secretModeButton.textContent = `Secret biomes: ${secretRegular ? "regular" : "special"}`;
+  secretModeButton.querySelector(".secret-mode-label").textContent = secretRegular ? "REGULAR" : "SPECIAL";
   secretModeButton.setAttribute("aria-pressed", String(secretRegular));
 }
 function openBiomePanel(open) {

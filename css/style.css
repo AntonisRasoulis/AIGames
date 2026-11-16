@@ -398,22 +398,46 @@ kbd {
 
 /* the switch under the secret biomes: special (found in special ways) or regular (in the rotation like any biome) */
 .secret-mode {
+  /* a sliding switch (a squared-off toggle): the knob on the left for special, on the right for regular */
+  position: relative;
+  display: inline-flex;
+  align-items: center;
   margin: 2px auto 0;
-  padding: 0.3rem 0.7rem;
-  border: 2px dashed #c080ff;
-  border-radius: 999px;
+  min-width: 9.5rem;
+  height: 2.1rem;
+  padding: 0 0.8rem 0 2.6rem;
+  border: 2px solid #c080ff;
+  border-radius: 8px;
   background: transparent;
   color: #e0c8ff;
   font: inherit;
-  font-size: 0.75rem;
+  font-size: 0.8rem;
   font-weight: 700;
+  letter-spacing: 0.04em;
   cursor: pointer;
+  transition: padding 0.15s, background 0.15s, color 0.15s;
+}
+
+.secret-mode .knob {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: calc(2.1rem - 10px);
+  height: calc(2.1rem - 10px);
+  border-radius: 5px;
+  background: #c080ff;
+  transition: left 0.15s, background 0.15s;
 }
 
 .secret-mode[aria-pressed="true"] {
-  border-style: solid;
+  padding: 0 2.6rem 0 0.8rem;
   background: #c080ff;
   color: #1a1b33;
+}
+
+.secret-mode[aria-pressed="true"] .knob {
+  left: calc(100% - 2.1rem + 7px);
+  background: #1a1b33;
 }
 
 /* the secret biomes get their own row, under a little heading */
