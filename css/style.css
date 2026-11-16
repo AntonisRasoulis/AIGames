@@ -406,10 +406,10 @@ kbd {
   min-width: 9.5rem;
   height: 2.1rem;
   padding: 0 0.8rem 0 2.6rem;
-  border: 2px solid #c080ff;
+  border: 2px solid #ffd23f;
   border-radius: 8px;
   background: transparent;
-  color: #e0c8ff;
+  color: #ffe58a;
   font: inherit;
   font-size: 0.8rem;
   font-weight: 700;
@@ -425,13 +425,13 @@ kbd {
   width: calc(2.1rem - 10px);
   height: calc(2.1rem - 10px);
   border-radius: 5px;
-  background: #c080ff;
+  background: #ffd23f;
   transition: left 0.15s, background 0.15s;
 }
 
 .secret-mode[aria-pressed="true"] {
   padding: 0 2.6rem 0 0.8rem;
-  background: #c080ff;
+  background: #ffd23f;
   color: #1a1b33;
 }
 
