@@ -2510,7 +2510,13 @@ const Game = (() => {
     for (const lb of level.lobbers) {
       lb.squash += dt;
       if (lb.born !== undefined && world.time < lb.born + LEAVE.growUp) continue; // (one of Leave's, still growing)
-      if (lb.withering !== undefined) { if ((lb.withering += dt) >= L.dark.wither) lb.gone = true; continue; } // (a Spore Lobber, done: withering away)
+      if (lb.withering !== undefined) { // (a Spore Lobber, done: it swells and bursts)
+        const was = lb.withering;
+        if (was < L.dark.wither * 0.3 && (lb.withering += dt) >= L.dark.wither * 0.3) Sound.play("shroomPop");
+        else if (was >= L.dark.wither * 0.3) lb.withering += dt;
+        if (lb.withering >= L.dark.wither) lb.gone = true;
+        continue;
+      }
       const target = players.filter((p) => free(p) && Math.abs(p.x + HITBOX_W / 2 - lb.x) < L.range)
         .sort((p, q) => Math.abs(p.x - lb.x) - Math.abs(q.x - lb.x))[0];
       if (!target) { lb.t = 0; continue; }

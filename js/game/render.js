@@ -3186,15 +3186,24 @@ const Renderer = (() => {
     }
   }
 
-  // A Spore Lobber withering away (k: 0..1): sagging, its pixels crumbling off and sinking into the ground
+  // A Spore Lobber dying (k: 0..1, design B): it swells up, then bursts in a puff of its own dark spores that drift up
+  // and fade, its stalk left to sink into the ground
   function drawWither(rows, pal, x, gy, k) {
-    const h = rows.length;
-    rows.forEach((r, j) => [...r].forEach((ch, i) => {
-      if (ch === "." || (k > 0.35 && hash(i * 31 + j, 77) < (k - 0.35) * 1.6)) return;
-      const y = gy - h + j + Math.round(k * (h - j) * 0.6) + Math.round(k * k * 6);
-      if (y >= gy) return;
-      P(pal[ch], x + i, y, 1, 1, 1 - Math.max(0, k - 0.6) * 2);
+    const h = rows.length, w = rows[0].length, cap = 13; // (rows above this are its cap)
+    if (k < 0.3) { // swelling
+      const sw = 1 + k * 0.6;
+      rows.forEach((r, j) => [...r].forEach((ch, i) => { if (ch !== ".") P(pal[ch], x + w / 2 + (i - w / 2) * sw, gy - (h - j) * (j < cap ? sw : 1)); }));
+      return;
+    }
+    const u = (k - 0.3) / 0.7;
+    rows.forEach((r, j) => [...r].forEach((ch, i) => { // the stalk, sinking
+      const y = gy - (h - j) + Math.round(u * 8);
+      if (ch !== "." && j >= cap && y < gy) P(pal[ch], x + i, y, 1, 1, 1 - u);
     }));
+    for (let q = 0; q < 40; q++) { // the puff of spores
+      const a = hash(q, 1) * Math.PI * 2, d = 4 + u * 22 * hash(q, 4);
+      P(q % 3 ? pal.b : pal.R, x + w / 2 + Math.cos(a) * d, gy - 14 + Math.sin(a) * d * 0.6 - u * 10, 1, 1, 1 - u);
+    }
   }
 
   // The little mushrooms in the air, turned to follow their arc (cap first: tipping up as they climb, over the
