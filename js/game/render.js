@@ -3171,7 +3171,7 @@ const Renderer = (() => {
       const x = Math.round(lb.x - camX - img.width / 2), y = lb.gy - img.height;
       if (x > VIEW_W + 10 || x + img.width < -10) continue;
       if (growingFrom(lb, time, x, img.width, () => b.drawImage(img, 0, 0), img.height)) continue; // (one of Leave's, still growing)
-      if (lb.withering !== undefined) { drawWither(LOBBER_REST_ROWS, DARK_LOBBER_PALETTE, x, lb.gy, lb.withering / LOBBER.dark.wither); continue; }
+      if (lb.withering >= 0) { drawWither(LOBBER_REST_ROWS, DARK_LOBBER_PALETTE, x, lb.gy, lb.withering / LOBBER.dark.wither); continue; }
       const poreX = lb.x - camX + lb.dir * (firing ? 6 : 2), poreY = y + 2.5;
       drawGlowAt(lb.dark ? "blue" : "lilac", firing ? 1 : 0, poreX, poreY, firing ? 0.7 : 0.45);
       if (lb.dir > 0) b.drawImage(img, x, y);

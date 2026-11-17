@@ -2519,7 +2519,7 @@ const Game = (() => {
       if ((lb.t += dt) < (lb.dark ? L.dark.every : L.every)) continue;
       lb.t = 0;
       lb.squash = 0;
-      if (lb.dark && ++lb.shots >= L.dark.shots) { lb.withering = 0; Sound.play("shroomCreak"); } // (its last one)
+      if (lb.dark && ++lb.shots >= L.dark.shots) { lb.withering = -L.dark.squash; Sound.play("shroomCreak"); } // (its last one: squashed for it, then withering)
       // out of the pore on its upper front, squashed down: a lob that lands on the spot it picked
       const sx = lb.x + lb.dir * 6, sy = lb.gy - 12;
       const T = Math.min(L.flight[1], Math.max(L.flight[0], Math.abs(mid - sx) / L.speed));
