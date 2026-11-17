@@ -18,7 +18,7 @@ costs ground to the fire. 1 Player: one big view, race the fire for distance (be
 - Repo: `AntonisRasoulis/VibeCodingPractice`. Development branch: `claude/nice-meitner-muga6l`
   (a fresh chat may be given a different branch: use the one you're told).
 - Published as a claude.ai Artifact (a single bundled HTML file):
-  **https://claude.ai/artifact/Uh5CKSPymdWERadhojnY7P** (Version 161 at the time of writing). Always
+  **https://claude.ai/artifact/Uh5CKSPymdWERadhojnY7P** (Version 162 at the time of writing). Always
   republish to this same URL (pass it as `url`); never create a new artifact for the game.
 
 ## Style
@@ -124,7 +124,7 @@ Scripts load in this order (all globals, no modules), each with a `?v=` cache-bu
   (from 400 m) and 1 in 5 dream forests. Asleep until someone's past it (running through it from behind is harmless), then
   it follows through its forest (never leaving it): 40 px in from the left edge of the furthest-behind runner's screen
   (hurrying at 170 px/s), otherwise creeping at you at 32 px/s, walking on five roots slammed down one at a time. Every
-  3-4 s it **stands still** (owner's ask) and attacks, never the same twice in a row: **roots** (one, or two if everyone
+  3-4 s it attacks (v7.55: still creeping at its normal speed while it does, never hurrying; v7.54 stood still), never the same twice in a row: **roots** (one, or two if everyone
   can see it, curl up and slam steeply into the ground just in front of it; a glow races underground; the ground cracks
   0.6 s where you'll be, never behind you; a 42 px spike: stop short), **leaves** (grows a canopy, three bursts each
   tearing a third off, swooping into a bunch and flying at you, low = jump, high = stay down; regrows after 15 s),

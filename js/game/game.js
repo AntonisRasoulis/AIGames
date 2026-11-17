@@ -2253,7 +2253,7 @@ const Game = (() => {
       }
       if (L.grab) updateLeaveGrab(L, dt);
       L.moving = false;
-      if (L.state !== "idle") { updateLeaveAttack(L, dt); continue; } // (it never moves while it attacks)
+      if (L.state !== "idle") { updateLeaveAttack(L, dt); if (!L.grab) moveLeave(L, here, dt, false); continue; } // (attacking, it keeps creeping, but never hurries)
       L.next -= dt;
       const targets = here.filter((p) => freeRunner(p) && L.front.has(p) && p.x < L.x1 && seesLeave(p, L));
       if (L.grab || L.pause > 0) { L.pause -= dt; continue; }
@@ -2265,12 +2265,12 @@ const Game = (() => {
   }
 
   // Walking: hurrying to the left edge of the screen of whoever is furthest behind, or creeping at you (only forward,
-  // and never out of its forest; it waits while anyone is still behind it)
-  function moveLeave(L, here, dt) {
+  // and never out of its forest; it waits while anyone is still behind it). While it attacks it only creeps.
+  function moveLeave(L, here, dt, canHurry = true) {
     const E = LEAVE;
     if (!here.length || here.some((p) => !L.front.has(p))) return;
     const edge = Math.min(...here.map((p) => p.trackX)) - VIEW_W * 0.35 + E.edge;
-    const hurry = L.x < edge - 0.5;
+    const hurry = canHurry && L.x < edge - 0.5;
     let to = hurry ? Math.min(edge, L.x + E.catchUp * dt) : here.some((p) => !p.dead && !p.held && !p.dream) ? L.x + E.creep * dt : L.x;
     to = Math.min(to, L.x1 - E.endRoom);
     if (to <= L.x) return;
