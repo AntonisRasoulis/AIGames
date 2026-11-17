@@ -3167,7 +3167,7 @@ const Renderer = (() => {
   // its purple pore and a little spore dust drifting up out of it
   function drawLobbers(level, camX, time) {
     for (const lb of level.lobbers) {
-      const firing = lb.squash < LOBBER.squash, look = lb.dark ? sprites.darkLobber : sprites.lobber, img = firing ? look.fire : look.rest;
+      const firing = lb.squash < (lb.dark ? LOBBER.dark.squash : LOBBER.squash), look = lb.dark ? sprites.darkLobber : sprites.lobber, img = firing ? look.fire : look.rest;
       const x = Math.round(lb.x - camX - img.width / 2), y = lb.gy - img.height;
       if (x > VIEW_W + 10 || x + img.width < -10) continue;
       if (growingFrom(lb, time, x, img.width, () => b.drawImage(img, 0, 0), img.height)) continue; // (one of Leave's, still growing)
