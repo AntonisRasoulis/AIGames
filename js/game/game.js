@@ -3862,8 +3862,10 @@ const Game = (() => {
       // main course (no timer, no exit to reach: they just go on, like any biome)
       const allSecret = secret;
       biomeList = options.biomes !== true ? ["prairie"] : picked.length ? picked : allSecret.length ? allSecret : ["prairie"];
-      sleepShrooms = options.biomes !== true || secret.includes("forest"); // (the forest turned off: no way into it)
-      ruinsOn = options.biomes !== true || secret.includes("ruins");       // (the ruins turned off: no portal)
+      // (a secret biome turned off in the picker: no way into it, with biomes on or off; v7.60: with biomes off it used to
+      // be there whatever the picker said)
+      sleepShrooms = secret.includes("forest");
+      ruinsOn = secret.includes("ruins");
       if (options.biomes === true && options.secretRegular && secret.length) { // secret biomes as regular ones: in the rotation like any biome, no sleep mushroom or portal
         biomeList = picked.concat(secret);
         sleepShrooms = false;
