@@ -3167,12 +3167,13 @@ const Renderer = (() => {
   // its purple pore and a little spore dust drifting up out of it
   function drawLobbers(level, camX, time) {
     for (const lb of level.lobbers) {
-      const firing = lb.squash < LOBBER.squash, img = firing ? sprites.lobber.fire : sprites.lobber.rest;
+      const firing = lb.squash < LOBBER.squash, look = lb.dark ? sprites.darkLobber : sprites.lobber, img = firing ? look.fire : look.rest;
       const x = Math.round(lb.x - camX - img.width / 2), y = lb.gy - img.height;
       if (x > VIEW_W + 10 || x + img.width < -10) continue;
       if (growingFrom(lb, time, x, img.width, () => b.drawImage(img, 0, 0), img.height)) continue; // (one of Leave's, still growing)
+      if (lb.withering !== undefined) { drawWither(LOBBER_REST_ROWS, DARK_LOBBER_PALETTE, x, lb.gy, lb.withering / LOBBER.dark.wither); continue; }
       const poreX = lb.x - camX + lb.dir * (firing ? 6 : 2), poreY = y + 2.5;
-      drawGlowAt("lilac", firing ? 1 : 0, poreX, poreY, firing ? 0.7 : 0.45);
+      drawGlowAt(lb.dark ? "blue" : "lilac", firing ? 1 : 0, poreX, poreY, firing ? 0.7 : 0.45);
       if (lb.dir > 0) b.drawImage(img, x, y);
       else { b.save(); b.translate(x + img.width, y); b.scale(-1, 1); b.drawImage(img, 0, 0); b.restore(); }
       for (let k = 0; k < 3; k++) { // spore dust, up and out of the pore
@@ -3183,6 +3184,17 @@ const Renderer = (() => {
       }
       b.globalAlpha = 1;
     }
+  }
+
+  // A Spore Lobber withering away (k: 0..1): sagging, its pixels crumbling off and sinking into the ground
+  function drawWither(rows, pal, x, gy, k) {
+    const h = rows.length;
+    rows.forEach((r, j) => [...r].forEach((ch, i) => {
+      if (ch === "." || (k > 0.35 && hash(i * 31 + j, 77) < (k - 0.35) * 1.6)) return;
+      const y = gy - h + j + Math.round(k * (h - j) * 0.6) + Math.round(k * k * 6);
+      if (y >= gy) return;
+      P(pal[ch], x + i, y, 1, 1, 1 - Math.max(0, k - 0.6) * 2);
+    }));
   }
 
   // The little mushrooms in the air, turned to follow their arc (cap first: tipping up as they climb, over the

@@ -18,7 +18,7 @@ costs ground to the fire. 1 Player: one big view, race the fire for distance (be
 - Repo: `AntonisRasoulis/VibeCodingPractice`. Development branch: `claude/nice-meitner-muga6l`
   (a fresh chat may be given a different branch: use the one you're told).
 - Published as a claude.ai Artifact (a single bundled HTML file):
-  **https://claude.ai/artifact/Uh5CKSPymdWERadhojnY7P** (Version 162 at the time of writing). Always
+  **https://claude.ai/artifact/Uh5CKSPymdWERadhojnY7P** (Version 163 at the time of writing). Always
   republish to this same URL (pass it as `url`); never create a new artifact for the game.
 
 ## Style
@@ -129,7 +129,9 @@ Scripts load in this order (all globals, no modules), each with a `?v=` cache-bu
   0.6 s where you'll be, never behind you; a 42 px spike: stop short), **leaves** (grows a canopy, three bursts each
   tearing a third off, swooping into a bunch and flying at you, low = jump, high = stay down; regrows after 15 s),
   **seeds** (3-5 flung round the leader; 1 s later Lobbers 60% / spore mushrooms 10% each grow and stay, `born`).
-  Touching it: grabbed, thrown forward 80 px, spiked; you respawn at least 40 px in front of it (`Player.die`).
+  v7.56: half the seed attacks, one seed grows a **Spore Lobber** instead (`LOBBER.dark`, `lb.dark`; D3 midnight blue with a
+  muted pale moon blue pore, P2; one alive at a time): as soon as it's grown it lobs 10, one every 0.1 s (no blue), then
+  withers into the ground (`drawWither`). Touching it: grabbed, thrown forward 80 px, spiked; you respawn at least 40 px in front of it (`Player.die`).
 - **The forest's orb: the mushroom orb** (v7.24, `MUSHROOM_ORB`, power `"mushroom"`; icon chosen E2: a red toadstool with a white
   "?" on a 12 x 12 light blue orb): on an all-forest main course (30% of orbs) and the only orb in the dream forest. S / Down
   throws a mushroom straight up (showing its colour); after 1 s it always lands on you: one of the 4 spore mushrooms, 1 in 4

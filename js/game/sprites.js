@@ -1247,6 +1247,8 @@ const LOBBER_FIRE_ROWS = [
   ".r...rr.....rr...r..",
 ];
 const LOBBER_PALETTE = { o: "#2a1440", B: "#e8d0f8", b: "#d0b0ec", a: "#b48ad0", c: "#8e64b0", d: "#6a4690", w: "#f0e0ff", R: "#c080ff", p: "#2a0a44", s: "#d8c8e8", t: "#9a86b4", r: "#7a6a98" };
+// The Spore Lobber (grown from Leave's seeds): midnight blue, its pore a pale moon blue (design D3 + P2)
+const DARK_LOBBER_PALETTE = { o: "#06040e", B: "#4a4a7a", b: "#3a3a66", a: "#2c2c52", c: "#20203e", d: "#16162c", w: "#6a6aa0", R: "#7a8ac8", p: "#0c1028", s: "#3e3e5a", t: "#2a2a40", r: "#20203a" };
 // ...and the little mushrooms it lobs (like the forest's decorations), cap first
 const LOB_SHOT_ROWS = [".ccc.", "cchcc", "ccccc", "..s..", "..s.."];
 const LOB_SHOT_COLORS = { red: ["#ff4a5a", "#ffb0b8"], green: ["#5aee4a", "#d0ffb8"], pink: ["#ff6ad5", "#ffc0ee"], blue: ["#4a8aff", "#b8d4ff"] };
@@ -1800,6 +1802,7 @@ function buildSprites() {
     sleepShroom: makeSporeShroom("sleep", 1, SLEEP_SHROOM), // (like the spore mushrooms, a bit bigger, purple)
     sporeShrooms: Object.fromEntries(SPORES.kinds.map((k) => [k, [makeSporeShroom(k, -1), makeSporeShroom(k, 1)]])), // [leaning left, leaning right]
     lobber: { rest: spriteFromRows(LOBBER_REST_ROWS, LOBBER_PALETTE), fire: spriteFromRows(LOBBER_FIRE_ROWS, LOBBER_PALETTE) },
+    darkLobber: { rest: spriteFromRows(LOBBER_REST_ROWS, DARK_LOBBER_PALETTE), fire: spriteFromRows(LOBBER_FIRE_ROWS, DARK_LOBBER_PALETTE) },
     lobShots: Object.fromEntries(Object.entries(LOB_SHOT_COLORS).map(([k, [c, h]]) => [k, spriteFromRows(LOB_SHOT_ROWS, { c, h, s: "#f0e6f4" })])),
     glows: Object.fromEntries([["pink", "#ff6ad5"], ["cyan", "#6af0ff"], ["lime", "#b8ff6a"], ["firefly", "#f4ff6a"], ["thorn", "#ff5ad0"], ["lilac", "#c080ff"], ["red", "#ff4a5a"], ["green", "#5aee4a"], ["blue", "#4a8aff"], ["teal", "#2fbfa8"], ["aurora", "#7af0d8"]].map(([k, c]) => [k, [3, 5, 9].map((r) => makeGlow(r, c))]).concat([["ice", "#bfe8ff"], ["white", "#ffffff"], ["fire", "#ffa040"]].map(([k, c]) => [k, [3, 5, 9, 16, 28, 44].map((r) => makeGlow(r, c))]))), // (ice and white: the ruins' storm engines, with bigger sizes for the blast; fire: the mortar's explosion)
     flytraps: [makeFlytrapFrames(false), makeFlytrapFrames(true)], // small, big

@@ -1,7 +1,7 @@
 // The game's version, shown left of the logo. The first number goes up for big updates (a new biome, a new
 // secret world...), the second for smaller additions and fixes (back to 0 with each big update): 6.16 means
 // the 6th big update (the enchanted forest), 16 small ones since. (7: the arcane ruins.)
-const GAME_VERSION = "7.55";
+const GAME_VERSION = "7.56";
 
 // Tunable numbers for the game. Change these to adjust how it feels.
 // Distances are in game pixels; one tile is 8 pixels (about "1 meter").
@@ -826,6 +826,15 @@ const LOBBER = {
   float: 110,          // pink: you float up this fast (pixels a second)...
   floatMax: 2.5,       // ...and once you're off the top of the screen (or after this long, stuck under something) you die
   hit: 2,              // a lob's hit box: this far each way from its middle (pixels)
+  // The Spore Lobber (v7.56): a darker one that only grows from Leave's seeds (one alive at a time on a course). As
+  // soon as it's grown it lobs a quick burst at the nearest runner in range, then withers away into the ground
+  dark: {
+    chance: 0.5,       // a seed attack makes one (in place of one of its seeds) this often, if none is alive
+    shots: 10,         // it lobs this many...
+    every: 0.1,        // ...one every this many seconds (aimed like a Lobber's: where you are, where you'll be, just behind you)...
+    kinds: { red: 3, green: 3, pink: 3 }, // ...never a blue one
+    wither: 1,         // ...then takes this long to sag and crumble into the ground (gone for good)
+  },
 };
 
 // The enchanted forest's alive trees: they look just like the trees in the background (only swaying a little,

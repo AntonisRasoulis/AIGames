@@ -2298,6 +2298,9 @@ const Game = (() => {
     } else {
       L.seedsLeft = E.seeds[0] + Math.floor(Math.random() * (E.seeds[1] - E.seeds[0] + 1));
       L.seedSpots = null;
+      // (half the time, if this course has none alive, one of the seeds grows a Spore Lobber)
+      const darkAlive = world.level.lobbers.some((lb) => lb.dark) || world.level.leaveSeeds.some((s) => s.kind === "dark");
+      L.darkSeed = !darkAlive && Math.random() < LOBBER.dark.chance ? Math.floor(Math.random() * L.seedsLeft) : -1;
       Sound.play("seedShake");
     }
   }
@@ -2394,7 +2397,7 @@ const Game = (() => {
     const spot = L.seedSpots[i];
     if (!spot) return; // (nowhere for it to grow there)
     const x0 = L.x + 2 + (i - (n - 1) / 2) * 5, y0 = L.gy - 60;
-    level.leaveSeeds.push({ x: x0, y: y0, x0, y0, tx: spot.x, gy: spot.gy, kind: pickWeighted(E.kinds), t: 0 });
+    level.leaveSeeds.push({ x: x0, y: y0, x0, y0, tx: spot.x, gy: spot.gy, kind: i === L.darkSeed ? "dark" : pickWeighted(E.kinds), t: 0 });
   }
 
   // Somewhere near x a seed can grow: flat, firm ground (no hole, spikes or quicksand), clear of other mushrooms and of
@@ -2431,7 +2434,7 @@ const Game = (() => {
       if (s.t < E.seedFlight + E.sprout) continue;
       // it sprouts (and stays for good)
       s.gone = true;
-      if (s.kind === "lobber") level.lobbers.push({ id: level.nextId++, x: s.tx, gy: s.gy, dir: -1, t: 0, squash: 9, seed: Math.random(), born: world.time });
+      if (s.kind === "lobber" || s.kind === "dark") level.lobbers.push({ id: level.nextId++, x: s.tx, gy: s.gy, dir: -1, t: 0, squash: 9, seed: Math.random(), born: world.time, dark: s.kind === "dark", shots: 0 });
       else level.sporeShrooms.push({ id: level.nextId++, x: s.tx, gy: s.gy, kind: s.kind, seed: Math.random(), lean: Math.random() < 0.5 ? -1 : 1, born: world.time });
       for (let i = 0; i < 8; i++) world.sawBits.push({ x: s.tx, y: s.gy - 1, vx: (Math.random() - 0.5) * 70, vy: -30 - Math.random() * 60, t: 0.45, c: i % 2 ? "#5a3a7e" : "#a24cf0", level });
       Sound.play("sprout");
@@ -2507,23 +2510,26 @@ const Game = (() => {
     for (const lb of level.lobbers) {
       lb.squash += dt;
       if (lb.born !== undefined && world.time < lb.born + LEAVE.growUp) continue; // (one of Leave's, still growing)
+      if (lb.withering !== undefined) { if ((lb.withering += dt) >= L.dark.wither) lb.gone = true; continue; } // (a Spore Lobber, done: withering away)
       const target = players.filter((p) => free(p) && Math.abs(p.x + HITBOX_W / 2 - lb.x) < L.range)
         .sort((p, q) => Math.abs(p.x - lb.x) - Math.abs(q.x - lb.x))[0];
       if (!target) { lb.t = 0; continue; }
       const mid = target.x + HITBOX_W / 2;
       lb.dir = mid < lb.x ? -1 : 1;
-      if ((lb.t += dt) < L.every) continue;
+      if ((lb.t += dt) < (lb.dark ? L.dark.every : L.every)) continue;
       lb.t = 0;
       lb.squash = 0;
+      if (lb.dark && ++lb.shots >= L.dark.shots) { lb.withering = 0; Sound.play("shroomCreak"); } // (its last one)
       // out of the pore on its upper front, squashed down: a lob that lands on the spot it picked
       const sx = lb.x + lb.dir * 6, sy = lb.gy - 12;
       const T = Math.min(L.flight[1], Math.max(L.flight[0], Math.abs(mid - sx) / L.speed));
       const aim = pickWeighted(L.aims), moving = Math.sign(target.vx) || target.facing;
       const tx = aim === "ahead" ? mid + target.vx * T : aim === "behind" ? mid - moving * L.behind : mid;
       const ty = (level.groundTop(tx) ?? target.y + HITBOX_H) - 2;
-      level.lobShots.push({ x: sx, y: sy, vx: (tx - sx) / T, vy: (ty - sy) / T - 0.5 * L.gravity * T, kind: pickWeighted(L.kinds) });
+      level.lobShots.push({ x: sx, y: sy, vx: (tx - sx) / T, vy: (ty - sy) / T - 0.5 * L.gravity * T, kind: pickWeighted(lb.dark ? L.dark.kinds : L.kinds) });
       Sound.play("lobSpit");
     }
+    level.lobbers = level.lobbers.filter((lb) => !lb.gone);
     for (const s of level.lobShots) {
       s.vy += L.gravity * dt;
       s.x += s.vx * dt;
