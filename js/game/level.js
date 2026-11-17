@@ -124,7 +124,10 @@ class Level {
     this.lobbers = [];    // forest: Mushroom Lobbers { id, x (its middle), gy (the ground under it), dir (the way it leans), t (time to its next lob), squash (time since it last lobbed), seed }
     this.lobShots = [];   // ...and the little mushrooms they've lobbed, in the air { x, y, vx, vy, kind }
     this.bouncies = [];   // forest: bouncy mushrooms over gaps { id, x0 (its cap's middle), y (the cap's top), amp, period, phase (swaying), rotten, seed, bouncedAt }
-    this.sporeShrooms = []; // forest: big spore mushrooms { id, x (its foot), gy, kind, seed, lean (-1 left, 1 right) }
+    this.sporeShrooms = []; // forest: big spore mushrooms { id, x (its foot), gy, kind, seed, lean (-1 left, 1 right), born (grown from Leave's seed: when) }
+    this.leaveTrees = []; // forest: Leave, the walking tree { id, x (its trunk), x1 (where its forest ends), gy, awake, state: idle | roots | leaves | seeds, t, next (to its next attack), front (runners past it), roots, spikes, grab, ... }
+    this.leafShots = [];  // ...the leaves it's flung { x, y, sx, sy (where it left the branch), gx (where the bunch gathers), off (how high over the ground), vx, delay, t, dist }
+    this.leaveSeeds = []; // ...and its seeds, in the air or lying on the ground { x, y, x0, y0, tx, gy, kind, t }
     this.flytraps = [];   // jungle: giant flytraps { id, x (middle), gy, big, state: open | windup | chew | chewNothing | opening, t, victim }
     this.fires = [];      // desert: ground set alight by a firehawk's stick { x (middle), gy, t }
     this.turrets = [];    // jungle: ancient turrets buried in the ground { id, x (middle), gy, dir (-1 shoots left, 1 right), wait, state, t, h (how far up) }
@@ -334,6 +337,8 @@ class Level {
     if (this.shooters.some((s) => s.float ? this.floatThreat(s, x, y) : Math.abs(s.x - x) < SHOOTER.range && this.shooterHits(s, x, y))) return true;
     if (this.turrets.some((t) => this.inTurretZone(t, x + HITBOX_W / 2))) return true;
     if (this.trees.some((t) => Math.abs(t.x - (x + HITBOX_W / 2)) < ALIVE_TREE.grabReach + HITBOX_W + 8)) return true; // (no coming back where an alive tree strikes)
+    if (this.leaveTrees.some((L) => L.awake && x + HITBOX_W > L.x + LEAVE.body[0] - 8 && x < L.x + LEAVE.body[1] + LEAVE.clear)) return true; // (not right by Leave, the walking tree...)
+    if (this.leaveTrees.some((L) => L.spikes.some((sp) => Math.abs(sp.x - (x + HITBOX_W / 2)) < LEAVE.spikeReach + HITBOX_W + 4))) return true; // (...nor where its roots strike)
     if (this.onFire(x + HITBOX_W / 2, HITBOX_W / 2 + 4)) return true;
     if (this.fireRows.some((r) => x + HITBOX_W > r.x0 - 4 && x < r.x0 + r.n * TILE + 4)) return true; // (no waiting on a fire row)
     if (this.laserGates.some((g) => x + HITBOX_W > g.x0 - 4 && x < g.x1 + 4)) return true; // (not under a laser gate)
@@ -382,6 +387,7 @@ class Level {
   // Worked out from the clock, so both players see the same ones.
   sporesOf(m, time) {
     const out = [], top = m.gy - SPORES.stem;
+    if (m.born !== undefined && time < m.born + LEAVE.growUp) return out; // (one Leave's seed grew: none until it's grown)
     for (let n = 0; n < SPORES.count; n++) {
       // (each falls at its own pace, from its own start: not an even curtain, so there are gaps)
       const u = (time / SPORES.fall) * (0.75 + hash(n, m.id + 5) * 0.5) + hash(n, m.id + 9) + m.seed, cycle = Math.floor(u), f = u - cycle;
@@ -1298,12 +1304,31 @@ class Level {
     this.addBiomeEvents(length);
   }
 
+  // Leave, the forest's walking tree (LEAVE): it stands asleep at x, like any other tree, until someone is past it, then
+  // follows them through its forest, which ends at x1 (it never leaves it)
+  addLeave(x, x1) {
+    this.leaveTrees.push({ id: this.nextId++, x, x1, gy: null, awake: false, state: "idle", t: 0, next: 0, leafAt: -Infinity, walk: 0, pause: 0, front: new Set(), roots: [], spikes: [], lows: [], grab: null, seed: this.rng() * 100 });
+  }
+
+  // Where leaf k of Leave's canopy sits (72 of them, in the background trees' canopy shape): it grows there, and
+  // flies from there
+  leaveLeaf(L, k) {
+    const a = hash(k, 7) * Math.PI * 2, r = hash(k, 3) * 19;
+    return { x: L.x + 2 + Math.cos(a) * r * 1.5, y: L.gy - 68 + Math.sin(a) * r * 0.75 };
+  }
+
   // Each biome's special danger. Snow: two bears, at random spots in the biome (at least 70 m apart).
   addBiomeEvents(length) {
     // somewhere in it, a giant sleep mushroom (not in the forest itself), until the race has its one
     if (this.realmEnd === undefined && this.biome !== "forest" && this.biome !== "ruins" && this.sleepShroomsOn && !this.sleepPlaced) this.sleepAt = this.col + this.rand(30, Math.max(31, length - 60));
     // ...and the arcane ruins' portal (one per race too)
     if (this.realmEnd === undefined && this.biome !== "forest" && this.biome !== "ruins" && this.ruinsOn && !this.ruinsPlaced) this.ruinsAt = this.col + this.rand(30, Math.max(31, length - 60));
+    // Leave, the forest's walking tree: near the start of 1 in 3 forest stretches on the main course (from 400 m)
+    if (this.biome === "forest" && this.realmEnd === undefined && !this.leg && this.rng() < LEAVE.chance) {
+      const sign = this.signs[this.signs.length - 1], end = this.col + length;
+      const from = Math.max(sign && sign.x >= (this.col - 9) * TILE ? Math.floor(sign.x / TILE) + LEAVE.startIn : this.col, this.baseAt);
+      if (from < end - 60) this.addLeave(from * TILE + TILE / 2, end * TILE);
+    }
     if (this.biome === "prairie") {
       // Missiles: usually 2 (MISSILE.perBiome), spread out across the biome
       const n = Number(this.pickWeighted(MISSILE.perBiome));

@@ -179,7 +179,7 @@ const Game = (() => {
     for (const f of forests()) {
       if (f.biome === "ruins") onCourse(f, () => { world.players.forEach((p, i) => { if (inputs[i].firePressed && p.power === "laser") usePower(p, i); }); checkOrbs(); updateBridges(dt); updateRuins(f, dt); updateBiomeGates(f); updateStorms(dt); updateMortars(dt); updateRuneTiles(dt); levelSounds(); });
       else if (f.leg) onCourse(f, () => { updateBridges(dt); updateFlytraps(dt); checkThinIce(); levelSounds(); updateLeg(f); });
-      else onCourse(f, () => { world.players.forEach((p, i) => { if (inputs[i].firePressed && p.power === "mushroom") usePower(p, i); }); checkOrbs(); updateBridges(dt); updateLooseSaws(dt); updateLooseMaces(dt); updateSpores(); updateLobbers(dt); updateAliveTrees(dt); levelSounds(); });
+      else onCourse(f, () => { world.players.forEach((p, i) => { if (inputs[i].firePressed && p.power === "mushroom") usePower(p, i); }); checkOrbs(); updateBridges(dt); updateLooseSaws(dt); updateLooseMaces(dt); updateSpores(); updateLobbers(dt); updateAliveTrees(dt); updateLeaves(dt); levelSounds(); });
     }
     checkFire();
   }
@@ -208,6 +208,7 @@ const Game = (() => {
       updateSpores();
       updateLobbers(dt); // (a race that's all enchanted forest has them on the main course)
       updateAliveTrees(dt);
+      updateLeaves(dt);
       updateStorms(dt); // (a race that's all ruins has them on the main course)
       updateMortars(dt);
       updateRuneTiles(dt);
@@ -1570,7 +1571,7 @@ const Game = (() => {
         d.moved = true;
         // (the time spent falling asleep and waking up isn't lost: you wake as far on as you'd have run in it)
         if (d.kind === "sleep") {
-          if (!d.gate.forest) d.gate.forest = makeForest(d.gate);
+          if (!d.gate.forest) d.gate.forest = makeForest(d.gate, p.x + travelGain(S.sleep + S.wake));
           moveTo(p, d.gate.forest, p.x + travelGain(S.sleep + S.wake));
         } else moveTo(p, null, p.x + travelGain(S.fireflies + S.sleep + S.wake));
         p.lying = true;
@@ -1603,11 +1604,12 @@ const Game = (() => {
 
   // A new enchanted forest for a sleep mushroom: it covers the same stretch as the main course from where
   // the mushroom stands (calm ground where you wake up), 100-250 tiles long, then flat ground (the fireflies)
-  function makeForest(g) {
+  function makeForest(g, arrive) {
     const c0 = Math.floor(g.x / TILE) + 20;
     const len = Math.round(SLEEP_SHROOM.forest[0] + Math.random() * (SLEEP_SHROOM.forest[1] - SLEEP_SHROOM.forest[0]));
     const f = new Level(Math.floor(Math.random() * 1e9), "forest", { solo: world.solo, biomes: false, wild: world.wild, realmEnd: (c0 + len) * TILE });
     f.flat(Math.max(1, c0 - f.col), false);
+    if (Math.random() < LEAVE.dreamChance) f.addLeave(arrive - LEAVE.wakeBehind, f.realmEnd); // (1 in 5: Leave, the walking tree, just behind where you wake)
     f.update(world.time);
     return f;
   }
@@ -2213,6 +2215,285 @@ const Game = (() => {
     }
   }
 
+  // ---- Leave, the enchanted forest's walking tree ----
+
+  // Can this runner see Leave? (Is it on their screen: it runs from 35% of its width behind them)
+  function seesLeave(p, L) {
+    const left = p.trackX - VIEW_W * 0.35;
+    return L.x > left - 10 && L.x < left + VIEW_W + 10;
+  }
+
+  // Leave wakes once someone is past it, then follows them through its forest: hurrying to keep up at the left edge of
+  // the screen of whoever is furthest behind, creeping at you otherwise. Every few seconds it stands still and attacks
+  // (its roots, its leaves or its seeds), and touching it gets you grabbed, thrown forward and spiked.
+  function updateLeaves(dt) {
+    const { level, players } = world, E = LEAVE;
+    const here = players.filter((p) => !p.caught); // (everyone on this course)
+    for (const L of level.leaveTrees) {
+      // standing on the ground under it (it steps up and down with it; over a hole it keeps to the last ground it had)
+      const g = level.groundTop(L.x + 2);
+      if (L.gy === null) { if (g === null) continue; L.gy = g; }
+      else if (g !== null) L.gy += Math.sign(g - L.gy) * Math.min(Math.abs(g - L.gy), 120 * dt);
+      // Who's past it: only they can be grabbed (anyone behind it, say just arrived, goes through it unharmed until they're past)
+      for (const p of here) {
+        if (p.x > L.x + E.body[1]) L.front.add(p);
+        else if (p.x + HITBOX_W < L.x + E.body[0]) L.front.delete(p);
+      }
+      updateLeaveSpikes(L, dt);
+      if (!L.awake) {
+        if (!here.some((p) => freeRunner(p) && L.front.has(p) && p.x < L.x1)) continue;
+        Object.assign(L, { awake: true, next: E.firstAttack, wakeT: 0 });
+        Sound.play("leaveWake");
+      }
+      L.wakeT += dt;
+      // touching it: a root grabs you
+      if (!L.grab) {
+        const v = here.find((p) => freeRunner(p) && L.front.has(p) && overlaps(p.x, p.y, HITBOX_W, HITBOX_H, L.x + E.body[0], L.gy - E.bodyUp, E.body[1] - E.body[0], E.bodyUp));
+        if (v) leaveGrab(L, v);
+      }
+      if (L.grab) updateLeaveGrab(L, dt);
+      L.moving = false;
+      if (L.state !== "idle") { updateLeaveAttack(L, dt); continue; } // (it never moves while it attacks)
+      L.next -= dt;
+      const targets = here.filter((p) => freeRunner(p) && L.front.has(p) && p.x < L.x1 && seesLeave(p, L));
+      if (L.grab || L.pause > 0) { L.pause -= dt; continue; }
+      if (L.next <= 0 && targets.length) startLeaveAttack(L, targets);
+      else moveLeave(L, here, dt);
+    }
+    updateLeafShots(dt);
+    updateLeaveSeeds(dt);
+  }
+
+  // Walking: hurrying to the left edge of the screen of whoever is furthest behind, or creeping at you (only forward,
+  // and never out of its forest; it waits while anyone is still behind it)
+  function moveLeave(L, here, dt) {
+    const E = LEAVE;
+    if (!here.length || here.some((p) => !L.front.has(p))) return;
+    const edge = Math.min(...here.map((p) => p.trackX)) - VIEW_W * 0.35 + E.edge;
+    const hurry = L.x < edge - 0.5;
+    let to = hurry ? Math.min(edge, L.x + E.catchUp * dt) : here.some((p) => !p.dead && !p.held && !p.dream) ? L.x + E.creep * dt : L.x;
+    to = Math.min(to, L.x1 - E.endRoom);
+    if (to <= L.x) return;
+    const steps = Math.floor(L.walk * 5);
+    L.walk += (dt / E.stride) * (hurry ? 1.8 : 1); // (its steps: longer and quicker when it hurries)
+    L.x = to;
+    L.moving = true;
+    if (Math.floor(L.walk * 5) > steps) Sound.play("leaveStep"); // (a root slamming down)
+  }
+
+  // Its attacks, picked at random (never the same twice in a row; the leaves only once they've grown back)
+  function startLeaveAttack(L, targets) {
+    const E = LEAVE, kinds = ["roots", "seeds"];
+    if (world.time >= L.leafAt) kinds.push("leaves");
+    const pool = kinds.length > 1 ? kinds.filter((k) => k !== L.last) : kinds, kind = pool[Math.floor(Math.random() * pool.length)];
+    Object.assign(L, { state: kind, t: 0, last: kind, next: E.every[0] + Math.random() * (E.every[1] - E.every[0]) });
+    if (kind === "roots") { // one root, or two if every runner here can see it: one each (the nearer one gets the nearer root)
+      const near = targets.slice().sort((p, q) => p.x - q.x).slice(0, 2);
+      L.roots = near.length === 2 ? [{ p: near[0], foot: 6, d: 14 }, { p: near[1], foot: 14, d: 24 }] : [{ p: near[0], foot: 14, d: 24 }];
+      Sound.play("leaveRoots");
+    } else if (kind === "leaves") {
+      L.leafAt = world.time + E.volleys[2] + E.regrow;
+      L.lows = E.volleys.map(() => Math.random() < 0.5); // (each burst: low or high)
+      Sound.play("leafGrow");
+    } else {
+      L.seedsLeft = E.seeds[0] + Math.floor(Math.random() * (E.seeds[1] - E.seeds[0] + 1));
+      L.seedSpots = null;
+      Sound.play("seedShake");
+    }
+  }
+
+  function updateLeaveAttack(L, dt) {
+    const E = LEAVE, level = world.level, t0 = L.t;
+    L.t += dt;
+    const passed = (at) => t0 < at && L.t >= at;
+    if (L.state === "roots") {
+      const slam = E.rootRise + E.rootHold + E.rootSlam;
+      if (passed(slam)) { // they slam down into the ground, and a glow races off underground to where each runner will be
+        Sound.play("leaveSlam");
+        for (const r of L.roots) {
+          r.ex = L.x + 2 + r.foot * 0.15 + r.d; // (where it went in)
+          const p = r.p;
+          if (!freeRunner(p) || p.caught) continue;
+          const mid = p.x + HITBOX_W / 2;
+          let x = mid + Math.max(0, p.vx) * E.aim, gy = level.groundTop(x); // (where you'll be: never behind you)
+          if (gy === null) { x = mid; gy = level.groundTop(x); } // (that's over a hole: right at you instead)
+          if (gy !== null) L.spikes.push({ x, gy, t: -E.glow, from: r.ex });
+        }
+      }
+      if (L.t >= slam + E.glow + E.crack + E.spikeRise + E.spikeHold + E.spikeSink + E.rootsOut) endLeaveAttack(L);
+    } else if (L.state === "leaves") {
+      E.volleys.forEach((at, v) => { if (passed(at)) leafVolley(L, v); });
+      if (L.t >= E.volleys[2] + E.spread + 0.1) endLeaveAttack(L);
+    } else if (L.state === "seeds") {
+      const n = L.seedsLeft;
+      for (let i = 0; i < n; i++) if (passed(E.shake * 0.8 + i * E.seedEvery)) throwSeed(L, i, n);
+      if (L.t >= E.shake * 0.8 + n * E.seedEvery + 0.1) endLeaveAttack(L);
+    }
+  }
+
+  function endLeaveAttack(L) {
+    L.state = "idle";
+    L.t = 0;
+    L.next = Math.max(L.next, LEAVE.rest); // (it walks a while before the next one)
+  }
+
+  // A burst of leaves: a third of its canopy torn off, swooping down into a bunch in front of it, low or high
+  function leafVolley(L, v) {
+    const E = LEAVE, level = world.level, low = L.lows[v], [o0, o1] = low ? E.low : E.high;
+    const gx = L.x + E.ahead;
+    for (let k = v; k < E.perVolley * 3; k += 3) {
+      const at = level.leaveLeaf(L, k);
+      level.leafShots.push({ x: at.x, y: at.y, sx: at.x, sy: at.y, k, gx: gx + (Math.random() * 2 - 1) * E.jitter, ground: L.gy, off: o0 + Math.random() * (o1 - o0), vx: E.leafSpeed[0] + Math.random() * (E.leafSpeed[1] - E.leafSpeed[0]), delay: Math.random() * E.spread, t: 0, dist: 0 });
+    }
+    Sound.play("leafVolley");
+  }
+
+  function updateLeafShots(dt) {
+    const { level, players } = world, E = LEAVE;
+    for (const s of level.leafShots) {
+      s.t += dt;
+      const u = s.t - s.delay;
+      if (u < 0) continue; // (still on its branch)
+      if (u < E.gather) { // swooping down into the bunch
+        const k = u / E.gather, e = 1 - (1 - k) * (1 - k), g = level.groundTop(s.gx);
+        if (g !== null) s.ground = g;
+        s.x = s.sx + (s.gx - s.sx) * e;
+        s.y = s.sy + (s.ground - s.off - s.sy) * e;
+      } else { // ...then flying at you, skimming the ground (over a hole, the ground it last had)
+        const step = s.vx * dt, g = level.groundTop(s.x + 1);
+        if (s.dist === 0) { s.x = s.gx; s.y = s.ground - s.off; }
+        s.x += step;
+        s.dist += step;
+        if (g !== null) s.ground = g;
+        const want = s.ground - s.off;
+        s.y += Math.sign(want - s.y) * Math.min(Math.abs(want - s.y), 400 * dt);
+      }
+      const hit = players.find((p) => freeRunner(p) && overlaps(p.x, p.y, HITBOX_W, HITBOX_H, s.x, s.y, 3, 2));
+      if (hit) { hit.showHit("SHREDDED!", "#c080ff"); hit.die(); s.gone = true; }
+      if (s.dist > E.leafRange) s.gone = true;
+    }
+    level.leafShots = level.leafShots.filter((s) => !s.gone);
+  }
+
+  // A seed, flung up out of its branches in a high arc to land round whoever's in the lead (on flat, firm ground, clear of
+  // other mushrooms and dangers); it lies glowing a second, then sprouts: a Lobber, or a spore mushroom
+  function throwSeed(L, i, n) {
+    const E = LEAVE, level = world.level;
+    if (!L.seedSpots) {
+      const lead = world.players.filter((p) => freeRunner(p) && !p.caught).sort((p, q) => q.x - p.x)[0];
+      L.seedSpots = [];
+      if (lead) {
+        const base = lead.x + HITBOX_W / 2 + Math.max(0, lead.vx) * (E.seedFlight + ((n - 1) / 2) * E.seedEvery); // (where they'll be as the seeds land)
+        for (let j = 0; j < n; j++) {
+          const want = base + E.seedSpots[0] + ((E.seedSpots[1] - E.seedSpots[0]) * (j + 0.5)) / n + (Math.random() * 2 - 1) * 6;
+          const spot = seedSpot(level, want, L.seedSpots.filter(Boolean).map((sp) => sp.x));
+          L.seedSpots.push(spot);
+        }
+      }
+    }
+    const spot = L.seedSpots[i];
+    if (!spot) return; // (nowhere for it to grow there)
+    const x0 = L.x + 2 + (i - (n - 1) / 2) * 5, y0 = L.gy - 60;
+    level.leaveSeeds.push({ x: x0, y: y0, x0, y0, tx: spot.x, gy: spot.gy, kind: pickWeighted(E.kinds), t: 0 });
+  }
+
+  // Somewhere near x a seed can grow: flat, firm ground (no hole, spikes or quicksand), clear of other mushrooms and of
+  // anything dangerous (null: nowhere)
+  function seedSpot(level, x, taken) {
+    for (const d of [0, 6, -6, 12, -12, 18, -18, 24, -24]) {
+      const sx = Math.round(x + d), g = level.groundTop(sx);
+      if (g === null || level.groundTop(sx - 8) !== g || level.groundTop(sx + 8) !== g) continue;
+      const c = Math.floor(sx / TILE), row = g / TILE;
+      if ([c - 1, c, c + 1].some((cc) => level.isQuick(cc) || level.tile(cc, row - 1) !== T_EMPTY)) continue;
+      const near = (ox, w) => Math.abs(ox - sx) < w, gap = LEAVE.seedGap;
+      if (taken.some((tx) => near(tx, gap)) || level.lobbers.some((lb) => near(lb.x, gap)) || level.sporeShrooms.some((m) => near(m.x, SPORES.capW / 2 + gap))
+        || level.trees.some((tr) => near(tr.x, 24)) || level.sleepShrooms.some((m) => near(m.x, 40)) || level.bouncies.some((m) => near(m.x0, 30))) continue;
+      if (level.threatened(sx - HITBOX_W / 2, g - HITBOX_H, true)) continue; // (not right by a saw, a mace, a shooter...)
+      return { x: sx, gy: g };
+    }
+    return null;
+  }
+
+  function updateLeaveSeeds(dt) {
+    const level = world.level, E = LEAVE;
+    for (const s of level.leaveSeeds) {
+      const was = s.t;
+      s.t += dt;
+      if (s.t < E.seedFlight) { // up and over in a high arc
+        const k = s.t / E.seedFlight, high = Math.max(55, Math.abs(s.tx - s.x0) * 0.22);
+        s.x = s.x0 + (s.tx - s.x0) * k;
+        s.y = s.y0 + (s.gy - 2 - s.y0) * k - Math.sin(k * Math.PI) * high;
+        continue;
+      }
+      s.x = s.tx;
+      s.y = s.gy - 2;
+      if (was < E.seedFlight) Sound.play("seedLand");
+      if (s.t < E.seedFlight + E.sprout) continue;
+      // it sprouts (and stays for good)
+      s.gone = true;
+      if (s.kind === "lobber") level.lobbers.push({ id: level.nextId++, x: s.tx, gy: s.gy, dir: -1, t: 0, squash: 9, seed: Math.random(), born: world.time });
+      else level.sporeShrooms.push({ id: level.nextId++, x: s.tx, gy: s.gy, kind: s.kind, seed: Math.random(), lean: Math.random() < 0.5 ? -1 : 1, born: world.time });
+      for (let i = 0; i < 8; i++) world.sawBits.push({ x: s.tx, y: s.gy - 1, vx: (Math.random() - 0.5) * 70, vy: -30 - Math.random() * 60, t: 0.45, c: i % 2 ? "#5a3a7e" : "#a24cf0", level });
+      Sound.play("sprout");
+    }
+    level.leaveSeeds = level.leaveSeeds.filter((s) => !s.gone);
+  }
+
+  // Where its roots strike: a glow racing there underground, the ground cracking and glowing, then the spike
+  function updateLeaveSpikes(L, dt) {
+    const E = LEAVE;
+    for (const sp of L.spikes) {
+      const was = sp.t;
+      sp.t += dt;
+      if (was < 0 && sp.t >= 0) Sound.play("treeCrack");
+      const st = sp.t - E.crack; // (since it burst up)
+      if (st < 0 || st >= E.spikeRise + E.spikeHold) continue;
+      if (!sp.burst) { sp.burst = true; Sound.play("treeStrike"); }
+      const up = Math.min(1, st / E.spikeRise) * E.spikeTall;
+      for (const p of world.players) if (freeRunner(p) && overlaps(p.x, p.y, HITBOX_W, HITBOX_H, sp.x - E.spikeReach, sp.gy - up, E.spikeReach * 2, up)) { p.showHit("SPIKED!", "#c080ff"); p.die(); }
+    }
+    L.spikes = L.spikes.filter((sp) => sp.t < E.crack + E.spikeRise + E.spikeHold + E.spikeSink + 0.4);
+  }
+
+  // Touch it: a root wraps round you and lifts you, throws you forward onto safe ground, and a spike bursts up as you land
+  function leaveGrab(L, v) {
+    L.grab = { v, t: 0, x: v.x, y: v.y };
+    Object.assign(v, { held: true, vx: 0, vy: 0, standingOn: null, onGround: false, inQuick: false, inRiver: null, trapped: 0, dashHold: 0, dashTime: 0, windTime: 0 });
+    v.showHit("GRABBED!", "#c080ff");
+    Sound.play("treeGrab");
+  }
+
+  function updateLeaveGrab(L, dt) {
+    const E = LEAVE, gr = L.grab, v = gr.v, level = world.level;
+    gr.t += dt;
+    if (v.caught || v.dead) { v.held = false; v.spin = 0; L.grab = null; return; } // (the fire got them first)
+    if (gr.t < E.grabLift) { // lifted up off the ground
+      const k = gr.t / E.grabLift;
+      v.x = gr.x;
+      v.y = gr.y - 14 * (1 - (1 - k) * (1 - k));
+      return;
+    }
+    if (!gr.to) { // ...and thrown: about 10 tiles on, or as far as the next safe ground
+      const want = gr.x + E.throwDist, g = level.groundTop(want + HITBOX_W / 2);
+      gr.to = g !== null && !level.threatened(want, g - HITBOX_H) ? { x: want, y: g - HITBOX_H } : level.safeSpotAfter(want, 600) || { x: want, y: (g ?? L.gy) - HITBOX_H };
+      gr.from = { x: v.x, y: v.y };
+      Sound.play("rootFling");
+    }
+    const u = Math.min(1, (gr.t - E.grabLift) / E.throwTime);
+    v.x = gr.from.x + (gr.to.x - gr.from.x) * u;
+    v.y = gr.from.y + (gr.to.y - gr.from.y) * u - E.throwArc * 4 * u * (1 - u);
+    v.spin = -u * Math.PI * 1.5;
+    if (u < 1) return;
+    // landing: right onto a spike
+    L.spikes.push({ x: gr.to.x + HITBOX_W / 2, gy: gr.to.y + HITBOX_H, t: E.crack, burst: true, grab: true });
+    Sound.play("rootImpale");
+    Object.assign(v, { held: false, spin: 0, onGround: true });
+    v.showHit("SPIKED!", "#c080ff");
+    v.die();
+    L.grab = null;
+    L.pause = E.rest;
+  }
+
   // ---- The enchanted forest's Mushroom Lobbers ----
 
   const LOB_LOOK = { red: ["SPLAT!", "#ff5a6a"], green: ["POISONED!", "#7aff6a"], pink: ["FLOATING AWAY!", "#ff7ae0"], blue: ["WOKEN UP!", "#7ab8ff"] };
@@ -2225,6 +2506,7 @@ const Game = (() => {
     const free = (p) => !p.dead && !p.caught && !p.held && !p.dream;
     for (const lb of level.lobbers) {
       lb.squash += dt;
+      if (lb.born !== undefined && world.time < lb.born + LEAVE.growUp) continue; // (one of Leave's, still growing)
       const target = players.filter((p) => free(p) && Math.abs(p.x + HITBOX_W / 2 - lb.x) < L.range)
         .sort((p, q) => Math.abs(p.x - lb.x) - Math.abs(q.x - lb.x))[0];
       if (!target) { lb.t = 0; continue; }

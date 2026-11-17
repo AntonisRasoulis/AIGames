@@ -18,7 +18,7 @@ costs ground to the fire. 1 Player: one big view, race the fire for distance (be
 - Repo: `AntonisRasoulis/VibeCodingPractice`. Development branch: `claude/nice-meitner-muga6l`
   (a fresh chat may be given a different branch: use the one you're told).
 - Published as a claude.ai Artifact (a single bundled HTML file):
-  **https://claude.ai/artifact/Uh5CKSPymdWERadhojnY7P** (Version 160 at the time of writing). Always
+  **https://claude.ai/artifact/Uh5CKSPymdWERadhojnY7P** (Version 161 at the time of writing). Always
   republish to this same URL (pass it as `url`); never create a new artifact for the game.
 
 ## Style
@@ -119,6 +119,17 @@ Scripts load in this order (all globals, no modules), each with a `?v=` cache-bu
   faster, blue = higher jumps, green = poison screen, 10 s; pink = float up for 5 s; they stack). At the
   end, fireflies (the background's too) swarm you into a ball of light and you wake on the main course
   at the same distance. The only orb in the forest is its own **mushroom orb** (v7.24, below), and it's the only power you can use there (you keep the others).
+- **Leave, the forest's walking tree** (v7.54, `LEAVE`, `level.leaveTrees`, `updateLeaves`, `drawLeave` / `drawLeaveFront`;
+  designed in mockups: it closely resembles a background tree, bare, no eyes): near the start of 1 in 3 forest stretches
+  (from 400 m) and 1 in 5 dream forests. Asleep until someone's past it (running through it from behind is harmless), then
+  it follows through its forest (never leaving it): 40 px in from the left edge of the furthest-behind runner's screen
+  (hurrying at 170 px/s), otherwise creeping at you at 32 px/s, walking on five roots slammed down one at a time. Every
+  3-4 s it **stands still** (owner's ask) and attacks, never the same twice in a row: **roots** (one, or two if everyone
+  can see it, curl up and slam steeply into the ground just in front of it; a glow races underground; the ground cracks
+  0.6 s where you'll be, never behind you; a 42 px spike: stop short), **leaves** (grows a canopy, three bursts each
+  tearing a third off, swooping into a bunch and flying at you, low = jump, high = stay down; regrows after 15 s),
+  **seeds** (3-5 flung round the leader; 1 s later Lobbers 60% / spore mushrooms 10% each grow and stay, `born`).
+  Touching it: grabbed, thrown forward 80 px, spiked; you respawn at least 40 px in front of it (`Player.die`).
 - **The forest's orb: the mushroom orb** (v7.24, `MUSHROOM_ORB`, power `"mushroom"`; icon chosen E2: a red toadstool with a white
   "?" on a 12 x 12 light blue orb): on an all-forest main course (30% of orbs) and the only orb in the dream forest. S / Down
   throws a mushroom straight up (showing its colour); after 1 s it always lands on you: one of the 4 spore mushrooms, 1 in 4
@@ -219,7 +230,7 @@ Scripts load in this order (all globals, no modules), each with a `?v=` cache-bu
 
 ## Still to do / ideas parked
 
-- Maybe a forest animal / chaser (a shadow wolf or an owl were offered).
+- Maybe a forest animal (a shadow wolf or an owl were offered; the forest's chaser is now Leave, v7.54).
 - The floating shooters' stumps and thorns are small and dark: could be made easier to see.
 - The **arcane ruins**: a first version is built (see above). **Still to build:** (v7.51-7.52: saws and maces are replaced by laser gates and laser swords there), more of its own dangers (to be
   talked through), teal mist in its pits. The full design the owner settled:

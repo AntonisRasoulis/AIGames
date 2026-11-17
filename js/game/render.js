@@ -152,6 +152,7 @@ const Renderer = (() => {
     for (const j of world.jaguars) drawJaguarBack(j, world.level, camX, world.time); // eyes in a bush, leaping out
     drawTurrets(world.level, camX, world.time); // (before the ground, so it hides the part still underground)
     drawAliveTrees(world.level, camX, world.time); // (behind the ground, like the trees in the background)
+    drawLeave(world.level, camX, world.time);      // (...and Leave, the walking tree: its roots go down into the ground)
     drawTiles(world.level, camX, world.time);
     drawFireRows(world.level, camX, world.time);
     drawRuneTiles(world.level, camX, world.time);
@@ -182,7 +183,7 @@ const Renderer = (() => {
     drawPonds(world.level, world.players, camX, world.time);
     drawRivers(world.level, camX, world.time);
     drawFlytraps(world.level, camX, world.time);
-    drawSporeShrooms(world.level, camX);
+    drawSporeShrooms(world.level, camX, world.time);
     drawLobbers(world.level, camX, world.time);
     drawSleepShrooms(world.level, camX, world.time);
     drawGroundFires(world.level, camX, world.time);
@@ -222,6 +223,7 @@ const Renderer = (() => {
     for (const p of [player, other]) if (p && !p.hiddenIn) drawBridgeMagic(p, camX, world.time, p === other); // held up over a hole by magic
     for (const r of world.roots) drawRoots(r, camX, world.time); // (in front of whoever they've got hold of)
     drawTreeStrikes(world.level, camX, world.time);
+    drawLeaveFront(world.level, camX, world.time); // (its roots' spikes, its flying leaves and seeds, whoever it's grabbed)
     drawStones(world.level, camX);
     drawGearLasers(world.level, camX, world.time, true);
     drawStormBalls(world, camX, world.time);
@@ -1467,12 +1469,29 @@ const Renderer = (() => {
 
   // ---- The forest's spore mushrooms ----
 
-  function drawSporeShrooms(level, camX) {
+  function drawSporeShrooms(level, camX, time) {
     for (const m of level.sporeShrooms) {
       const img = sprites.sporeShrooms[m.kind][m.lean > 0 ? 1 : 0], x = Math.round(m.x - camX - img.width / 2);
       if (x > VIEW_W || x + img.width < 0) continue;
+      if (growingFrom(m, time, x, img.width, () => b.drawImage(img, 0, 0), img.height)) continue;
       b.drawImage(img, x, m.gy - img.height);
     }
+  }
+
+  // A mushroom grown from one of Leave's seeds, still coming up out of the ground: drawn (by draw, at 0, 0) rising up
+  // out of it (true), or false once it's grown
+  function growingFrom(m, time, x, w, draw, h) {
+    if (m.born === undefined || time >= m.born + LEAVE.growUp) return false;
+    const k = Math.max(0, (time - m.born) / LEAVE.growUp), up = Math.round(h * (1 - (1 - k) * (1 - k)));
+    b.save();
+    b.beginPath();
+    b.rect(x - 2, 0, w + 4, m.gy);
+    b.clip();
+    b.translate(x, m.gy - up);
+    draw();
+    b.restore();
+    for (let i = 0; i < 3; i++) P(i % 2 ? "#5a3a7e" : "#a24cf0", x + w / 2 - 4 + i * 4, m.gy - 1 - Math.abs(Math.sin(time * 20 + i)) * 2); // (earth pushed up round it)
+    return true;
   }
 
   // Its spores drifting down, glowing, fading a little as they fall
@@ -2990,6 +3009,158 @@ const Renderer = (() => {
     }
   }
 
+  // ---- Leave, the enchanted forest's walking tree ----
+
+  const LEAVE_BARK = "#2c1640", LEAVE_GLOW = "#e2a6ff", LEAVE_LEAF = ["#7a2ec0", "#a24cf0", "#c080ff"];
+  const LEAVE_FEET = [-16, -9, -2, 6, 14]; // (its five roots, from its trunk)
+
+  // A root along a curve from (x0, y0) through (cx, cy) to (x1, y1): thick at its base, thinning to its tip, with glowing
+  // thorns when it's about to strike. Anything below `floor` is in the ground, out of sight.
+  function leaveRoot(x0, y0, cx, cy, x1, y1, thick, thorns, floor = Infinity) {
+    const n = Math.max(6, Math.round(Math.hypot(cx - x0, cy - y0) + Math.hypot(x1 - cx, y1 - cy)));
+    for (let i = 0; i <= n; i++) {
+      const u = i / n, x = (1 - u) ** 2 * x0 + 2 * u * (1 - u) * cx + u * u * x1, y = (1 - u) ** 2 * y0 + 2 * u * (1 - u) * cy + u * u * y1;
+      if (y > floor) continue;
+      const w = Math.max(1, Math.round(thick * (1 - u * 0.6)));
+      P(LEAVE_BARK, x - w / 2, Math.min(y - w / 2, floor - w + 1), w, w);
+      if (thorns && i % 4 === 2 && u < 0.9 && y < floor - 2) { P(LEAVE_GLOW, x + w / 2 + 1, y - 1); P(LEAVE_GLOW, x - w / 2 - 1, y + 1); }
+    }
+  }
+
+  // ...the same, bowing out to one side by `bend` (its roots as legs)
+  function leaveLeg(x0, y0, x1, y1, bend, thick) {
+    leaveRoot(x0, y0, (x0 + x1) / 2 - (y1 - y0) * bend, (y0 + y1) / 2 + (x1 - x0) * bend, x1, y1, thick, false);
+  }
+
+  // Leave itself: a bare tree just like the ones in the background (their twisting trunk and two branches), walking on
+  // five roots that lift, swing forward and slam down one at a time. For its attacks: its front roots curling up and
+  // slamming down into the ground in front of it; a canopy of leaves that grows and is torn off a third at a time; its
+  // branches shaking. (Drawn behind the ground, so its roots go into it.)
+  function drawLeave(level, camX, time) {
+    const E = LEAVE, ez = (k) => k * k * (3 - 2 * k), lerp = (p, q, k) => [p[0] + (q[0] - p[0]) * k, p[1] + (q[1] - p[1]) * k];
+    for (const L of level.leaveTrees) {
+      if (L.gy === null) continue;
+      const x = L.x - camX, gy = Math.round(L.gy);
+      if (x < -60 || x > VIEW_W + 60) continue;
+      const bob = L.moving ? Math.round(Math.abs(Math.sin(L.walk * Math.PI))) : 0, base = gy - 8 - bob, top = gy - 70 - bob;
+      const shaking = (L.state === "seeds" && L.t < E.shake) || (L.awake && L.wakeT < 0.6) || (L.state === "leaves" && E.volleys.some((at) => L.t > at - 0.15 && L.t < at + 0.1));
+      const sx = (y) => x + Math.round(Math.sin((y - gy) * 0.12 + L.seed) * 3 + (shaking && gy - y > 36 ? Math.sin(time * 40 + y) * 1.5 : 0));
+      // its roots, as legs (the ones up for an attack are drawn below)
+      const raised = L.state === "roots" ? L.roots.map((r) => r.foot) : [];
+      LEAVE_FEET.forEach((f, i) => {
+        if (raised.includes(f)) return;
+        const ph = (((L.walk - i / 5) % 1) + 1) % 1, lifting = L.moving && ph < 0.35, k = lifting ? Math.sin((ph / 0.35) * Math.PI) : 0;
+        const fx = x + 2 + f + (lifting ? (ph / 0.35) * 5 - 2.5 : 0), fy = gy - k * 7;
+        leaveLeg(x + 2 + f * 0.15, base, fx, fy, f < 0 ? 0.25 : -0.25, 3);
+      });
+      // the trunk and its two branches (the background trees' own)
+      for (let y = top; y < base + 2; y++) P(LEAVE_BARK, sx(y), y, 4, 1);
+      for (const [dy, dir] of [[48, -1], [36, 1]]) {
+        const by = gy - dy - bob, bx = sx(by) + (dir > 0 ? 3 : 0);
+        for (let k = 0; k < 10; k++) P(LEAVE_BARK, bx + dir * k + (shaking ? Math.round((Math.sin(time * 50 + k + by) * k) / 5) : 0), by - Math.round(k * 0.6), 2, 1);
+      }
+      // the leaves it grows for its leaf attack (each burst tears a third of them off: they're drawn flying from there on)
+      if (L.state === "leaves") {
+        const grown = Math.min(1, L.t / E.grow);
+        for (let k = 0; k < E.perVolley * 3; k++) {
+          if (hash(k, 11) > grown || L.t >= E.volleys[k % 3]) continue;
+          const at = level.leaveLeaf(L, k);
+          P(LEAVE_LEAF[k % 3], at.x - camX, at.y - bob, 3, 3);
+          if (k % 9 === 0) P("#ffffff", at.x - camX + 1, at.y - bob, 1, 1, 0.6);
+        }
+      }
+      // its front roots for the root attack: curling up beside it, held there, slammed down into the ground in front of it,
+      // and pulled back out once its spikes are done
+      if (L.state === "roots") {
+        const u = L.t, slam = E.rootRise + E.rootHold + E.rootSlam, out = slam + E.glow + E.crack + E.spikeRise + E.spikeHold + E.spikeSink;
+        for (const r of L.roots) {
+          const bx = x + 2 + r.foot * 0.15, by = base, j = r.foot === 14 ? 1 : 0;
+          const foot = [[bx + r.foot * 0.5, gy - 2], [bx + r.foot, gy]], up = [[bx + 6, by - 24], [bx + 4 + j * 8, by - 40 - j * 6]], down = [[bx + r.d * 0.55, by - 30], [bx + r.d, gy + 8]];
+          let pose;
+          if (u < E.rootRise) { const k = ez(u / E.rootRise); pose = [lerp(foot[0], up[0], k), lerp(foot[1], up[1], k)]; }
+          else if (u < E.rootRise + E.rootHold) pose = [up[0], [up[1][0] + Math.sin(time * 30 + r.foot) * 0.6, up[1][1]]];
+          else if (u < slam) { const k = ((u - E.rootRise - E.rootHold) / E.rootSlam) ** 2; pose = [lerp(up[0], down[0], k), lerp(up[1], down[1], k)]; } // (speeding up: all its weight)
+          else if (u < out) pose = down;
+          else { const k = ez(Math.min(1, (u - out) / E.rootsOut)); pose = [lerp(down[0], foot[0], k), lerp(down[1], foot[1], k)]; }
+          leaveRoot(bx, by, pose[0][0], pose[0][1], pose[1][0], pose[1][1], 4, u > 0.2 && u < out, gy);
+        }
+      }
+    }
+  }
+
+  // In front: the ground broken open where its roots went in, the glow racing underground, the cracks and spikes where
+  // they strike, the leaves and seeds it's flung, and the root that's grabbed someone
+  function drawLeaveFront(level, camX, time) {
+    const E = LEAVE;
+    for (const L of level.leaveTrees) {
+      if (L.gy === null) continue;
+      const gy = Math.round(L.gy);
+      if (L.state === "roots") {
+        const slam = E.rootRise + E.rootHold + E.rootSlam, out = slam + E.glow + E.crack + E.spikeRise + E.spikeHold + E.spikeSink + E.rootsOut * 0.5;
+        for (const r of L.roots) {
+          const ex = L.x + 2 + r.foot * 0.15 + r.d - camX;
+          if (ex < -30 || ex > VIEW_W + 30 || L.t < slam) continue;
+          if (L.t < out) { P("#120818", ex - 2, gy, 5, 2); P("#a24cf0", ex - 3, gy - 1); P("#a24cf0", ex + 3, gy - 1); } // (the earth broken open round it)
+          if (L.t < slam + 0.4) { // clods of earth flying as it hits
+            const k = (L.t - slam) / 0.4;
+            for (let q = 0; q < 6; q++) { const vx = (q - 2.5) * 9, vy = 26 + hash(q, r.foot) * 20; P(q % 2 ? "#5a3a7e" : "#2a1634", ex + vx * k, Math.min(gy - 2, gy - 1 - vy * k + 60 * k * k), 2, 2, 1 - k * 0.6); }
+          }
+        }
+      }
+      for (const sp of L.spikes) {
+        const x = sp.x - camX, sgy = Math.round(sp.gy);
+        if (x < -60 || x > VIEW_W + 60) continue;
+        if (sp.t < 0.06 && sp.from !== undefined) { // a glow racing there underground (just under the grass)
+          const k = Math.min(1, (sp.t + E.glow) / E.glow), dir = Math.sign(sp.x - sp.from) || 1, gx = sp.from + (sp.x - sp.from) * k - camX;
+          for (let q = 0; q < 10; q++) P(LEAVE_GLOW, gx - q * 4 * dir, sgy + 3, 3, 1, (1 - q / 10) * (sp.t < 0 ? 1 : 1 - sp.t / 0.06));
+        }
+        if (sp.t >= 0 && sp.t < E.crack) { // the ground there cracking, bulging and glowing
+          const k = sp.t / E.crack, W = 4 + Math.round(3 * k);
+          drawGlowAt("lilac", 1, x, sgy - 2, 0.25 + 0.5 * k);
+          for (let dx = -W; dx <= W; dx++) {
+            const l = Math.round((1 + 2 * k) * (1 - (dx / (W + 1)) ** 2));
+            P("#2a1634", x + dx, sgy - l, 1, l + 1);
+            P("#a24cf0", x + dx, sgy - l);
+            if (k > 0.6 && Math.floor(time * 30) % 2) P(LEAVE_GLOW, x + dx, sgy - l, 1, 1, 0.6);
+          }
+        } else if (sp.t >= E.crack) { // the spike: up, held, sinking back in (shaking)
+          const st = sp.t - E.crack, up = st < E.spikeRise ? st / E.spikeRise : st < E.spikeRise + E.spikeHold ? 1 : Math.max(0, 1 - (st - E.spikeRise - E.spikeHold) / E.spikeSink);
+          P("#120818", x - 3, sgy, 7, 2);
+          if (up <= 0) continue;
+          const h = E.spikeTall * up, wob = st > E.spikeRise + E.spikeHold ? Math.round(Math.sin(time * 60)) : 0;
+          leaveRoot(x - 1 + wob, sgy + 2, x + wob, sgy - h / 2, x + 1 + wob, sgy - h, 4, true, sgy);
+        }
+      }
+      if (L.grab && L.grab.t < E.grabLift + 0.06) { // a root out of its front, coiled round whoever touched it
+        const v = L.grab.v, bx = L.x + 4 - camX, vx = v.x - camX, vy = v.y;
+        leaveRoot(bx, gy - 8, bx + 12, vy + HITBOX_H + 6, vx + HITBOX_W / 2, vy + HITBOX_H - 1, 4, true);
+        for (const yy of [3, 7]) { P(LEAVE_BARK, vx - 2, vy + yy, HITBOX_W + 4, 2); P(LEAVE_GLOW, vx - 2, vy + yy, 1, 1); P(LEAVE_GLOW, vx + HITBOX_W + 1, vy + yy + 1, 1, 1); }
+      }
+    }
+    // the leaves it's flung: tumbling (four frames: flat, tilted, edge-on, tilted the other way), fluttering as they fly
+    for (const s of level.leafShots) {
+      const u = s.t - s.delay, x = Math.round(s.x - camX);
+      if (x < -6 || x > VIEW_W + 6) continue;
+      const col = LEAVE_LEAF[s.k % 3];
+      if (u < 0) { P(col, x, s.y, 3, 3); continue; } // (still on its branch)
+      const y = Math.round(s.y + (u > E.gather ? Math.sin(u * 13 + s.k) : 0)), f = Math.floor(time * 16 + s.k * 1.7) % 4;
+      P("#5a2290", x - 3, y + 1, 2, 1, 0.35);
+      if (f === 0) { P(col, x, y, 3, 2); if (s.k % 4 === 0) P("#ffffff", x + 2, y, 1, 1, 0.8); }
+      else if (f === 1) { P(col, x, y + 1, 2, 1); P(col, x + 1, y, 2, 1); }
+      else if (f === 2) P(col, x + 1, y - 1, 1, 3);
+      else { P(col, x, y, 2, 1); P(col, x + 1, y + 1, 2, 1); }
+    }
+    // its seeds, in the air, then lying glowing on the ground until they sprout
+    for (const s of level.leaveSeeds) {
+      const x = Math.round(s.x - camX), y = Math.round(s.y);
+      if (x < -6 || x > VIEW_W + 6) continue;
+      if (s.t >= E.seedFlight) drawGlowAt("lilac", 1, x, y, 0.45 + 0.35 * Math.sin(time * 12));
+      P("#c080ff", x - 1, y - 1, 3, 3);
+      P("#ffffff", x - 1, y - 1);
+      P("#5a2290", x + 1, y + 1);
+    }
+  }
+
   // ---- The enchanted forest's Mushroom Lobbers ----
 
   // Leaning toward whoever it's after, squashed down flat for a moment each time it spits, a soft glow round
@@ -2999,6 +3170,7 @@ const Renderer = (() => {
       const firing = lb.squash < LOBBER.squash, img = firing ? sprites.lobber.fire : sprites.lobber.rest;
       const x = Math.round(lb.x - camX - img.width / 2), y = lb.gy - img.height;
       if (x > VIEW_W + 10 || x + img.width < -10) continue;
+      if (growingFrom(lb, time, x, img.width, () => b.drawImage(img, 0, 0), img.height)) continue; // (one of Leave's, still growing)
       const poreX = lb.x - camX + lb.dir * (firing ? 6 : 2), poreY = y + 2.5;
       drawGlowAt("lilac", firing ? 1 : 0, poreX, poreY, firing ? 0.7 : 0.45);
       if (lb.dir > 0) b.drawImage(img, x, y);

@@ -1,7 +1,7 @@
 // The game's version, shown left of the logo. The first number goes up for big updates (a new biome, a new
 // secret world...), the second for smaller additions and fixes (back to 0 with each big update): 6.16 means
 // the 6th big update (the enchanted forest), 16 small ones since. (7: the arcane ruins.)
-const GAME_VERSION = "7.53";
+const GAME_VERSION = "7.54";
 
 // Tunable numbers for the game. Change these to adjust how it feels.
 // Distances are in game pixels; one tile is 8 pixels (about "1 meter").
@@ -850,6 +850,76 @@ const ALIVE_TREE = {
   flingTime: 0.16,     // ...this fast...
   wrapTime: 0.2,       // ...coils round you up there this long...
   yankTime: 0.14,      // ...and yanks you down into the dirt this fast (then you wake up on the main course)
+};
+
+// Leave, the enchanted forest's walking tree: it looks just like the trees in the background, but bare, and walks on
+// its roots, slamming them down one at a time. It stands near the start of 1 in 3 forest stretches on the main course
+// (from 400 m) and just behind where you wake in 1 in 5 dream forests, and wakes once someone is past it. Then it follows
+// for the rest of that forest (it never leaves it): at the left edge of the screen of whoever is furthest behind,
+// hurrying to keep up, and otherwise creeping at you at a third of your speed. Every few seconds it stands still and
+// attacks: its roots (a spike bursting up where you'll be), its leaves (three bursts: jump the low ones, stay down under
+// the high ones) or its seeds (Lobbers and spore mushrooms sprouting round whoever is in the lead). Touch it and it
+// grabs you, throws you forward and spikes you.
+const LEAVE = {
+  chance: 1 / 3,       // a forest stretch on the main course (a forest biome, or each stretch of a race that's all forest) has one this often...
+  dreamChance: 1 / 5,  // ...and a dream forest (asleep under the sleep mushroom), this often
+  startIn: 2,          // on the main course it stands this many tiles past the forest's sign (or at 400 m, if that's later)...
+  wakeBehind: 90,      // ...and in a dream forest, this far behind where you wake (pixels)
+  endRoom: 24,         // it stops this far before its forest ends (pixels), and stays there for good
+  edge: 40,            // where it keeps up: this far in from the left edge of the screen of whoever is furthest behind (pixels)
+  catchUp: 170,        // how fast it hurries to get back there (pixels a second; you run 96)...
+  creep: 32,           // ...and creeps at you otherwise (a third of your speed)
+  stride: 0.4,         // seconds a step takes at a creep (a root lifted, swung forward and slammed down; quicker when hurrying)
+  body: [-12, 14],     // touching it: this far either side of its trunk (pixels, its roots included)...
+  bodyUp: 70,          // ...up to this high (you can't jump over it)
+  firstAttack: 2,      // seconds after it wakes before its first attack
+  every: [3, 4],       // seconds from one attack starting to the next...
+  rest: 1,             // ...but at least this long after one is done (it walks in between: it never moves while it attacks)
+  // Roots: its front roots (one, or two if both of you can see it: one each) curl up beside it and slam down into the
+  // ground in front of it; a glow races underground to where you'll be, the ground cracks there, and a spike bursts up
+  rootRise: 0.6,       // seconds its roots take to rise...
+  rootHold: 0.4,       // ...held up...
+  rootSlam: 0.1,       // ...and slammed down
+  aim: 0.7,            // it aims where you'll be this long after the slam (running on; standing still or walking back: right at you)
+  glow: 0.1,           // the glow takes this long to race there underground...
+  crack: 0.6,          // ...then the ground cracks and glows for this long before the spike
+  spikeReach: 4,       // the spike hits this far each side of its middle (pixels)...
+  spikeTall: 42,       // ...this high (higher than any jump: stop short of the crack)
+  spikeRise: 0.08,     // seconds it takes to burst up...
+  spikeHold: 0.35,     // ...stays up...
+  spikeSink: 0.4,      // ...and sinks back in
+  rootsOut: 0.4,       // then it pulls its roots back out of the ground (seconds)
+  // Leaves: it grows a canopy, then three bursts, each tearing a third of its leaves off: all low (skimming the
+  // ground: jump them) or all high (at jump height: stay down), 50/50 each
+  grow: 0.8,           // seconds its leaves take to grow...
+  volleys: [1.3, 2.3, 3.3], // ...and when each burst comes (seconds from the start)
+  perVolley: 24,       // leaves in a burst (a third of its canopy)
+  gather: 0.3,         // seconds they take to swoop down from its branches into a bunch in front of it...
+  ahead: 24,           // ...this far in front of its trunk (pixels)
+  jitter: 8,           // the bunch: this far either way (pixels)...
+  spread: 0.06,        // ...and the last leaf leaves this long after the first (seconds)
+  leafSpeed: [272, 288], // then they fly at you this fast (pixels a second): the bunch passes a runner in about a third
+                       // of a second, and a jump stays over a low burst for half a second (see the README)
+  low: [3, 9],         // a low burst: leaves this high above the ground (pixels)...
+  high: [18, 31],      // ...and a high one (you're 11 tall: standing, it goes over you)
+  leafRange: 640,      // pixels they fly before they're spent
+  regrow: 15,          // seconds after a leaf attack before it can grow leaves again
+  // Seeds: it shakes its branches and flings 3-5 seeds in high arcs, landing round the runner in the lead
+  seeds: [3, 5],
+  shake: 0.5,          // seconds it shakes its branches first
+  seedEvery: 0.08,     // seconds between seeds
+  seedFlight: 1.2,     // seconds a seed is in the air
+  seedSpots: [-30, 90], // where they land: from this far behind the leader to this far ahead (pixels, where the leader will be as they land)
+  seedGap: 22,         // at least this far apart, and from other mushrooms (pixels; a spore mushroom needs more room)
+  sprout: 1,           // seconds a seed lies glowing on the ground before it sprouts...
+  growUp: 0.8,         // ...and the mushroom takes to grow (it stays for good)
+  kinds: { lobber: 6, red: 1, blue: 1, green: 1, pink: 1 }, // what grows: 60% a Lobber, 10% each spore mushroom
+  // Touch it: a root grabs you, lifts you, throws you forward, and a spike comes up where you land
+  grabLift: 0.35,      // seconds it takes to lift you...
+  throwTime: 0.6,      // ...throw you...
+  throwDist: 80,       // ...this far forward (pixels: or further, to safe ground)...
+  throwArc: 34,        // ...this high
+  clear: 40,           // you never come back to life closer than this in front of it (pixels, from its front)
 };
 
 // The forest's spore mushrooms: spores drift down from under the cap all the time, and running

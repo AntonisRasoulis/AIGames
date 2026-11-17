@@ -1231,6 +1231,9 @@ class Player {
     if (!spot) spot = this.level && this.level.safeSpotBefore(target, 4000);
     if (!spot) for (const s of this.safeSpots) if (firm(s) && (!spot || Math.abs(s.x - target) < Math.abs(spot.x - target))) spot = s;
     if (!spot) spot = this.safeSpots[0];
+    // (never back to life right by Leave, the forest's walking tree, or behind it: a little way in front of it)
+    const leave = this.level && this.level.leaveTrees.find((L) => L.awake && spot.x < L.x + LEAVE.body[1] + LEAVE.clear && L.x - spot.x < VIEW_W);
+    if (leave) spot = this.level.safeSpotAfter(leave.x + LEAVE.body[1] + LEAVE.clear - 1, 800) || spot;
     this.respawnX = spot.x;
     this.respawnY = spot.y;
     this.vx = 0;
