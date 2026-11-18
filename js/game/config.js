@@ -1,7 +1,7 @@
 // The game's version, shown left of the logo. The first number goes up for big updates (a new biome, a new
 // secret world...), the second for smaller additions and fixes (back to 0 with each big update): 6.16 means
 // the 6th big update (the enchanted forest), 16 small ones since. (7: the arcane ruins.)
-const GAME_VERSION = "7.62";
+const GAME_VERSION = "7.63";
 
 // Tunable numbers for the game. Change these to adjust how it feels.
 // Distances are in game pixels; one tile is 8 pixels (about "1 meter").
@@ -589,8 +589,11 @@ const RUINS = {
   // (a small floating ring of stones you jump into), each sending you through a short, packed stretch of a biome
   legLength: [20, 25], // tiles of biome in a stretch
   timeBonus: 2,        // an optional one: make it back out of its stretch and your clock gets this many seconds more
-  forcedAt: [4, 10],   // tiles after the calm arrival from which the forced one comes next (it waits for the section in hand: usually 10-35 in)
-  optionalAfter: [2, 6], // ...and the optional one, this many tiles after you're back from the forced one's stretch
+  forcedChance: 0.5,   // v7.63: a visit only has the forced one half the time (the optional one always comes)...
+  forcedAt: [4, 10],   // ...tiles after the calm arrival from which the forced one comes next (it waits for the section in hand: usually 10-35 in)
+  optionalAfter: [2, 6], // ...and the optional one, this many tiles after you're back from the forced one's stretch...
+  optionalAlone: [30, 70], // ...or with no forced one, this many tiles after the calm arrival
+                       // (a race that's all ruins: each forced one on the main course comes half the time too)
   legGap: 1,           // flat tiles between a stretch's sections (packed closer than usual, 1-3, but always somewhere to stand)
   legSqueeze: { default: 2, gap: 4, shooter: 3, flytrap: 11, sinkhole: 5, snowball: 4, quicksand: 3, tumbleweed: 8 }, // ...each section's run-up and landing cut to this many tiles (flytraps need room to bait them, sinkholes and snowballs a little to read them)
   legWild: true,       // a stretch is built the Wild way: its dangers faster and nastier (v7.17: much harder)

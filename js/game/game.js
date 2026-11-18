@@ -1715,7 +1715,8 @@ const Game = (() => {
     const picked = biomeList.filter((b) => BIOMES.includes(b)), pool = picked.length > 1 ? picked : BIOMES;
     f.legBiomes = [0, 1].map(() => pool[Math.floor(Math.random() * pool.length)]);
     const a = c0 + RUINS.arrive;
-    f.forcedAt = a + RUINS.forcedAt[0] + Math.floor(Math.random() * (RUINS.forcedAt[1] - RUINS.forcedAt[0] + 1));
+    if (Math.random() < RUINS.forcedChance) f.forcedAt = a + RUINS.forcedAt[0] + Math.floor(Math.random() * (RUINS.forcedAt[1] - RUINS.forcedAt[0] + 1));
+    else f.optionalAt = a + RUINS.optionalAlone[0] + Math.floor(Math.random() * (RUINS.optionalAlone[1] - RUINS.optionalAlone[0] + 1)); // (no forced one this time: just the optional one)
     f.update(world.time);
     return f;
   }
@@ -3828,6 +3829,7 @@ const Game = (() => {
     ruinsLeft,
     bombAt,
     firePortalGun, // (for tests)
+    makeRuinsForTest: (g) => makeRuins(g), // (for tests)
     obstacleRuns,
     blackoutDark,
     sandstormStrength,

@@ -18,7 +18,7 @@ costs ground to the fire. 1 Player: one big view, race the fire for distance (be
 - Repo: `AntonisRasoulis/VibeCodingPractice`. Development branch: `claude/nice-meitner-muga6l`
   (a fresh chat may be given a different branch: use the one you're told).
 - Published as a claude.ai Artifact (a single bundled HTML file):
-  **https://claude.ai/artifact/Uh5CKSPymdWERadhojnY7P** (Version 169 at the time of writing). Always
+  **https://claude.ai/artifact/Uh5CKSPymdWERadhojnY7P** (Version 170 at the time of writing). Always
   republish to this same URL (pass it as `url`); never create a new artifact for the game.
 
 ## Style
@@ -384,7 +384,7 @@ Scripts load in this order (all globals, no modules), each with a `?v=` cache-bu
     ruins). The ruins' exit uses the clean gateway too. The clean gateway's bricks **rest as a beautiful stone arch**
     (a glowing keystone at the top) that **unrolls into the ring**. Code: `drawBrickPortal(style "old" | "clean")`,
     `drawGateway`, `world.builtPortals` with `state` rest / build / open / close (never removed), `f.arriveGate`.
-  - **Biome portals inside the ruins (built v7.13):** **exactly 2 per visit: one forced (the clean gateway, run through it), one
+  - **Biome portals inside the ruins (built v7.13):** **2 per visit: one forced (the clean gateway, run through it; v7.63: only half the time, `RUINS.forcedChance`, also on an all-ruins main course), one
     optional (a small floating ring of stones, jump in; v7.44: 32 px up and only its swirl counts, so running under it doesn't take you in; v7.15: make it through and your clock gets +2 s, `RUINS.timeBonus`,
     `p.ruinsBonus`; it no longer moves you further on)**; stretches 20-25 tiles, v7.17: much harder (Wild, `RUINS.legMix`: mostly the biome's own dangers); v7.19: packed (`legSqueeze`, `trimLanding`, no repeats), ruins 133 tiles; v7.18: an all-ruins race has them on the main course too (from 400 m, `nextLegAt`; `world.mainCourse` set in `onCourse` so `moveTo` knows the way back); ruins 144 tiles so one death is fine, two too many. Code: `Level.biomeGates`, `SECTIONS.biomeGate`, `leg` levels, `enterLeg`,
     `updateBiomeGates`, `updateLeg`, `drawBiomeGates`, `VORTEX` tints. Older plan: each sending you into a **ramped-up stretch of

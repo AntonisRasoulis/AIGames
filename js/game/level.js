@@ -877,7 +877,7 @@ class Level {
       if (this.col >= this.nextLegAt) {
         this.legForced = !this.legForced;
         this.nextLegAt = this.col + this.rand(60, 110);
-        return SECTIONS.biomeGate.call(this, this.legForced);
+        if (!this.legForced || this.rng() < RUINS.forcedChance) return SECTIONS.biomeGate.call(this, this.legForced); // (v7.63: a forced one only half the time)
       }
     }
     if (this.biome === "ruins" && this.realmEnd !== undefined) { // the ruins' biome portals (see makeRuins)
