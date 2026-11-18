@@ -26,13 +26,14 @@ const Renderer = (() => {
   }
 
   // Where each runner's view goes (game pixels) and how big the whole picture is: 1 player, one view; 2, one above the
-  // other; 3 (v7.61), one in the top middle and two below; 4, a 2 x 2 grid. Every view is the same full size, so with 3 or
+  // other; 3, Red and Blue on top and Green alone in the bottom middle (v7.64); 4, a 2 x 2 grid (Red, Blue on top; Green,
+  // Yellow below). Every view is the same full size, so with 3 or
   // 4 everyone sees just as far ahead (the picture is wider, and shrunk to fit)
   function layout(n) {
     const X = VIEW_W + DIVIDER, Y = VIEW_H + DIVIDER;
     if (n <= 1) return { w: VIEW_W, h: VIEW_H, views: [{ x: 0, y: 0 }] };
     if (n === 2) return { w: VIEW_W, h: GRID_H, views: [{ x: 0, y: 0 }, { x: 0, y: Y }] };
-    if (n === 3) return { w: GRID_W, h: GRID_H, views: [{ x: (GRID_W - VIEW_W) / 2, y: 0 }, { x: 0, y: Y }, { x: X, y: Y }] };
+    if (n === 3) return { w: GRID_W, h: GRID_H, views: [{ x: 0, y: 0 }, { x: X, y: 0 }, { x: (GRID_W - VIEW_W) / 2, y: Y }] };
     return { w: GRID_W, h: GRID_H, views: [{ x: 0, y: 0 }, { x: X, y: 0 }, { x: 0, y: Y }, { x: X, y: Y }] };
   }
 
@@ -40,7 +41,7 @@ const Renderer = (() => {
     const L = layout(world.players.length);
     b.fillStyle = "#1b1b2f"; // (the gaps between the views)
     b.fillRect(0, 0, L.w, L.h);
-    if (world.players.length === 3) { b.fillStyle = "#0b0f16"; b.fillRect(0, 0, L.views[0].x - DIVIDER, VIEW_H); b.fillRect(L.views[0].x + VIEW_W + DIVIDER, 0, L.w, VIEW_H); } // (either side of the top one)
+    if (world.players.length === 3) { const g = L.views[2]; b.fillStyle = "#0b0f16"; b.fillRect(0, g.y, g.x - DIVIDER, VIEW_H); b.fillRect(g.x + VIEW_W + DIVIDER, g.y, L.w, VIEW_H); } // (either side of the bottom one)
     for (let i = 0; i < world.players.length; i++) {
       const r = L.views[i];
       const p = world.players[i];

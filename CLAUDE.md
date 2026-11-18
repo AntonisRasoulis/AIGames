@@ -18,7 +18,7 @@ costs ground to the fire. 1 Player: one big view, race the fire for distance (be
 - Repo: `AntonisRasoulis/VibeCodingPractice`. Development branch: `claude/nice-meitner-muga6l`
   (a fresh chat may be given a different branch: use the one you're told).
 - Published as a claude.ai Artifact (a single bundled HTML file):
-  **https://claude.ai/artifact/Uh5CKSPymdWERadhojnY7P** (Version 170 at the time of writing). Always
+  **https://claude.ai/artifact/Uh5CKSPymdWERadhojnY7P** (Version 171 at the time of writing). Always
   republish to this same URL (pass it as `url`); never create a new artifact for the game.
 
 ## Style
@@ -57,8 +57,8 @@ Scripts load in this order (all globals, no modules), each with a `?v=` cache-bu
 - **render.js (`Renderer`):** draws each player's view (`drawView`) and the text on top (`drawText`).
 - **sprites.js:** all pixel art, built once at start (`buildSprites`).
 - **3 and 4 players** (v7.61): picked with the 1 2 3 4 buttons (start screen, top left, runners' colours; one Play button).
-  Green T F G H, Yellow I J K L (`CONTROLS`, `RUNNERS`). Every view full size (`Renderer.layout`: 4 = 2 x 2 grid, 3 = Red
-  top middle); the picture is twice as wide, fit inside the usual box (`object-fit: contain`) and the race goes fullscreen
+  Green T F G H, Yellow I J K L (`CONTROLS`, `RUNNERS`). Every view full size (`Renderer.layout`: 4 = 2 x 2 grid, Red Blue / Green Yellow; 3 = Red Blue on top,
+  Green bottom middle, v7.64); the picture is twice as wide, fit inside the usual box (`object-fit: contain`) and the race goes fullscreen
   (`.game-wrapper.grid`). Caught = out, race goes on till one's left. Powers aimed at "the other player" go for the leader,
   or second place if you're the leader (`rivalOf`, `leaderAhead`); the bolt and the hand catch whoever they touch. Still a
   2-player game at heart: always keep 2 players working exactly as before.
