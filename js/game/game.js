@@ -2954,27 +2954,21 @@ const Game = (() => {
   function firePortalGun(p) {
     const { level } = world;
     level.ensure(p.x + VIEW_W * 12);
+    // v7.62: the grapple's opposite: it takes you halfway to whoever is in the lead (on safe ground, never past them)
     const lead = leaderAhead(p, HITBOX_W);
-    const leadX = lead ? lead.x : null;
-    if (lead && leadX - p.x < VIEW_W * 0.65) { // you can see them: one obstacle ahead of them
-      level.ensure(leadX + VIEW_W * 6);
-      const runs = obstacleRuns(leadX + HITBOX_W, leadX + VIEW_W * 6);
-      const spot = runs.length && spotBetween((runs[0].end + 1) * TILE, runs[1] ? runs[1].start * TILE : leadX + VIEW_W * 6);
-      return spot ? warpTo(p, spot) : false;
+    if (lead) {
+      const mid = (p.x + lead.x) / 2;
+      const after = level.safeSpotAfter(mid - 1, lead.x - mid), before = level.safeSpotBefore(mid, mid - p.x);
+      const spot = after && (!before || after.x - mid <= mid - before.x) ? after : before; // (the safe ground nearest halfway)
+      if (!spot || spot.x <= p.x + TILE || spot.x + HITBOX_W >= lead.x) return false; // (nowhere to come out: keep it)
+      return warpTo(p, spot);
     }
-    // where it would take you: the next biome (just past its sign), or with no biomes, past the next 3 obstacles
+    if (!world.solo) { p.showHit("NOBODY AHEAD", "#d9a3ff"); return false; } // (you're the leader: keep it)
+    // Alone: the next biome (just past its sign), or with no biomes, past the next 3 obstacles
     const sign = level.signs.find((sg) => sg.x > p.x + VIEW_W * 0.65); // (not one you can already see: the one after it)
     let spot = null;
     if (sign) spot = level.safeSpotAfter(sign.x) || landingAfter(sign.x);
     else { const end = obstaclesEnd(p.x + HITBOX_W, PORTAL_GUN.passes); spot = end !== null && (level.safeSpotAfter(end) || landingAfter(end)); }
-    if (lead) { // never past the leader: no further than with one obstacle left between you and them
-      const runs = obstacleRuns(p.x + HITBOX_W, leadX);
-      const lastRun = runs[runs.length - 1], cap = lastRun ? lastRun.start * TILE : leadX - TILE * 2; // (that last obstacle stays between you)
-      if (!spot || spot.x + HITBOX_W >= cap) {
-        const before = runs[runs.length - 2];
-        spot = lastRun && before ? spotBetween((before.end + 1) * TILE, cap) : null; // (just past the obstacle before it)
-      }
-    }
     if (!spot || spot.x <= p.x + TILE) return false;
     return warpTo(p, spot);
   }

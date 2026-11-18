@@ -1,7 +1,7 @@
 // The game's version, shown left of the logo. The first number goes up for big updates (a new biome, a new
 // secret world...), the second for smaller additions and fixes (back to 0 with each big update): 6.16 means
 // the 6th big update (the enchanted forest), 16 small ones since. (7: the arcane ruins.)
-const GAME_VERSION = "7.61";
+const GAME_VERSION = "7.62";
 
 // Tunable numbers for the game. Change these to adjust how it feels.
 // Distances are in game pixels; one tile is 8 pixels (about "1 meter").
@@ -254,8 +254,8 @@ const CATCHUP = {
 };
 
 const PORTAL_GUN = {
-  passes: 3,          // with biomes off (no next biome to go to): you come out past this many obstacles (big ones: a
-                      // single spike doesn't count). Never past the leader, though (see firePortalGun)
+  passes: 3,          // alone with biomes off (no next biome to go to): you come out past this many obstacles (big ones: a
+                      // single spike doesn't count). With others: halfway to the leader (v7.62, see firePortalGun)
   bigRun: 3,          // a run of spikes or quicksand counts once it's this many tiles long
   merge: 4,           // dangers closer than this many tiles count as one obstacle
   inTime: 0.4,        // seconds being pulled into the portal
