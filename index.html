@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap">
-  <link rel="stylesheet" href="css/style.css?v=202611182000">
+  <link rel="stylesheet" href="css/style.css?v=202611182100">
 </head>
 <body>
   <header class="site-header">
@@ -33,6 +33,13 @@
       <div class="game-wrapper">
         <canvas id="game-canvas" width="800" height="484"></canvas>
         <div id="game-overlay" class="game-overlay">
+          <div class="player-count" role="group" aria-label="How many players">
+            <span class="player-count-label">Players</span>
+            <button class="count-choice red" data-count="1" aria-pressed="false">1</button>
+            <button class="count-choice blue" data-count="2" aria-pressed="true">2</button>
+            <button class="count-choice green" data-count="3" aria-pressed="false">3</button>
+            <button class="count-choice yellow" data-count="4" aria-pressed="false">4</button>
+          </div>
           <div class="tuning">
             <button id="tune-button" class="button secondary small tune-button" aria-expanded="false" aria-controls="tune-panel">Multipliers <span class="tune-arrow" aria-hidden="true"></span></button>
             <div id="tune-panel" class="tune-panel" role="group" aria-label="Multipliers" hidden>
@@ -46,6 +53,8 @@
           <div class="overlay-controls">
             <span class="red">Red: <kbd>W</kbd> jump · <kbd>A</kbd> <kbd>D</kbd> run · <kbd>S</kbd> ability</span>
             <span class="blue">Blue: <kbd>↑</kbd> jump · <kbd>←</kbd> <kbd>→</kbd> run · <kbd>↓</kbd> ability</span>
+            <span class="green" data-from="3">Green: <kbd>T</kbd> jump · <kbd>F</kbd> <kbd>H</kbd> run · <kbd>G</kbd> ability</span>
+            <span class="yellow" data-from="4">Yellow: <kbd>I</kbd> jump · <kbd>J</kbd> <kbd>L</kbd> run · <kbd>K</kbd> ability</span>
           </div>
           <noscript>
             <p class="game-warning">The game can't run here because JavaScript is turned off. Open <code>index.html</code> in a web browser such as Chrome, Edge, Safari or Firefox.</p>
@@ -53,8 +62,7 @@
           <p id="game-error" class="game-warning" hidden></p>
           <!-- Stay disabled until the game has loaded (see js/main.js) -->
           <div class="start-buttons">
-            <button id="start-button" class="button" disabled>2 Players</button>
-            <button id="solo-button" class="button secondary" disabled>1 Player</button>
+            <button id="start-button" class="button" disabled>Play</button>
           </div>
           <div class="option-buttons">
             <span class="biome-picker">
@@ -79,13 +87,15 @@
       <div class="game-hud">
         <span class="red">Red wins: <strong id="red-wins">0</strong></span>
         <span class="blue">Blue wins: <strong id="blue-wins">0</strong></span>
+        <span class="green" data-from="3">Green wins: <strong id="green-wins">0</strong></span>
+        <span class="yellow" data-from="4">Yellow wins: <strong id="yellow-wins">0</strong></span>
         <div class="hud-buttons">
           <button id="sound-button" class="button secondary">Sound: on</button>
           <button id="fullscreen-button" class="button secondary" hidden>Fullscreen</button>
           <button id="pause-button" class="button secondary" disabled>Pause</button>
         </div>
       </div>
-      <p class="keyboard-note">Fire Run needs a keyboard — two players share one.</p>
+      <p class="keyboard-note">Fire Run needs a keyboard — two players share one (or up to four).</p>
     </section>
 
     <section id="how-to-play">
@@ -146,6 +156,7 @@
         <li><strong>Taiga orbs</strong> — two orbs found only in the taiga. The gold <strong>snowstorm orb</strong> (a snowflake) works the moment you grab it: for 10 seconds a blizzard whites out everyone's screen, and anyone who isn't holding left or right freezes solid within half a second, in a block of ice like the thin ice (jumping doesn't count as moving). Jump 3 times to break out. With 2 players, whoever gets further during the snowstorm (from when it's grabbed to when it ends) gets <strong>skates</strong> for good: 1.5 times faster on ice, until another snowstorm where the other player gets further and takes it. The light blue <strong>snowball orb</strong> gives you a snowball: press <kbd>S</kbd> (Red) or <kbd>↓</kbd> (Blue) to throw it the way you're facing. It's small and only goes about 7 tiles, but if it hits the other player they're frozen for 7 seconds, with no way out. Jump it! Playing alone, the snowball orb gives you skates instead: 20 seconds of running faster on ice.</li>
         <li><strong>Desert orbs</strong> — two orbs found only in the desert. The gold <strong>sandstorm orb</strong> (sand streaks) works the moment you grab it: for 10 seconds sand blows across everyone's screen, making things a little harder to see, and slowly pushes everyone left, so running is harder and standing still blows you back. Whoever grabbed it is pushed a little less. The wind also carries 3 to 6 light blue orbs from every biome along with it, one at a time: they blow in from the right, bobbing up and down, and anyone who touches one gets it (some you grab running, some need a jump). If the other player has fallen far behind, two of them fly past the leader too high to reach and slowly sink, so the one behind can grab them (those two can come along with the others). The light blue <strong>firehawk orb</strong> (a little orange bird) gives you a firehawk: press <kbd>S</kbd> (Red) or <kbd>↓</kbd> (Blue) and it flies out over the other player and drops a burning stick where they're going to be. The stick kills if it hits, and the ground it lands on burns for 10 seconds: touch the flames and you die, but they're low, so a running jump clears them. Change your speed when it drops! Playing alone, the firehawk comes out by itself and circles you, and the first animal that comes for you (a vulture, bear or jaguar), or a missile locked on to you, it dives on and burns.</li>
       </ul>
+      <p><strong>3 or 4 players:</strong> pick how many with the 1 2 3 4 buttons at the top left of the start screen. <span class="green">Green</span> uses <kbd>T</kbd> to jump, <kbd>F</kbd> <kbd>H</kbd> to run and <kbd>G</kbd> for their power; <span class="yellow">Yellow</span> uses <kbd>I</kbd>, <kbd>J</kbd> <kbd>L</kbd> and <kbd>K</kbd>. Everyone gets a full-size screen (the race goes fullscreen). If the fire catches you, you're out, and the race goes on until only one is left. Powers that hit another player go for whoever is in the lead (or second place, if that's you).</p>
       <p><strong>1 Player:</strong> race the fire on your own, with <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> or the arrow keys, and see how far you get. Only the dash, wind dash and drone orbs appear (the others only matter against another player), plus the monsoon and monkey (which swings you forward) in the jungle, the snowstorm and snowball (skates) in the taiga, and the sandstorm and firehawk (which guards you) in the desert. Come out of the enchanted forest and its roots hold the fire back for you when it gets close. With the fire on your screen, purple portal gun and vine orbs come to help.</p>
       <p>Press <kbd>P</kbd> or <kbd>Esc</kbd> to pause. Press <kbd>F</kbd> or the Fullscreen button to make the game fill the screen. Press <kbd>M</kbd> or the Sound button to turn the sound off or on.</p>
     </section>
@@ -160,13 +171,13 @@
     <p>&copy; <span id="year"></span> Fire Run</p>
   </footer>
 
-  <script src="js/game/config.js?v=202611182000"></script>
-  <script src="js/game/sound.js?v=202611182000"></script>
-  <script src="js/game/level.js?v=202611182000"></script>
-  <script src="js/game/player.js?v=202611182000"></script>
-  <script src="js/game/sprites.js?v=202611182000"></script>
-  <script src="js/game/render.js?v=202611182000"></script>
-  <script src="js/game/game.js?v=202611182000"></script>
-  <script src="js/main.js?v=202611182000"></script>
+  <script src="js/game/config.js?v=202611182100"></script>
+  <script src="js/game/sound.js?v=202611182100"></script>
+  <script src="js/game/level.js?v=202611182100"></script>
+  <script src="js/game/player.js?v=202611182100"></script>
+  <script src="js/game/sprites.js?v=202611182100"></script>
+  <script src="js/game/render.js?v=202611182100"></script>
+  <script src="js/game/game.js?v=202611182100"></script>
+  <script src="js/main.js?v=202611182100"></script>
 </body>
 </html>

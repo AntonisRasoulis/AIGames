@@ -3,29 +3,46 @@
 // after enlarging so it stays crisp too.
 
 const Renderer = (() => {
-  const BUFFER_H = VIEW_H * 2 + DIVIDER;
+  const GRID_W = VIEW_W * 2 + DIVIDER, GRID_H = VIEW_H * 2 + DIVIDER; // (the biggest picture: 4 players)
   const PIXEL_FONT = '"Press Start 2P", monospace';
-  const cams = [0, 0];
+  const cams = [0, 0, 0, 0];
   let sprites, buffer, b, poisonCopy;
 
   function init() {
     sprites = buildSprites();
-    buffer = makeCanvas(VIEW_W, BUFFER_H);
+    buffer = makeCanvas(GRID_W, GRID_H);
     b = buffer.getContext("2d");
     b.imageSmoothingEnabled = false; // keep rotated sprites (the hand) pixel-sharp
     poisonCopy = makeCanvas(VIEW_W, VIEW_H);
   }
 
   function resetCameras(x) {
-    cams[0] = cams[1] = x - VIEW_W * 0.35;
+    cams.fill(x - VIEW_W * 0.35);
   }
 
-  function swapCameras() {
-    [cams[0], cams[1]] = [cams[1], cams[0]];
+  // (a swap orb: the two runners' cameras swap too)
+  function swapCameras(i = 0, j = 1) {
+    [cams[i], cams[j]] = [cams[j], cams[i]];
+  }
+
+  // Where each runner's view goes (game pixels) and how big the whole picture is: 1 player, one view; 2, one above the
+  // other; 3 (v7.61), one in the top middle and two below; 4, a 2 x 2 grid. Every view is the same full size, so with 3 or
+  // 4 everyone sees just as far ahead (the picture is wider, and shrunk to fit)
+  function layout(n) {
+    const X = VIEW_W + DIVIDER, Y = VIEW_H + DIVIDER;
+    if (n <= 1) return { w: VIEW_W, h: VIEW_H, views: [{ x: 0, y: 0 }] };
+    if (n === 2) return { w: VIEW_W, h: GRID_H, views: [{ x: 0, y: 0 }, { x: 0, y: Y }] };
+    if (n === 3) return { w: GRID_W, h: GRID_H, views: [{ x: (GRID_W - VIEW_W) / 2, y: 0 }, { x: 0, y: Y }, { x: X, y: Y }] };
+    return { w: GRID_W, h: GRID_H, views: [{ x: 0, y: 0 }, { x: X, y: 0 }, { x: 0, y: Y }, { x: X, y: Y }] };
   }
 
   function render(ctx, world, dt) {
+    const L = layout(world.players.length);
+    b.fillStyle = "#1b1b2f"; // (the gaps between the views)
+    b.fillRect(0, 0, L.w, L.h);
+    if (world.players.length === 3) { b.fillStyle = "#0b0f16"; b.fillRect(0, 0, L.views[0].x - DIVIDER, VIEW_H); b.fillRect(L.views[0].x + VIEW_W + DIVIDER, 0, L.w, VIEW_H); } // (either side of the top one)
     for (let i = 0; i < world.players.length; i++) {
+      const r = L.views[i];
       const p = world.players[i];
       const target = p.x - VIEW_W * 0.35;
       cams[i] += (target - cams[i]) * Math.min(1, dt * 6);
@@ -38,33 +55,28 @@ const Renderer = (() => {
       }
 
       b.save();
-      b.translate(0, i * (VIEW_H + DIVIDER));
+      b.translate(r.x, r.y);
       b.beginPath();
       b.rect(0, 0, VIEW_W, VIEW_H);
       b.clip();
       // Each player sees their own course: the main one, or the enchanted forest they're in
-      const course = p.realm || world.level, other = world.players[1 - i];
+      const course = p.realm || world.level;
       const mine = (list) => list.filter((e) => (e.level || world.level) === course);
       const view = Object.assign(Object.create(world), { level: course, sawBits: mine(world.sawBits), wisps: mine(world.wisps), quakes: mine(world.quakes), builtPortals: mine(world.builtPortals), stormBalls: mine(world.stormBalls), blasts: mine(world.blasts), mortarBombs: mine(world.mortarBombs), booms: mine(world.booms), mushroomThrows: world.mushroomThrows.filter((m) => (m.p.realm || world.level) === course), laserShots: mine(world.laserShots) });
       if (p.realm) Object.assign(view, { inForest: true, monsoon: null, missiles: [], bears: [], jaguars: [], decoys: [], arrows: [], vultures: [], hawks: [], sticks: [], burns: [], drones: [], hands: [], roots: [], bolts: [], monkeys: [], thrownSnowballs: [], grapples: [], vines: [], warps: [] });
-      drawView(view, p, other && other.realm === p.realm && !other.dream ? other : null, camX);
+      drawView(view, p, world.players.filter((q) => q !== p && q.realm === p.realm && !q.dream), camX); // (everyone else on this course shows as a ghost)
       drawDream(p, camX, world.time);
-      if (Game.blackoutDark(course, world.time)) drawBlackout(i * (VIEW_H + DIVIDER), camX, world, course); // (the ruins' power cut: pitch black)
+      if (Game.blackoutDark(course, world.time)) drawBlackout(r.x, r.y, camX, world, course); // (the ruins' power cut: pitch black)
       const dark = Game.tripDark(p); // (the aurora taking you across: the screen fading out and back)
       if (dark > 0) { b.fillStyle = `rgba(6, 14, 18, ${dark})`; b.fillRect(0, 0, VIEW_W, VIEW_H); }
       if (p.warpFlash > 0) { b.fillStyle = `rgba(234, 255, 248, ${p.warpFlash * 2.4})`; b.fillRect(0, 0, VIEW_W, VIEW_H); } // (through a biome portal: a flash of light)
       b.restore();
-      if (p.poison > 0) drawPoison(i * (VIEW_H + DIVIDER), p.poison, world.time, p.poisonMax, p.poisonLethal);
-    }
-    const height = world.players.length === 1 ? VIEW_H : BUFFER_H; // 1 player: just the one view
-    if (world.players.length > 1) {
-      b.fillStyle = "#1b1b2f";
-      b.fillRect(0, VIEW_H, VIEW_W, DIVIDER);
+      if (p.poison > 0) drawPoison(r.x, r.y, p.poison, world.time, p.poisonMax, p.poisonLethal);
     }
 
     ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(buffer, 0, 0, VIEW_W, height, 0, 0, VIEW_W * SCALE, height * SCALE);
-    drawText(ctx, world);
+    ctx.drawImage(buffer, 0, 0, L.w, L.h, 0, 0, L.w * SCALE, L.h * SCALE);
+    drawText(ctx, world, L);
   }
 
   // ---- The forest's reverse orb: three purple sparkle trails swirling round you, and a hypnosis spiral spinning over your
@@ -93,11 +105,11 @@ const Renderer = (() => {
   // pixels (in 2 x 2 cells, three blurs) ----
   // (it's done on a canvas of its own: reading the picture back off the main one would make every later frame draw slower)
   let blackoutCells = null, blackoutCanvas = null, bk = null;
-  function drawBlackout(y0, camX, world, course) {
+  function drawBlackout(x0, y0, camX, world, course) {
     const W = VIEW_W, H = VIEW_H, CW = W >> 1, CH = H >> 1;
     if (!blackoutCanvas) { blackoutCanvas = makeCanvas(W, H); bk = blackoutCanvas.getContext("2d", { willReadFrequently: true }); }
     bk.clearRect(0, 0, W, H);
-    bk.drawImage(buffer, 0, y0, W, H, 0, 0, W, H);
+    bk.drawImage(buffer, x0, y0, W, H, 0, 0, W, H);
     const img = bk.getImageData(0, 0, W, H), px = img.data;
     if (!blackoutCells) blackoutCells = [new Float32Array(CW * CH), new Float32Array(CW * CH)];
     const [a1, a2] = blackoutCells;
@@ -129,7 +141,7 @@ const Renderer = (() => {
 
   // ---- One player's half of the screen ----
 
-  function drawView(world, player, other, camX) {
+  function drawView(world, player, others, camX) {
     const d = player.dream;
     fireflyPull = d && d.kind === "fireflies" && !d.moved ? { x: player.x + HITBOX_W / 2 - camX, y: player.y + HITBOX_H / 2, u: Math.min(1, d.t / SLEEP_SHROOM.fireflies) } : null;
     // Each biome's scenery, faded together near a border
@@ -178,7 +190,7 @@ const Renderer = (() => {
     drawBiomeGates(world.level, camX, world.time);
     for (const bp of world.builtPortals) drawBuiltPortal(bp, camX, world.time);
     drawOrbs(world.level, camX, world.time);
-    drawTraps(world.level, player, other, camX);
+    drawTraps(world.level, player, others[0] || null, camX);
     drawSinkholes(world.level, camX, world.time);
     drawPonds(world.level, world.players, camX, world.time);
     drawRivers(world.level, camX, world.time);
@@ -194,9 +206,9 @@ const Renderer = (() => {
 
     // (someone hiding in a bush can't be seen, on either screen)
     const hiddenTrip = (p) => p.trip && p.trip.stage === "build"; // (inside a portal that's still building itself)
-    if (other && !other.dead && !other.caught && !other.hiddenIn && !other.eatenBy && !hiddenTrip(other)) {
+    for (const other of others) if (!other.dead && !other.caught && !other.hiddenIn && !other.eatenBy && !hiddenTrip(other)) {
       drawAuroraLights(other, camX, world.time, true, true); // (its lights behind them)
-      b.globalAlpha = 0.35; // the other runner shows as a ghost
+      b.globalAlpha = 0.35; // the other runners show as ghosts
       drawRunner(other, camX);
       b.globalAlpha = 1;
     }
@@ -207,7 +219,7 @@ const Renderer = (() => {
       if (player.frozen > 0) drawIce(player, camX);
       if (player.honey > 0) drawHoney(player, camX, world.time);
     }
-    for (const p of [player, other]) {
+    for (const p of [player, ...others]) {
       if (!p || p.trapped <= 0 || p.dead) continue; // the jaws in front of someone's legs
       const t = world.level.traps.find((tt) => tt.id === p.trapId);
       const jolt = p.trapShake > 0 ? (p.lastWiggle > 0 ? 1 : -1) : 0; // it jerks the way you wiggle
@@ -216,11 +228,11 @@ const Renderer = (() => {
     }
     drawBushes(world.level, camX, false); // whole bushes: in front, so they hide whoever is inside
     drawFloodFront(world, camX, world.time); // (anyone in the flood is up to their neck in it)
-    for (const p of [player, other]) if (p && p.inSink && !p.dead) drawSinkPile(p.inSink, camX); // sand round their legs
+    for (const p of [player, ...others]) if (p && p.inSink && !p.dead) drawSinkPile(p.inSink, camX); // sand round their legs
     drawIceBlocks(world.level, camX); // anyone frozen in a pond, in their block of ice
     drawQuicksand(world.level, camX, world.time); // on top, so anyone stuck in it looks half sunk
     drawRiverFronts(world.level, camX, world.time); // ...and anyone in a river is up to their neck
-    for (const p of [player, other]) if (p && !p.hiddenIn) drawBridgeMagic(p, camX, world.time, p === other); // held up over a hole by magic
+    for (const p of [player, ...others]) if (p && !p.hiddenIn) drawBridgeMagic(p, camX, world.time, p !== player); // held up over a hole by magic
     for (const r of world.roots) drawRoots(r, camX, world.time); // (in front of whoever they've got hold of)
     drawTreeStrikes(world.level, camX, world.time);
     drawLeaveFront(world.level, camX, world.time); // (its roots' spikes, its flying leaves and seeds, whoever it's grabbed)
@@ -232,16 +244,16 @@ const Renderer = (() => {
     drawLaserShots(world, camX, world.time);
     drawLaserGates(world.level, camX, world.time, true);
     drawLaserSwords(world.level, camX, world.time, true);
-    for (const p of [player, other]) if (p) { drawAuroraLights(p, camX, world.time, p === other); drawTripRibbons(p, camX, world.time); }
+    for (const p of [player, ...others]) if (p) { drawAuroraLights(p, camX, world.time, p !== player); drawTripRibbons(p, camX, world.time); }
     drawCoconuts(world.level, player, camX, world.time); // falling (in front of the runners)
-    for (const p of [player, other]) if (p && p.dizzy > 0 && !p.dead) drawDizzy(p, camX, world.time, p === other);
-    for (const p of [player, other]) if (p && p.reversed > 0 && !p.dead && !p.hiddenIn) drawReversed(p, camX, world.time);
-    for (const p of [player, other]) if (p && p.asleep > 0 && !p.dead && !p.hiddenIn) drawSleep(p, camX, world.time, p === other);
-    for (const p of [player, other]) if (p && !p.dead && !p.caught && !p.hiddenIn) drawSnowIce(p, camX, world.time, p === other);
+    for (const p of [player, ...others]) if (p && p.dizzy > 0 && !p.dead) drawDizzy(p, camX, world.time, p !== player);
+    for (const p of [player, ...others]) if (p && p.reversed > 0 && !p.dead && !p.hiddenIn) drawReversed(p, camX, world.time);
+    for (const p of [player, ...others]) if (p && p.asleep > 0 && !p.dead && !p.hiddenIn) drawSleep(p, camX, world.time, p !== player);
+    for (const p of [player, ...others]) if (p && !p.dead && !p.caught && !p.hiddenIn) drawSnowIce(p, camX, world.time, p !== player);
     drawSpores(world.level, camX, world.time); // (in front of the runners, so you see them land on you)
     drawLobShots(world.level, camX);
     drawSleepClouds(world.level, camX, world.time);
-    for (const p of [player, other]) if (p && !p.dead && !p.caught && !p.hiddenIn) drawSporeAura(p, camX, world.time, p === other);
+    for (const p of [player, ...others]) if (p && !p.dead && !p.caught && !p.hiddenIn) drawSporeAura(p, camX, world.time, p !== player);
     for (const sb of world.thrownSnowballs) b.drawImage(sprites.thrownSnowball, Math.round(sb.x - camX) - 2, Math.round(sb.y) - 2);
     for (const mk of world.monkeys) drawMonkey(mk, camX, world.time);
     for (const g of world.grapples) drawGrapple(g, camX, world.time);
@@ -2523,14 +2535,15 @@ const Renderer = (() => {
 
   // Poisoned: your half of the screen goes green and wobbly, then swims, doubles up and changes
   // color, worse and worse... then clears in the last second
-  function drawPoison(y0, left, time, max, lethal) {
+  function drawPoison(x0, y0, left, time, max, lethal) {
     // (a Lobber's poison doesn't wear off: it just gets worse until it kills you)
     const s = lethal ? Math.min(1, 0.45 + (max - left) / max) : Math.min(1, (max - left) / (max - 1)) * Math.min(1, left);
     if (s <= 0) return;
     const pg = poisonCopy.getContext("2d");
     pg.clearRect(0, 0, VIEW_W, VIEW_H);
-    pg.drawImage(buffer, 0, y0, VIEW_W, VIEW_H, 0, 0, VIEW_W, VIEW_H);
+    pg.drawImage(buffer, x0, y0, VIEW_W, VIEW_H, 0, 0, VIEW_W, VIEW_H);
     b.save();
+    b.translate(x0, 0); // (this view's place in the picture)
     b.beginPath();
     b.rect(0, y0, VIEW_W, VIEW_H);
     b.clip();
@@ -3769,7 +3782,7 @@ const Renderer = (() => {
   }
 
   function drawHand(h, world, camX, time = world.time) {
-    const target = world.players[1 - h.owner];
+    const target = h.victim || world.players[h.owner]; // (whoever it caught)
     const open = sprites.handOpen;
     const back = sprites.handBack;
     const fist = sprites.handFist;
@@ -4665,12 +4678,14 @@ const Renderer = (() => {
     ctx.fillText(str, x, y);
   }
 
-  function drawText(ctx, world) {
+  function drawText(ctx, world, L) {
     const W = VIEW_W * SCALE;
     const viewH = VIEW_H * SCALE;
 
     world.players.forEach((p, i) => {
-      const top = i * (VIEW_H + DIVIDER) * SCALE;
+      const top = L.views[i].y * SCALE, left = L.views[i].x * SCALE; // (this runner's view)
+      ctx.save();
+      ctx.translate(left, 0);
       const meters = Math.max(0, Math.floor(p.trackX / TILE));
       const gap = Math.max(0, Math.floor((p.trackX - world.fire.x) / TILE));
       const gapColor = gap < 10 ? "#ff4d3d" : gap < 25 ? "#ffb347" : "#ffffff";
@@ -4678,7 +4693,7 @@ const Renderer = (() => {
       text(ctx, `FIRE ${gap}m`, W - 12, top + 16, gapColor, 12, "right");
       if (world.wild) text(ctx, "WILD", W - 12, top + 36, "#ff6b3d", 10, "right");
       if (p.power) {
-        const key = world.solo ? "S/DOWN" : i === 0 ? "S" : "DOWN";
+        const key = world.solo ? "S/DOWN" : ["S", "DOWN", "G", "K"][i];
         const arrow = p.facing > 0 ? ">>" : "<<"; // follows the way you're facing
         const label = { laser: "LASER GUN", mushroom: "MUSHROOM", zap: "ZAP", hand: "HAND", wind: "WIND DASH", drone: "DRONE", firehawk: "FIREHAWK", snowball: "SNOWBALL", monkey: "MONKEY", portalgun: "PORTAL GUN", grapple: "GRAPPLE", roots: "ROOTS" }[p.power] || p.power.toUpperCase();
         const color = { laser: "#7af0d8", mushroom: "#ff6a7a", zap: "#fff27a", hand: "#c9a3ff", wind: "#ffffff", drone: "#4fc0ff", firehawk: "#ff7a1a", snowball: "#e8f8ff", monkey: "#e8c090", portalgun: "#d9a3ff", grapple: "#d9a3ff", roots: "#a898b8" }[p.power] || "#ffffff";
@@ -4730,26 +4745,27 @@ const Renderer = (() => {
       else if (p.frozen > FREEZE_TIME - 0.8) text(ctx, "FROZEN!", W / 2, mid, "#a6e1ff", 24, "center");
       else if (p.dashHold > 0 || p.dashTime > 0) text(ctx, "DASH!", W / 2, mid, "#ffd23f", 24, "center");
       else if (world.swapFlash > 0) text(ctx, "SWAP!", W / 2, mid, "#ffd23f", 24, "center");
+      ctx.restore();
     });
 
-    // The whole canvas: one view in 1-player mode, two views (and the divider) otherwise
-    const fullH = (world.players.length === 1 ? VIEW_H : VIEW_H * 2 + DIVIDER) * SCALE;
+    // The whole canvas: one view in 1-player mode, two above each other, or (3 and 4 players) a grid
+    const fullH = L.h * SCALE, fullW = L.w * SCALE;
     if (world.swapFlash > 0) {
       ctx.fillStyle = `rgba(255, 255, 255, ${world.swapFlash * 0.5})`;
-      ctx.fillRect(0, 0, W, fullH);
+      ctx.fillRect(0, 0, fullW, fullH);
     }
 
     const center = fullH / 2;
     if (world.state === "countdown") {
-      text(ctx, String(Math.ceil(world.countdown)), W / 2, center, "#ffffff", 40, "center");
+      text(ctx, String(Math.ceil(world.countdown)), fullW / 2, center, "#ffffff", 40, "center");
     } else if (world.state === "playing" && world.time < 0.6) {
-      text(ctx, "GO!", W / 2, center, "#ffffff", 40, "center");
+      text(ctx, "GO!", fullW / 2, center, "#ffffff", 40, "center");
     } else if (world.state === "paused") {
       ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
-      ctx.fillRect(0, 0, W, fullH);
-      text(ctx, "PAUSED", W / 2, center, "#ffffff", 28, "center");
+      ctx.fillRect(0, 0, fullW, fullH);
+      text(ctx, "PAUSED", fullW / 2, center, "#ffffff", 28, "center");
     }
   }
 
-  return { init, render, resetCameras, swapCameras, camera: (i) => cams[i] };
+  return { init, render, resetCameras, swapCameras, layout, camera: (i) => cams[i] };
 })();

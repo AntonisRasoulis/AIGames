@@ -4,6 +4,8 @@
 const PALETTES = {
   red: { name: "red", c: "#e43b44", d: "#a22633", s: "#f4c08c", k: "#2a1d1a", p: "#3e2f5b" },
   blue: { name: "blue", c: "#3a8dde", d: "#1f5aa6", s: "#f4c08c", k: "#2a1d1a", p: "#3e2f5b" },
+  green: { name: "green", c: "#4cc24a", d: "#2a7a30", s: "#f4c08c", k: "#2a1d1a", p: "#3e2f5b" },   // (3 and 4 players, v7.61)
+  yellow: { name: "yellow", c: "#f2c22e", d: "#b0861a", s: "#f4c08c", k: "#2a1d1a", p: "#3e2f5b" },
 };
 
 const HEAD = [

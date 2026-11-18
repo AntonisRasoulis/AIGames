@@ -6,7 +6,7 @@ mechanic (keep it up to date when you change one).
 
 ## What the game is
 
-**Fire Run** is a pixel-art endless runner in the browser, for 2 players on one keyboard (or 1 player).
+**Fire Run** is a pixel-art endless runner in the browser, for 2 players on one keyboard (or 1 player; or 3-4, v7.61).
 The screen is split: Red runs on top (W A S D), Blue on the bottom (arrow keys). Both race through the
 **same** endless course while a wall of fire chases them and keeps speeding up (35 px/s, +0.9 px/s every
 second; runners do 96 px/s). The fire catching you ends your race; the last one left wins. Dying to a
@@ -18,7 +18,7 @@ costs ground to the fire. 1 Player: one big view, race the fire for distance (be
 - Repo: `AntonisRasoulis/VibeCodingPractice`. Development branch: `claude/nice-meitner-muga6l`
   (a fresh chat may be given a different branch: use the one you're told).
 - Published as a claude.ai Artifact (a single bundled HTML file):
-  **https://claude.ai/artifact/Uh5CKSPymdWERadhojnY7P** (Version 167 at the time of writing). Always
+  **https://claude.ai/artifact/Uh5CKSPymdWERadhojnY7P** (Version 168 at the time of writing). Always
   republish to this same URL (pass it as `url`); never create a new artifact for the game.
 
 ## Style
@@ -56,6 +56,12 @@ Scripts load in this order (all globals, no modules), each with a `?v=` cache-bu
   `Game.start(players, { biomes, biomeList, wild })`.
 - **render.js (`Renderer`):** draws each player's view (`drawView`) and the text on top (`drawText`).
 - **sprites.js:** all pixel art, built once at start (`buildSprites`).
+- **3 and 4 players** (v7.61): picked with the 1 2 3 4 buttons (start screen, top left, runners' colours; one Play button).
+  Green T F G H, Yellow I J K L (`CONTROLS`, `RUNNERS`). Every view full size (`Renderer.layout`: 4 = 2 x 2 grid, 3 = Red
+  top middle); the picture is twice as wide, fit inside the usual box (`object-fit: contain`) and the race goes fullscreen
+  (`.game-wrapper.grid`). Caught = out, race goes on till one's left. Powers aimed at "the other player" go for the leader,
+  or second place if you're the leader (`rivalOf`, `leaderAhead`); the bolt and the hand catch whoever they touch. Still a
+  2-player game at heart: always keep 2 players working exactly as before.
 - **main.js:** the page around the game: Start buttons, Biomes on/off and the biome picker (regular biomes, and a
   "Secret biomes" row: the forest and the ruins; all regular ones off = a race in the secret ones as plain biomes, no timer or exit (v7.5); forest off = no sleep mushrooms, ruins off = no portal, with Biomes on or off since v7.60), Mode
   (Normal / Wild), the **multipliers** (v7.49, `TUNING`: Speed and Jump 1-2x, Fire wall 0.5-1.5x, sliders in the start

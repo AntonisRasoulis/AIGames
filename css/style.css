@@ -139,6 +139,7 @@ section {
   /* Keeps the game area full size even if the game can't draw (e.g. JavaScript is off).
      800 x 484 is the canvas size set in js/game/game.js. */
   aspect-ratio: auto 800 / 484;
+  object-fit: contain; /* (3 and 4 players: the wide grid fits inside, or fills the screen in fullscreen) */
 }
 
 .game-overlay {
@@ -268,6 +269,62 @@ section {
   color: var(--blue);
 }
 
+.green {
+  color: #4cc24a;
+}
+
+.yellow {
+  color: #f2c22e;
+}
+
+/* (players 3 and 4: only shown in races that have them) */
+[data-from][hidden] {
+  display: none;
+}
+
+/* how many players, in the start screen's top left corner (v7.61): 1 2 3 4, in the runners' colours */
+.player-count {
+  position: absolute;
+  top: 0.6rem;
+  left: 0.8rem;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.player-count-label {
+  margin-right: 3px;
+  color: var(--muted);
+}
+
+.count-choice {
+  width: 2rem;
+  height: 2rem;
+  font: inherit;
+  font-size: 0.95rem;
+  color: currentColor;
+  background: var(--surface);
+  border: 2px solid currentColor;
+  border-radius: 6px;
+  opacity: 0.5;
+  cursor: pointer;
+}
+
+.count-choice[aria-pressed="true"] {
+  opacity: 1;
+  color: #10131a;
+  background: var(--chip, currentColor);
+}
+
+.count-choice.red { --chip: var(--red); color: var(--red); }
+.count-choice.blue { --chip: var(--blue); color: var(--blue); }
+.count-choice.green { --chip: #4cc24a; color: #4cc24a; }
+.count-choice.yellow { --chip: #f2c22e; color: #f2c22e; }
+.count-choice[aria-pressed="true"] { color: #10131a; }
+
 .keyboard-note {
   display: none;
   text-align: center;
@@ -341,6 +398,12 @@ section {
 .game-wrapper:fullscreen #game-canvas {
   width: min(100vw, 100vh * 800 / 484);
   border-radius: 0;
+}
+
+.game-wrapper.grid:fullscreen #game-canvas {
+  width: 100vw;
+  height: 100vh;
+  aspect-ratio: auto;
 }
 
 .game-wrapper:fullscreen .game-overlay {

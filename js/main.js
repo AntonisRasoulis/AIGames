@@ -1,7 +1,6 @@
 // Website glue: connects the page (buttons, win counters) to the game.
 
 const startButton = document.getElementById("start-button");
-const soloButton = document.getElementById("solo-button");
 const pauseButton = document.getElementById("pause-button");
 const overlay = document.getElementById("game-overlay");
 const message = document.getElementById("game-message");
@@ -10,9 +9,14 @@ const gameWrapper = document.querySelector(".game-wrapper");
 const fullscreenButton = document.getElementById("fullscreen-button");
 const scoreLine = document.getElementById("score-line");
 const soundButton = document.getElementById("sound-button");
-const wins = { RED: 0, BLUE: 0 };
+const wins = { RED: 0, BLUE: 0, GREEN: 0, YELLOW: 0 };
+const COLOR_NAMES = { RED: "Red", BLUE: "Blue", GREEN: "Green", YELLOW: "Yellow" };
 let gameLoaded = false;
-let lastMode = 2;
+let lastMode = 0; // (how many played the last race: 0 before the first)
+// How many players: 1-4, picked with the 1 2 3 4 buttons in the start screen's top left (v7.61; remembered). 2 to start with
+let playerCount = 2;
+try { playerCount = Number(localStorage.getItem("fire-run-players")) || 2; } catch (e) { /* storage blocked */ }
+if (!(playerCount >= 1 && playerCount <= 4)) playerCount = 2;
 let biomes = false; // snow, desert and jungle biomes: off until you turn them on (remembered by the browser)
 try { biomes = localStorage.getItem("fire-run-biomes") === "1"; } catch (e) { /* storage blocked */ }
 let biomeList = BIOMES.slice(); // ...and which ones you get with them on (picked with the arrow next to the button)
@@ -69,15 +73,15 @@ const gameCallbacks = {
     }
     if (winner) {
       wins[winner]++;
-      document.getElementById(winner === "RED" ? "red-wins" : "blue-wins").textContent = wins[winner];
-      message.textContent = `${winner === "RED" ? "Red" : "Blue"} wins!`;
+      document.getElementById(winner.toLowerCase() + "-wins").textContent = wins[winner];
+      message.textContent = `${COLOR_NAMES[winner]} wins!`;
       message.className = "game-message " + winner.toLowerCase();
     } else {
       message.textContent = "It's a draw!";
       message.className = "game-message";
     }
     // The win counters are hidden in fullscreen, so show the score on the game-over screen too
-    scoreLine.innerHTML = `<span class="red">Red ${wins.RED}</span> &middot; <span class="blue">Blue ${wins.BLUE}</span>`;
+    scoreLine.innerHTML = Object.keys(COLOR_NAMES).slice(0, Math.max(2, lastMode)).map((k) => `<span class="${k.toLowerCase()}">${COLOR_NAMES[k]} ${wins[k]}</span>`).join(" &middot; ");
     scoreLine.hidden = false;
     showOverlay();
   },
@@ -92,7 +96,6 @@ try {
   Game.init(canvas, gameCallbacks);
   gameLoaded = true;
   startButton.disabled = false;
-  soloButton.disabled = false;
 } catch (error) {
   const box = document.getElementById("game-error");
   box.textContent = "The game couldn't load. Make sure the whole folder was downloaded and unzipped, " +
@@ -101,12 +104,25 @@ try {
 }
 
 function showOverlay() {
-  startButton.textContent = lastMode === 2 ? "Play again" : "2 Players";
-  soloButton.textContent = lastMode === 1 ? "Play again (1 Player)" : "1 Player";
+  startButton.textContent = lastMode === playerCount ? "Play again" : "Play";
   overlay.classList.remove("hidden");
   pauseButton.disabled = true;
-  (lastMode === 1 ? soloButton : startButton).focus();
+  startButton.focus();
 }
+
+// The 1 2 3 4 buttons: how many play (Green's and Yellow's keys and win counters only show when they're in)
+function showPlayerCount() {
+  for (const b of document.querySelectorAll(".count-choice")) b.setAttribute("aria-pressed", String(Number(b.dataset.count) === playerCount));
+  for (const el of document.querySelectorAll("[data-from]")) el.hidden = playerCount < Number(el.dataset.from);
+  startButton.textContent = lastMode && lastMode === playerCount ? "Play again" : "Play";
+}
+for (const b of document.querySelectorAll(".count-choice")) b.addEventListener("click", () => {
+  playerCount = Number(b.dataset.count);
+  try { localStorage.setItem("fire-run-players", String(playerCount)); } catch (e) { /* storage blocked */ }
+  showPlayerCount();
+  b.blur();
+});
+showPlayerCount();
 
 function startGame(players) {
   lastMode = players;
@@ -114,12 +130,14 @@ function startGame(players) {
   pauseButton.disabled = false;
   pauseButton.textContent = "Pause";
   startButton.blur();
-  soloButton.blur();
+  // 3 and 4 players: a grid of four full-size screens, best seen in fullscreen (it goes fullscreen as the race starts)
+  gameWrapper.classList.toggle("grid", players >= 3);
+  if (players >= 3 && document.fullscreenEnabled && !document.fullscreenElement) gameWrapper.requestFullscreen().catch(() => {});
   canvas.scrollIntoView({ behavior: "smooth", block: "center" });
   Game.start(players, { biomes, biomeList, secretList, secretRegular, wild, tuning: readTuning() });
 }
 
-startButton.addEventListener("click", () => startGame(2));
+startButton.addEventListener("click", () => startGame(playerCount));
 
 // The multipliers on the start screen: speed, jump and the fire wall (remembered by the browser)
 const TUNE_IDS = ["speed", "jump", "fire"];
@@ -207,7 +225,6 @@ modeButton.addEventListener("click", () => {
   showMode();
 });
 showMode();
-soloButton.addEventListener("click", () => startGame(1));
 pauseButton.addEventListener("click", () => {
   Game.togglePause();
   pauseButton.blur(); // so the space bar / Enter don't press it again
@@ -216,7 +233,7 @@ pauseButton.addEventListener("click", () => {
 window.addEventListener("keydown", (e) => {
   if (gameLoaded && (e.code === "KeyP" || e.code === "Escape") && Game.isRunning()) Game.togglePause();
   if (gameLoaded && e.code === "KeyM") toggleSound();
-  if (e.code === "KeyF" && document.fullscreenEnabled) toggleFullscreen();
+  if (e.code === "KeyF" && document.fullscreenEnabled && !(gameLoaded && Game.isRunning() && Game.world.players.length >= 3)) toggleFullscreen(); // (F is Green's left key)
 });
 
 // ---- Sound ----

@@ -8,7 +8,10 @@ const Game = (() => {
   const CONTROLS = [
     { left: "KeyA", right: "KeyD", jump: "KeyW", fire: "KeyS" },
     { left: "ArrowLeft", right: "ArrowRight", jump: "ArrowUp", fire: "ArrowDown" },
+    { left: "KeyF", right: "KeyH", jump: "KeyT", fire: "KeyG" }, // (3 and 4 players, v7.61: Green...)
+    { left: "KeyJ", right: "KeyL", jump: "KeyI", fire: "KeyK" }, // (...and Yellow)
   ];
+  const RUNNERS = [["RED", "red"], ["BLUE", "blue"], ["GREEN", "green"], ["YELLOW", "yellow"]]; // (names and colours, in order)
   const GAME_KEYS = new Set(CONTROLS.flatMap((c) => Object.values(c)));
   // Everything that makes up "where a player is" gets swapped by a swap orb
   const SWAP_FIELDS = ["x", "y", "vx", "vy", "facing", "onGround", "standingOn", "coyote",
@@ -20,11 +23,12 @@ const Game = (() => {
   let lastTime = 0;
   let accumulator = 0;
   const keys = new Set();
-  const jumpQueued = [false, false];
-  const fireQueued = [false, false];
+  const jumpQueued = [false, false, false, false];
+  const fireQueued = [false, false, false, false];
   let nextBoltId = 1;
   let racesStarted = 0; // the first race after opening the website always starts in the prairie
   let solo = false;     // 1-player mode: one runner, one big view, WASD or the arrow keys
+  let count = 2;        // how many runners (1-4; v7.61: 3 and 4 on one keyboard too)
   let biomeList = ["prairie"]; // the biomes this race goes through (biomes off: just the prairie)
   let wild = false;     // Wild mode: the hard one
   let sleepShrooms = true; // are there sleep mushrooms (the way into the enchanted forest) on the main course?
@@ -37,9 +41,7 @@ const Game = (() => {
     const startY = level.groundRow * TILE - HITBOX_H;
     world = {
       level,
-      players: solo
-        ? [new Player("RED", PALETTES.red, startX, startY)]
-        : [new Player("RED", PALETTES.red, startX, startY), new Player("BLUE", PALETTES.blue, startX, startY)],
+      players: RUNNERS.slice(0, count).map(([name, color]) => new Player(name, PALETTES[color], startX, startY)),
       solo,
       fire: { x: -FIRE.startOffset, speed: FIRE.startSpeed },
       state: "menu", // menu, countdown, playing, paused, ending, over
@@ -117,6 +119,20 @@ const Game = (() => {
 
   const NO_INPUT = { left: false, right: false, jump: false, jumpPressed: false };
 
+  // Who a power aimed at "the other player" goes for (v7.61, with 3 or 4 runners): the leader, or second place if you're
+  // the leader (whoever is furthest on, apart from you). With 2 runners that's simply the other one. null: nobody left
+  function rivalOf(p) {
+    let best = null;
+    for (const q of world.players) if (q !== p && !q.caught && (!best || q.trackX > best.trackX)) best = q;
+    return best;
+  }
+
+  // ...and the leader if they're ahead of you (for the catch-up orbs: the grapple, the vine, the portal gun, the drone)
+  function leaderAhead(p, gap = 0) {
+    const q = rivalOf(p);
+    return q && q.trackX > p.trackX + gap ? q : null;
+  }
+
   function step(dt) {
     if (world.swapFlash > 0) world.swapFlash -= dt * 2;
     for (const q of world.quakes) q.t -= dt;
@@ -133,8 +149,8 @@ const Game = (() => {
         world.state = "playing";
         Sound.play("go");
       } else if (Math.ceil(world.countdown) < before) Sound.play("beep");
-      jumpQueued[0] = jumpQueued[1] = false;
-      fireQueued[0] = fireQueued[1] = false;
+      jumpQueued.fill(false);
+      fireQueued.fill(false);
       return;
     }
 
@@ -266,7 +282,7 @@ const Game = (() => {
     for (const pond of level.ponds) {
       if (pond.state !== "ice") continue;
       const on = players.filter((p) => !p.dead && !p.caught && p.onGround && !p.standingOn && level.pondAt(p.x + HITBOX_W / 2) === pond);
-      if (on.length === players.length) {
+      if (on.length >= 2) { // (two or more of you on it at once)
         level.breakPond(pond, (on[0].x + on[1].x) / 2 + HITBOX_W / 2);
         for (const p of on) p.freezeIn(pond); // both go in together: one block of ice
       }
@@ -320,13 +336,13 @@ const Game = (() => {
   }
 
   function checkOrbs() {
-    const [a, b] = world.players;
     for (const orb of world.level.orbs) {
       if (orb.used) continue;
       if (orb.purple && world.monsoon) continue; // (not while it's flooded)
       for (const p of world.players) {
-        const other = p === a ? b : a;
+        const other = rivalOf(p); // (a swap orb swaps you with the leader, or second place if you're the leader)
         if (p.dead || p.held || p.caught || (orb.kind === "swap" && (!other || other.dead || other.caught))) continue;
+        if (orb.purple && orb.forWhom && orb.forWhom !== p) continue; // (a catch-up orb is only for the one it came for)
         if (overlaps(p.x, p.y, HITBOX_W, HITBOX_H, orb.x, orb.y, orb.w, orb.h)) {
           orb.used = true;
           if (orb.kind === "zap" || orb.kind === "hand" || orb.kind === "wind" || orb.kind === "drone" || orb.kind === "firehawk" || orb.kind === "snowball" || orb.kind === "monkey" || orb.kind === "mushroom" || orb.kind === "laser") {
@@ -393,11 +409,12 @@ const Game = (() => {
             Sound.play("freeze");
             return;
           }
+          const a = p, b = other;
           for (const f of SWAP_FIELDS) [a[f], b[f]] = [b[f], a[f]];
           // (a pond remembers who's frozen in it: that moves with the swap too)
           for (const pond of world.level.ponds) pond.frozen = pond.frozen.map((q) => (q === a ? b : q === b ? a : q));
           for (const f of world.level.flytraps) f.victim = f.victim === a ? b : f.victim === b ? a : f.victim; // (and a flytrap, who it's chewing)
-          Renderer.swapCameras();
+          Renderer.swapCameras(world.players.indexOf(a), world.players.indexOf(b));
           world.swapFlash = 1;
           Sound.play("swap");
           a.sparkle("#ffd23f");
@@ -459,12 +476,11 @@ const Game = (() => {
       const ground = level.groundTop(bolt.x);
       if (ground !== null) bolt.y += (ground - ZAP.height - bolt.y) * Math.min(1, dt * 40);
 
-      // Only the other player can be hit, and only if they're touching the bolt
-      const target = players[1 - bolt.owner];
-      if (target.dead || target.caught) continue;
+      // Only the other runners can be hit (whoever's touching the bolt)
       const tail = bolt.x - bolt.dir * ZAP.length;
       const left = Math.min(tail, bolt.x);
-      if (target.x + HITBOX_W < left || target.x > left + ZAP.length) continue;
+      const target = players.find((q, i) => i !== bolt.owner && !q.dead && !q.caught && q.x + HITBOX_W >= left && q.x <= left + ZAP.length);
+      if (!target) continue;
       const groundThere = level.groundTop(target.x + HITBOX_W / 2);
       const boltY = groundThere === null ? bolt.y : groundThere - ZAP.height;
       if (overlaps(target.x, target.y, HITBOX_W, HITBOX_H, left, boltY - 1, ZAP.length, 3)) {
@@ -516,7 +532,7 @@ const Game = (() => {
     const { level, players } = world;
     for (const h of world.hands) {
       h.t += dt;
-      const target = players[1 - h.owner];
+      let target = h.victim; // (whoever it caught: any runner but its thrower, v7.61)
 
       if (h.state === "fly") {
         const move = HAND.speed * dt;
@@ -528,8 +544,9 @@ const Game = (() => {
           continue;
         }
         const half = HAND.size / 2;
-        if (!target.dead && !target.caught && !target.held &&
-            overlaps(target.x, target.y, HITBOX_W, HITBOX_H, h.x - half, h.y - half, HAND.size, HAND.size)) {
+        target = players.find((q, i) => i !== h.owner && !q.dead && !q.caught && !q.held && overlaps(q.x, q.y, HITBOX_W, HITBOX_H, h.x - half, h.y - half, HAND.size, HAND.size));
+        if (target) {
+          h.victim = target;
           // Caught! Facing right it's a grab-and-suplex, facing left it's a backhand
           h.state = h.dir > 0 ? "grab" : "swat";
           h.t = 0;
@@ -585,7 +602,7 @@ const Game = (() => {
     }
     // If the caught player dies or is caught by the fire, let the hand go
     for (const h of world.hands) {
-      if ((h.state === "grab" || h.state === "swat") && !players[1 - h.owner].held) { h.state = "fade"; h.t = 0; }
+      if ((h.state === "grab" || h.state === "swat") && !(h.victim && h.victim.held)) { h.state = "fade"; h.t = 0; }
     }
     world.hands = world.hands.filter((h) => !h.done);
   }
@@ -971,8 +988,7 @@ const Game = (() => {
   // Used by the player behind: fly to the leader and bring them back. Used by the leader
   // (or on your own): follow them and catch them once if they fall into a pit.
   function launchDrone(p) {
-    const others = world.players.filter((q) => q !== p && !q.caught);
-    const leader = others.find((q) => q.trackX > p.trackX);
+    const leader = leaderAhead(p);
     const drone = { owner: p, x: p.x + HITBOX_W / 2, y: p.y - 10, t: 0, done: false };
     if (leader) {
       Object.assign(drone, { mode: "hunt", target: leader });
@@ -1201,7 +1217,7 @@ const Game = (() => {
   function blowSandOrbs(st) {
     const S = SANDSTORM, runners = world.players.filter((p) => !p.caught && !p.dead);
     if (!runners.length || st.t > S.orbsTo) return;
-    const lead = runners.reduce((a, b) => (b.x > a.x ? b : a)), back = runners.find((p) => p !== lead);
+    const lead = runners.reduce((a, b) => (b.x > a.x ? b : a)), back = runners.filter((p) => p !== lead).reduce((a, b) => (!a || b.x < a.x ? b : a), null); // (the one furthest behind)
     if (back && back.x < lead.x - VIEW_W * 0.35 && st.high < S.behind && st.t >= st.highAt[st.high]) { st.high++; st.left--; blowSandOrb(lead, back); }
     const coming = world.level.orbs.some((o) => o.sand && !o.sand.sink && !o.used && o.x > lead.x - 10); // (one still on its way to the leader)
     if (coming) st.next = Math.max(st.next, st.t + S.orbGap[0] + Math.random() * (S.orbGap[1] - S.orbGap[0]));
@@ -1368,7 +1384,7 @@ const Game = (() => {
   // The monkey swings in from the top of the screen on its vine, sweeping through the other player
   // (it aims for where they'll be at the bottom of its swing). Alone, it swings you forward instead.
   function launchMonkey(p) {
-    const target = world.players.find((q) => q !== p && !q.caught);
+    const target = rivalOf(p);
     Sound.play("monkeySwing");
     if (!target || world.solo) {
       const spot = world.level.safeSpotAfter(p.x + MONKEY.ferryAhead * TILE, 480) || landingAfter(p.x + MONKEY.ferryAhead * TILE);
@@ -2078,7 +2094,7 @@ const Game = (() => {
   // S / Down: roots burst out of the ground round the other player, wherever they are, and grab them.
   // Not if there's nobody to grab right now (dead, in a forest, already held...): then you keep it.
   function rootGrab(p, owner) {
-    const v = world.players[1 - owner];
+    const v = rivalOf(p);
     if (!v || v.dead || v.caught || v.held || v.dream || v.realm || v.eatenBy || v.flood || world.monsoon) {
       if (v && !world.solo) p.showHit("OUT OF REACH!", "#a898b8");
       return false;
@@ -2839,8 +2855,10 @@ const Game = (() => {
         lo = p.x + VIEW_W * 0.65 + CATCHUP.margin;
         hi = lo + VIEW_W;
       }
-    } else if (runners.length === 2) {
-      const [trail, lead] = [...runners].sort((p, q) => p.trackX - q.trackX);
+    } else if (runners.length >= 2) {
+      // (3 or 4 runners: the one furthest behind who hasn't had theirs yet)
+      const sorted = [...runners].sort((p, q) => p.trackX - q.trackX), lead = sorted[sorted.length - 1];
+      const trail = sorted.find((q) => q !== lead && !q.catchupGiven) || sorted[0];
       const leadScreen = lead.x - VIEW_W * 0.35; // the left edge of the leader's screen
       if (!trail.dead && !lead.dead && trail.x + HITBOX_W < leadScreen) {
         behind = trail;
@@ -2863,7 +2881,7 @@ const Game = (() => {
       if (level.orbs.some((o) => !o.used && Math.abs(o.x - spot.x) < 6 * TILE)) { from = spot.x; continue; }
       const kinds = { ...CATCHUP.kinds };
       if (world.solo) delete kinds.grapple;
-      level.orbs.push({ x: spot.x, y: spot.y + HITBOX_H - 32, w: 8, h: 8, used: false, kind: pickWeighted(kinds), purple: true });
+      level.orbs.push({ x: spot.x, y: spot.y + HITBOX_H - 32, w: 8, h: 8, used: false, kind: pickWeighted(kinds), purple: true, forWhom: behind });
       behind.catchupGiven = true; // (their one catch-up orb this race)
       return;
     }
@@ -2936,7 +2954,7 @@ const Game = (() => {
   function firePortalGun(p) {
     const { level } = world;
     level.ensure(p.x + VIEW_W * 12);
-    const lead = world.players.find((q) => q !== p && !q.caught && q.x > p.x + HITBOX_W);
+    const lead = leaderAhead(p, HITBOX_W);
     const leadX = lead ? lead.x : null;
     if (lead && leadX - p.x < VIEW_W * 0.65) { // you can see them: one obstacle ahead of them
       level.ensure(leadX + VIEW_W * 6);
@@ -3010,7 +3028,7 @@ const Game = (() => {
 
   // The grapple: a hook flies to whoever is ahead and reels them back, halfway to you
   function throwGrapple(p) {
-    const target = world.players.find((q) => q !== p && !q.caught && !q.dead && q.trackX > p.trackX);
+    const lead = leaderAhead(p), target = lead && !lead.dead ? lead : null;
     if (!target) { p.showHit("NOBODY AHEAD", "#d9a3ff"); return false; }
     world.grapples.push({ owner: p, target, x: p.x + HITBOX_W / 2, y: p.y + 4, mode: "fly", t: 0 });
     Sound.play("grappleThrow");
@@ -3076,7 +3094,7 @@ const Game = (() => {
     world.level.ensure(p.x + VINE.distance[1] + VIEW_W * 2);
     const r = Math.max(60, p.y + 20); // (it hangs from just above the top of the screen)
     const dist = VINE.distance[0] + Math.random() * (VINE.distance[1] - VINE.distance[0]);
-    const target = world.players.find((q) => q !== p && !q.caught && q.trackX > p.trackX) || null;
+    const target = leaderAhead(p);
     const spot = target && vineLanding(target); // (where they are right now: it doesn't follow them)
     world.vines.push({ owner: p, spot, t: 0, mode: "drop", ax: p.x + HITBOX_W / 2, ay: p.y - r, r, dist, from: { x: p.x, y: p.y } });
     grab(p);
@@ -3149,10 +3167,10 @@ const Game = (() => {
   // ice), taking it from the other one if they had it. A tie changes nothing
   function crownIceWalker(st) {
     if (world.solo || !st.from || world.players.length < 2) return;
-    const went = world.players.map((q, i) => q.x - st.from[i]);
-    if (Math.abs(went[0] - went[1]) < 1) return;
-    const win = world.players[went[0] > went[1] ? 0 : 1], lose = world.players.find((q) => q !== win);
-    if (lose.iceWalker) { lose.iceWalker = false; lose.showHit("LOST SKATES!", "#a8e0ff"); }
+    const went = world.players.map((q, i) => (q.caught ? -Infinity : q.x - st.from[i])), top = Math.max(...went);
+    if (went.filter((w) => w > top - 1).length > 1) return; // (a tie for the furthest)
+    const win = world.players[went.indexOf(top)];
+    for (const lose of world.players) if (lose !== win && lose.iceWalker) { lose.iceWalker = false; lose.showHit("LOST SKATES!", "#a8e0ff"); }
     if (!win.iceWalker) { win.iceWalker = true; win.showHit("SKATES!", "#a8e0ff"); win.sparkle("#e8f8ff"); Sound.play("gotSnowball"); }
   }
 
@@ -3200,7 +3218,7 @@ const Game = (() => {
 
   // Off it goes: out to the other player with a burning stick, or (alone) to circle you
   function launchHawk(p) {
-    const other = world.players.find((q) => q !== p && !q.caught);
+    const other = rivalOf(p);
     const guard = world.solo || !other;
     world.hawks.push({ mode: guard ? "guard" : "attack", owner: p, target: other, x: p.x + HITBOX_W / 2, y: p.y - 6, t: 0, angle: -Math.PI / 2, facing: 1, flap: 0 });
     Sound.play("hawkScreech");
@@ -3764,15 +3782,20 @@ const Game = (() => {
   }
 
   function checkFire() {
-    const caught = world.players.filter((p) => world.fire.x >= p.trackX + 2);
+    const caught = world.players.filter((p) => !p.caught && world.fire.x >= p.trackX + 2);
     if (caught.length === 0) return;
 
     for (const p of caught) p.burnUp();
+    const left = world.players.filter((p) => !p.caught);
     if (world.solo) {
       world.winner = { solo: true, meters: Math.floor(world.players[0].trackX / TILE) };
       Sound.play("draw");
+    } else if (left.length >= 2) { // (3 or 4 runners: you're out, the race goes on for the rest)
+      for (const p of caught) p.showHit("OUT!", "#ff4d3d");
+      Sound.play("draw");
+      return;
     } else {
-      world.winner = caught.length === 2 ? null : world.players.find((p) => !p.caught).name;
+      world.winner = left.length === 1 ? left[0].name : null; // (the last one left wins; caught together: a draw)
       Sound.play(world.winner ? "win" : "draw");
     }
     world.state = "ending";
@@ -3856,6 +3879,7 @@ const Game = (() => {
     // mode: 1 or 2 players
     start(players = 2, options = {}) {
       solo = players === 1;
+      count = Math.max(1, Math.min(4, players));
       const picked = (options.biomeList || BIOMES).filter((b) => BIOMES.includes(b));
       const secret = (options.secretList || SECRET_BIOMES).filter((b) => SECRET_BIOMES.includes(b));
       // biomes off: the prairie. Every regular biome turned off: the race is in the secret biomes instead, as the
@@ -3874,8 +3898,10 @@ const Game = (() => {
       wild = options.wild === true;
       const tune = options.tuning || {};
       TUNING.speed = tune.speed || 1; TUNING.jump = tune.jump || 1; TUNING.fire = tune.fire || 1;
-      canvas.height = (solo ? VIEW_H : VIEW_H * 2 + DIVIDER) * SCALE;
-      canvas.style.aspectRatio = `auto ${canvas.width} / ${canvas.height}`;
+      const L = Renderer.layout(count); // (3 and 4 players: a grid of full-size views, twice as wide)
+      canvas.width = L.w * SCALE;
+      canvas.height = L.h * SCALE;
+      canvas.style.aspectRatio = count >= 3 ? "auto 800 / 484" : `auto ${canvas.width} / ${canvas.height}`; // (3 and 4: the grid fits inside the usual box, or fills the screen)
       Sound.unlock(); // the Start click lets the browser play sound
       // the first race after opening the website starts in the prairie (if it's one of them)
       const first = racesStarted++ === 0 && biomeList.includes("prairie");
