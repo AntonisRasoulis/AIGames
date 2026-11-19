@@ -33,9 +33,10 @@ const Game = (() => {
   let wild = false;     // Wild mode: the hard one
   let sleepShrooms = true; // are there sleep mushrooms (the way into the enchanted forest) on the main course?
   let ruinsOn = true;      // ...and a portal to the arcane ruins?
+  let campOn = true;       // ...and the military camp's helicopter?
 
   function newWorld(startBiome = "prairie") {
-    const level = new Level(Math.floor(Math.random() * 1e9), startBiome, { solo, biomes: biomeList.length > 1, biomeList, wild, sleepShrooms, ruins: ruinsOn });
+    const level = new Level(Math.floor(Math.random() * 1e9), startBiome, { solo, biomes: biomeList.length > 1, biomeList, wild, sleepShrooms, ruins: ruinsOn, camp: campOn });
     level.ensure(VIEW_W * 2);
     const startX = 4 * TILE;
     const startY = level.groundRow * TILE - HITBOX_H;
@@ -70,6 +71,8 @@ const Game = (() => {
       stormBalls: [],   // the ruins' balls of lightning { level, x, y, angle, age }
       blackout: null,   // the ruins' blackout orb: the lights out on one course { level, owner, t }
       laserShots: [],   // the ruins' laser gun: { level, p, owner, x, y, dir, t }
+      heli: null,       // the military camp's helicopter (once per race, on the main course): { x, y, dir, state, t, riders, loopY, ... }
+      jetBombs: [],     // the jet's bombs, falling on the main course as it brings someone back { x, y, vx, vy }
       mushroomThrows: [], // the forest's mushroom orb: a mushroom thrown up, coming back down on its thrower { p, kind, t }
       mortarBombs: [],  // the ruins' mortar bombs in flight { level, x0, y0, x1, y1, top, age, seed }
       booms: [],        // ...and their explosions { level, x, y, gy, t, seed }
@@ -179,6 +182,7 @@ const Game = (() => {
     const inputs = players.map((p, i) => readInput(i));
     players.forEach((p, i) => p.update(dt, inputs[i], p.realm || level)); // (each on their own course: the main one, or a forest)
     updateDreams(dt);
+    updateFlights(dt);
     updateTrips(dt);
     updateBuiltPortals(dt);
     updateMushroomThrows(dt);
@@ -193,7 +197,8 @@ const Game = (() => {
     // The main course's dangers only see who's on it: anyone off in a forest (or on their way) counts as out of the race
     onCourse(level, () => mainCourse(dt, inputs));
     for (const f of forests()) {
-      if (f.biome === "ruins") onCourse(f, () => { world.players.forEach((p, i) => { if (inputs[i].firePressed && p.power === "laser") usePower(p, i); }); checkOrbs(); updateBridges(dt); updateRuins(f, dt); updateBiomeGates(f); updateStorms(dt); updateMortars(dt); updateRuneTiles(dt); levelSounds(); });
+      if (f.biome === "camp") onCourse(f, () => { checkOrbs(); updateBridges(dt); levelSounds(); });
+      else if (f.biome === "ruins") onCourse(f, () => { world.players.forEach((p, i) => { if (inputs[i].firePressed && p.power === "laser") usePower(p, i); }); checkOrbs(); updateBridges(dt); updateRuins(f, dt); updateBiomeGates(f); updateStorms(dt); updateMortars(dt); updateRuneTiles(dt); levelSounds(); });
       else if (f.leg) onCourse(f, () => { updateBridges(dt); updateFlytraps(dt); checkThinIce(); levelSounds(); updateLeg(f); });
       else onCourse(f, () => { world.players.forEach((p, i) => { if (inputs[i].firePressed && p.power === "mushroom") usePower(p, i); }); checkOrbs(); updateBridges(dt); updateLooseSaws(dt); updateLooseMaces(dt); updateSpores(); updateLobbers(dt); updateAliveTrees(dt); updateLeaves(dt); levelSounds(); });
     }
@@ -230,6 +235,7 @@ const Game = (() => {
       updateRuneTiles(dt);
     }
     updateMonkeys(dt);
+    updateHeli(dt);
     updateWarps(dt);
     updateGrapples(dt);
     updateVines(dt);
@@ -1654,6 +1660,165 @@ const Game = (() => {
     p.spin = 0;
     p.tumbleweeds = [];
     p.snowballs = [];
+  }
+
+  // ---- The military camp (the third secret world): a helicopter in, a jet back out ----
+
+  // Where the helicopter's rope hangs from (its back door: the twin-rotor faces the way it flies)
+  const ropeX = (h) => h.x + (h.dir < 0 ? 34 : 16);
+
+  // Once per race, when the leader nears its spot, a twin-rotor helicopter flies in from the right, back toward the fire, a
+  // rope with a loop hanging down. Jump and grab it: it carries on for 5 s (anyone else can grab on too), then climbs away
+  // with everyone on the rope into the camp. But if the fire comes onto a rider's screen while it's carrying them, it turns
+  // round and flies them 50 m ahead of the fire instead, where a missile shoots it down (they come back to life there).
+  // Miss it and it flies off for good.
+  function updateHeli(dt) {
+    const { level, players } = world, Hc = HELI;
+    const spot = level.heliSpots.find((s) => !s.used);
+    if (spot && !world.heli) {
+      const lead = players.filter((p) => !p.caught).reduce((a, b) => (!a || b.x > a.x ? b : a), null);
+      if (lead && lead.x >= spot.x - VIEW_W * 0.3) {
+        spot.used = true;
+        world.heli = { level, x: lead.x + VIEW_W * 0.7, y: Hc.top, dir: -1, state: "in", t: 0, riders: [], loopY: null, ground: lead.y + HITBOX_H, vy: 0, chop: 0 };
+      }
+    }
+    const h = world.heli;
+    if (!h) return;
+    h.t += dt;
+    if (h.state === "in" || h.state === "carry") h.x -= Hc.speed * dt;
+    else if (h.state === "rise" || h.state === "away") { h.x -= Hc.speed * 1.6 * dt; h.y -= 50 * dt; }
+    else if (h.state === "rescue") h.x += Hc.rescueSpeed * dt;
+    else if (h.state === "missile") h.x += world.fire.speed * dt; // (keeping its 50 m on the fire)
+    else if (h.state === "hit") { h.vy += 320 * dt; h.y += h.vy * dt; h.x += 50 * dt; }
+    // the rope's loop, hanging a jump's height over the ground (its length kept once it climbs)
+    const g = level.groundTop(ropeX(h));
+    if (g !== null) h.ground = g;
+    if (h.state === "rise" || h.state === "away" || h.state === "hit") h.loopY = h.y + 15 + h.ropeLen;
+    else {
+      const want = h.ground - Hc.ropeLow;
+      h.loopY = h.loopY === null ? want : h.loopY + Math.sign(want - h.loopY) * Math.min(Math.abs(want - h.loopY), 80 * dt);
+      h.ropeLen = h.loopY - (h.y + 15);
+    }
+    if ((h.chop -= dt) <= 0) { h.chop = 0.11; if (players.some((p) => !p.realm && Math.abs(h.x + 25 - p.x) < VIEW_W)) Sound.play("heliChop"); }
+    // grabbing the rope: jump and touch the loop (until it climbs away)
+    if (h.state === "in" || h.state === "carry") {
+      const [w, hh] = Hc.loop, lx = ropeX(h) - w / 2;
+      for (const p of players) {
+        if (h.riders.includes(p) || !freeRunner(p) || p.realm || p.jet || p.flight) continue;
+        if (!overlaps(p.x, p.y, HITBOX_W, HITBOX_H, lx, h.loopY - 2, w, hh)) continue;
+        h.riders.push(p);
+        Object.assign(p, { held: true, vx: 0, vy: 0, standingOn: null, onGround: false, inQuick: false, inRiver: null, trapped: 0, dashHold: 0, dashTime: 0, windTime: 0, grabAt: world.time, grabX: p.x });
+        p.showHit("HANG ON!", "#d8c89a");
+        Sound.play("grab");
+        if (h.state === "in") { h.state = "carry"; h.t = 0; }
+      }
+    }
+    h.riders = h.riders.filter((p) => !p.caught);
+    h.riders.forEach((p, i) => { p.x = ropeX(h) - HITBOX_W / 2; p.y = h.loopY - 2 - i * 12; p.facing = h.dir; });
+    // the fire on a rider's screen: it won't take them in, it turns round (once it's climbing, it's too late for that)
+    if (h.state === "carry" && h.riders.some((p) => world.fire.x >= p.x - VIEW_W * 0.35)) {
+      Object.assign(h, { state: "rescue", t: 0, dir: 1, x: h.x - 18 }); // (turned round: the rope's at its other end now)
+      for (const p of h.riders) p.showHit("TOO HOT! GETTING YOU OUT!", "#ffb347");
+      Sound.play("heliChop");
+    }
+    if (h.state === "carry" && h.t >= Hc.carry) { h.state = "rise"; h.t = 0; Sound.play("heliChop"); }
+    else if (h.state === "rise" && h.t >= Hc.rise) { // up and away: everyone on the rope goes to the camp
+      const first = h.riders[0];
+      if (first) h.camp = makeCamp(first.grabX + travelGain(world.time - first.grabAt + 0.6));
+      for (const p of h.riders) p.flight = { kind: "in", t: 0, camp: h.camp };
+      h.riders = [];
+      h.state = "away";
+    } else if (h.state === "rescue" && h.x >= world.fire.x + Hc.rescue * TILE) { h.state = "missile"; h.t = 0; Sound.play("incoming"); }
+    else if (h.state === "missile" && h.t >= Hc.missile) { // shot down: everyone on board dies (and comes back to life there, safe)
+      h.state = "hit"; h.t = 0; h.vy = -40;
+      Sound.play("boom");
+      for (let i = 0; i < 16; i++) world.sawBits.push({ x: h.x + 25, y: h.y + 8, vx: (Math.random() - 0.5) * 160, vy: -40 - Math.random() * 90, t: 0.8, c: ["#ffd040", "#ff7a1a", "#e84a2a", "#3a3a3a"][i % 4], big: i % 3 === 0, level });
+      for (const p of h.riders) { p.held = false; p.showHit("SHOT DOWN!", "#ff7a3a"); p.die(); }
+      h.riders = [];
+    } else if (h.state === "hit" && h.y > VIEW_H + 20) world.heli = null;
+    else if (h.state === "away" && h.y < -40) world.heli = null;
+    else if (h.state === "in" && h.riders.length === 0 && players.every((p) => p.caught || p.realm || h.x + 60 < p.x - VIEW_W * (0.35 + Hc.gone))) world.heli = null; // (missed: gone for good)
+  }
+
+  // The camp: its own course covering the same stretch as the main one from where you come in (calm ground there), 156-216
+  // tiles of it, then flat ground at the end, where the jet picks you up
+  function makeCamp(arriveX) {
+    const c0 = Math.floor(arriveX / TILE) - 2;
+    const len = Math.round(CAMP.length[0] + Math.random() * (CAMP.length[1] - CAMP.length[0]));
+    const f = new Level(Math.floor(Math.random() * 1e9), "camp", { solo: world.solo, biomes: false, wild: world.wild, realmEnd: (c0 + CAMP.arrive + len) * TILE });
+    f.flat(Math.max(1, c0 - f.col), false);
+    f.flat(CAMP.arrive, false);
+    f.update(world.time);
+    return f;
+  }
+
+  // Going in (the screen fades as the helicopter climbs away, and you come in at the camp), and coming back: at the camp's
+  // end the screen fades and you're in a jet, flying in from the left over the main course, carpet-bombing it, until you're
+  // over where you should be (as far on as you'd have run: no ground lost), then you parachute down
+  function updateFlights(dt) {
+    const J = JET;
+    for (const p of world.players) {
+      if (!p.flight && !p.jet && p.realm && p.realm.biome === "camp" && !p.dead && !p.caught && !p.held && p.realm.realmExit !== undefined && p.x >= p.realm.realmExit) {
+        p.flight = { kind: "out", t: 0, from: p.x }; // (the end of the camp: your ride home)
+        Object.assign(p, { held: true, vx: 0, vy: 0 });
+        Sound.play("jetRoar");
+      }
+      const f = p.flight;
+      if (f) {
+        f.t += dt;
+        if (p.caught) { p.flight = null; continue; }
+        if (!f.moved && f.t >= 0.6) {
+          f.moved = true;
+          if (f.kind === "in") moveTo(p, f.camp, p.grabX + travelGain(world.time - p.grabAt));
+          else { // onto the main course where you'll come out, then into the jet, well behind it
+            moveTo(p, null, f.from + travelGain(0.6 + J.back / J.speed + J.chute));
+            p.jet = { t: 0, x: p.x - J.back, to: { x: p.x, y: p.y }, phase: "fly", bomb: 0 };
+            p.x = p.jet.x;
+            p.y = J.height + 6;
+          }
+          p.held = true;
+        }
+        if (f.t >= 1.2) { p.flight = null; if (!p.jet) p.held = false; }
+      }
+      const jt = p.jet;
+      if (!jt) continue;
+      jt.t += dt;
+      if (jt.phase === "fly") {
+        jt.x = Math.min(jt.to.x, jt.x + J.speed * dt);
+        p.x = jt.x;
+        p.y = J.height + 6;
+        if ((jt.bomb -= dt) <= 0) { jt.bomb = J.bombEvery; world.jetBombs.push({ x: jt.x + 4, y: J.height + 8, vx: J.speed * 0.55, vy: 30 }); }
+        if (jt.x >= jt.to.x) { jt.phase = "chute"; jt.t = 0; Sound.play("grab"); }
+      } else { // floating down under a parachute
+        const k = Math.min(1, jt.t / J.chute);
+        p.x = jt.to.x;
+        p.y = J.height + 6 + (jt.to.y - J.height - 6) * k;
+        if (k >= 1) { p.jet = null; p.held = false; p.onGround = true; p.vy = 0; p.safeSpots = [{ x: p.x, y: p.y }]; Sound.play("land"); }
+      }
+    }
+    // the jet's bombs: falling on the main course and blowing up there (just for show, for now)
+    const level = world.level;
+    for (const b of world.jetBombs) {
+      b.vy += 420 * dt;
+      b.x += b.vx * dt;
+      b.y += b.vy * dt;
+      const g = level.groundTop(b.x);
+      if ((g !== null && b.y >= g - 1) || b.y > VIEW_H + 8) {
+        b.gone = true;
+        const y = (g ?? VIEW_H) - 2;
+        for (let i = 0; i < 9; i++) world.sawBits.push({ x: b.x, y, vx: (Math.random() - 0.5) * 120, vy: -40 - Math.random() * 110, t: 0.55, c: ["#ffd040", "#ff7a1a", "#e84a2a", "#5a5040"][i % 4], big: i % 3 === 0, level });
+        if (Math.random() < 0.5) world.quakes.push({ x: b.x, t: 0.12, level });
+        Sound.play("bombBoom");
+      }
+    }
+    world.jetBombs = world.jetBombs.filter((b) => !b.gone);
+  }
+
+  // How dark someone's screen is (0..1) as they go into the camp or come out of it
+  function flightDark(p) {
+    const f = p.flight;
+    if (!f) return 0;
+    return f.t < 0.6 ? f.t / 0.6 : Math.max(0, 1 - (f.t - 0.6) / 0.6);
   }
 
   // ---- The arcane ruins: its portal, the race against the clock inside, and the ways back out ----
@@ -3826,6 +3991,7 @@ const Game = (() => {
   return {
     dreamDark,
     tripDark,
+    flightDark,
     ruinsLeft,
     bombAt,
     firePortalGun, // (for tests)
@@ -3886,10 +4052,12 @@ const Game = (() => {
       // be there whatever the picker said)
       sleepShrooms = secret.includes("forest");
       ruinsOn = secret.includes("ruins");
+      campOn = secret.includes("camp");
       if (options.biomes === true && options.secretRegular && secret.length) { // secret biomes as regular ones: in the rotation like any biome, no sleep mushroom or portal
         biomeList = picked.concat(secret);
         sleepShrooms = false;
         ruinsOn = false;
+        campOn = false;
       }
       wild = options.wild === true;
       const tune = options.tuning || {};

@@ -246,6 +246,10 @@ const Sound = (() => {
     treeCrack: () => { noise({ filter: "bandpass", f: 300, to: 700, q: 2, dur: 0.3, vol: 0.2 }); tone({ f: 70, to: 50, dur: 0.3, type: "sawtooth", vol: 0.06 }); },
     treeStrike: () => { noise({ filter: "highpass", f: 1800, dur: 0.07, vol: 0.25 }); tone({ f: 220, to: 70, dur: 0.15, type: "square", vol: 0.08 }); },
     treeGrab: () => { noise({ filter: "lowpass", f: 400, to: 1200, dur: 0.3, vol: 0.3 }); tone({ f: 90, to: 60, dur: 0.4, type: "sawtooth", vol: 0.08 }); },
+    // The military camp: the helicopter's rotors, the jet, its bombs
+    heliChop: () => { noise({ filter: "lowpass", f: 260, to: 120, dur: 0.07, vol: 0.12 }); },
+    jetRoar: () => { noise({ filter: "bandpass", f: 900, to: 300, q: 0.8, dur: 1.4, vol: 0.18, attack: 0.3 }); tone({ f: 180, to: 90, dur: 1.2, type: "sawtooth", vol: 0.04 }); },
+    bombBoom: () => { noise({ filter: "lowpass", f: 700, to: 90, dur: 0.35, vol: 0.22 }); tone({ f: 90, to: 35, dur: 0.3, type: "sine", vol: 0.12 }); },
     // Leave, the walking tree
     leaveWake: () => { tone({ f: 60, to: 95, dur: 0.6, type: "sawtooth", vol: 0.07, vibrato: 8 }); noise({ filter: "bandpass", f: 350, to: 650, q: 2, dur: 0.5, vol: 0.12 }); },
     leaveStep: () => { tone({ f: 70, to: 40, dur: 0.09, type: "sine", vol: 0.1 }); noise({ filter: "lowpass", f: 300, dur: 0.06, vol: 0.06 }); },

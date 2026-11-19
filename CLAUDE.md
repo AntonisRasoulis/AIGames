@@ -18,7 +18,7 @@ costs ground to the fire. 1 Player: one big view, race the fire for distance (be
 - Repo: `AntonisRasoulis/VibeCodingPractice`. Development branch: `claude/nice-meitner-muga6l`
   (a fresh chat may be given a different branch: use the one you're told).
 - Published as a claude.ai Artifact (a single bundled HTML file):
-  **https://claude.ai/artifact/Uh5CKSPymdWERadhojnY7P** (Version 171 at the time of writing). Always
+  **https://claude.ai/artifact/Uh5CKSPymdWERadhojnY7P** (Version 172 at the time of writing). Always
   republish to this same URL (pass it as `url`); never create a new artifact for the game.
 
 ## Style
@@ -40,7 +40,7 @@ Scripts load in this order (all globals, no modules), each with a `?v=` cache-bu
 `config.js` → `sound.js` → `level.js` → `player.js` → `sprites.js` → `render.js` → `game.js` → `main.js`.
 
 - **config.js:** every number worth tweaking. Also `BIOMES` (the normal rotation), `SECRET_BIOMES`
-  (`forest`), `BIOME_NAMES`.
+  (`forest`, `ruins`, `camp`), `BIOME_NAMES`.
 - **level.js (`Level`):** the endless course, built in sections just ahead of the leader (`ensure`,
   `addSection`, `SECTIONS.*`). `cols[col][row]` holds tiles (`T_EMPTY`, `T_GROUND`, `T_SPIKE`,
   `T_SHOOTER`). Obstacles are arrays on the level (`maces`, `saws`, `shooters`, `platforms`, `orbs`,
@@ -174,6 +174,16 @@ Scripts load in this order (all globals, no modules), each with a `?v=` cache-bu
   (`rootGrab`, `updateRoots`, `world.roots`; drawn by `drawRoots`). Alone: they go off when the fire is
   close and hold it still for 5 s (`world.rootWall`); alone they're not a power at all (`p.rootGuard`, you keep yours).
 
+- **The military camp** (the third secret world, v8.0; a first version: its own dangers, challenge and gift still to be
+  talked through, owner said "will figure out"). Look chosen A: a realistic daytime army camp (tents, sandbags, watchtower,
+  barbed-wire fence, olive drab); barbed-wire coils for its spikes (`makeCampLayers`, `makeCampTile`, `makeCampWire`). Way in
+  (owner's design): once per race after 400 m a twin-rotor helicopter (H2) flies in from the right with a rope; jump and grab
+  the loop; it carries on 5 s (others can grab on), then climbs away into the camp (`updateHeli`, `world.heli`, `makeCamp`,
+  `p.flight`). Miss it: gone. Fire on a rider's screen while carried: it turns round, flies them 50 m ahead of the fire and a
+  missile shoots it down (they die, back to life there). Way out (owner's design): a jet flies in from the left over the main
+  course carpet-bombing it (bombs just for show for now: ask the owner whether they should hurt), then you parachute down
+  where you'd have got to (`p.jet`, `world.jetBombs`, `drawJets`; `trackX` is the landing spot while flying). Camp is a
+  secret-biome chip (`campOn`), regular-mode and all-camp races work.
 - **The arcane ruins** (the second secret world; **a first, playable version is built**, v7.0): a portal on the
   main course (one per race after 400 m) with a button under it; inside, a 20 s race (v7.6; it was 60 s) to an exit portal past fire
   turrets, laser eye-stones and gear lasers, crumbling as time runs out; escape for the aurora's preservation.

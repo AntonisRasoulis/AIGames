@@ -1,7 +1,7 @@
 // The game's version, shown left of the logo. The first number goes up for big updates (a new biome, a new
 // secret world...), the second for smaller additions and fixes (back to 0 with each big update): 6.16 means
 // the 6th big update (the enchanted forest), 16 small ones since. (7: the arcane ruins.)
-const GAME_VERSION = "7.64";
+const GAME_VERSION = "8.0";
 
 // Tunable numbers for the game. Change these to adjust how it feels.
 // Distances are in game pixels; one tile is 8 pixels (about "1 meter").
@@ -239,7 +239,7 @@ const SNOWBALL = {
 // about 3 orbs per biome
 const ORBS = {
   gap: 30,
-  weight: { prairie: 11, snow: 17, desert: 13, jungle: 16, forest: 12, ruins: 12 },
+  weight: { prairie: 11, snow: 17, desert: 13, jungle: 16, forest: 12, ruins: 12, camp: 12 },
 };
 
 // Purple catch-up orbs: they appear for a runner who has fallen off the leader's screen (alone: when
@@ -323,8 +323,8 @@ const MISSILE = {
 // after that a race can start in any biome.
 const BIOMES = ["prairie", "snow", "desert", "jungle"];
 // Hidden biomes: never in the normal rotation (you'll only get there through a magic portal)
-const SECRET_BIOMES = ["forest", "ruins"];
-const BIOME_NAMES = { forest: "enchanted forest", snow: "taiga", ruins: "arcane ruins" }; // what players see (the rest are shown as they are)
+const SECRET_BIOMES = ["forest", "ruins", "camp"];
+const BIOME_NAMES = { forest: "enchanted forest", snow: "taiga", ruins: "arcane ruins", camp: "military camp" }; // what players see (the rest are shown as they are)
 const BIOME_LENGTH = [250, 450]; // random length of each biome, in tiles (meters): about 350 on average
 
 const SNOW = {
@@ -555,6 +555,38 @@ const FOREST = {
   branchHold: 0.175,      // its rotten branches (the crumbling platforms) don't fall: stand on one this long in all
                          // (stepping off doesn't reset it) and it snaps in two, and you drop straight down
   branchCreak: 0.075,    // ...it starts creaking and shaking this long before it snaps (cracks spread all the while)
+};
+
+// ---- The military camp (the third secret world, v8.0: a first version; its own dangers, challenge and gift to come) ----
+
+// A daytime army camp: tents, sandbags, a watchtower, barbed wire, olive drab. The way in is a twin-rotor helicopter that
+// flies in from the right once per race, a rope with a loop hanging down: jump and grab it. The way back is a jet that
+// flies in from the left, carpet-bombing the course, and drops you off by parachute.
+const CAMP = {
+  from: 400,           // the helicopter comes once per race, somewhere after this many meters (like the sleep mushroom)
+  length: [156, 216],  // tiles of camp (13-18 s of running, like the forest)
+  arrive: 12,          // calm tiles where you come in
+};
+const HELI = {
+  speed: 70,           // it flies in from the right this fast (pixels a second, leftwards: back toward the fire)
+  top: 14,             // its body's top this far down from the top of the screen
+  ropeLow: 18,         // the rope's loop hangs this far above the ground (you jump 39: jump and grab it)
+  loop: [8, 8],        // the loop's grab box (pixels wide, high)
+  carry: 5,            // after the first grab it carries on this long (anyone else can still grab on)...
+  rise: 1.2,           // ...then climbs away with everyone on the rope (seconds), and they're in the camp
+  // If the fire is on a rider's screen while it's carrying them, it won't take them in: it turns round and flies them
+  // this far ahead of the fire, where a missile shoots it down (the crash kills them; they come back there, safe)
+  rescue: 50,          // meters ahead of the fire
+  rescueSpeed: 220,    // how fast it flies back (pixels a second)
+  missile: 0.7,        // seconds the missile takes to reach it
+  gone: 1.2,           // a missed helicopter flies off: this far past the last runner's screen (screens), and it's gone for good
+};
+const JET = {          // the way back out of the camp
+  back: 640,           // it comes in from this far behind where you'll come out (pixels)...
+  speed: 320,          // ...flying right this fast...
+  height: 18,          // ...this far down from the top of the screen...
+  bombEvery: 0.09,     // ...dropping a bomb this often (they blow up on the ground: just for show, for now)
+  chute: 1.4,          // then you parachute down (seconds)
 };
 
 // ---- The arcane ruins (the second secret world) ----

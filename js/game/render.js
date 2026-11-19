@@ -68,7 +68,7 @@ const Renderer = (() => {
       drawView(view, p, world.players.filter((q) => q !== p && q.realm === p.realm && !q.dream), camX); // (everyone else on this course shows as a ghost)
       drawDream(p, camX, world.time);
       if (Game.blackoutDark(course, world.time)) drawBlackout(r.x, r.y, camX, world, course); // (the ruins' power cut: pitch black)
-      const dark = Game.tripDark(p); // (the aurora taking you across: the screen fading out and back)
+      const dark = Math.max(Game.tripDark(p), Game.flightDark(p)); // (the aurora taking you across, or flying into or out of the camp: the screen fading out and back)
       if (dark > 0) { b.fillStyle = `rgba(6, 14, 18, ${dark})`; b.fillRect(0, 0, VIEW_W, VIEW_H); }
       if (p.warpFlash > 0) { b.fillStyle = `rgba(234, 255, 248, ${p.warpFlash * 2.4})`; b.fillRect(0, 0, VIEW_W, VIEW_H); } // (through a biome portal: a flash of light)
       b.restore();
@@ -156,6 +156,7 @@ const Renderer = (() => {
       else if (biome === "jungle") drawJungleBackground(camX);
       else if (biome === "forest") drawForestBackground(camX, world.time);
       else if (biome === "ruins") drawRuinsBackground(camX, world.time, Game.ruinsLeft(world.level, player));
+      else if (biome === "camp") drawCampBackground(camX);
       else drawBackground(camX);
     });
     b.globalAlpha = 1;
@@ -202,11 +203,12 @@ const Renderer = (() => {
     drawGroundFires(world.level, camX, world.time);
     drawBushes(world.level, camX, true); // bushes torn open by a trap: behind the runners
 
+    if (world.heli && world.heli.level === world.level) drawHeli(world.heli, camX, world.time); // (the military camp's helicopter, its rope behind whoever's on it)
     drawFlood(world, camX, world.time);
     for (const w of world.warps) drawWarp(w, camX, world.time); // (behind the runner going in or coming out)
 
     // (someone hiding in a bush can't be seen, on either screen)
-    const hiddenTrip = (p) => p.trip && p.trip.stage === "build"; // (inside a portal that's still building itself)
+    const hiddenTrip = (p) => (p.trip && p.trip.stage === "build") || (p.jet && p.jet.phase === "fly"); // (inside a portal that's still building itself, or in the jet)
     for (const other of others) if (!other.dead && !other.caught && !other.hiddenIn && !other.eatenBy && !hiddenTrip(other)) {
       drawAuroraLights(other, camX, world.time, true, true); // (its lights behind them)
       b.globalAlpha = 0.35; // the other runners show as ghosts
@@ -237,6 +239,7 @@ const Renderer = (() => {
     for (const r of world.roots) drawRoots(r, camX, world.time); // (in front of whoever they've got hold of)
     drawTreeStrikes(world.level, camX, world.time);
     drawLeaveFront(world.level, camX, world.time); // (its roots' spikes, its flying leaves and seeds, whoever it's grabbed)
+    if (world.level === Game.world.level) drawJets(Game.world, camX, world.time); // (coming back from the camp: the jet, its bombs, the parachute)
     drawStones(world.level, camX);
     drawGearLasers(world.level, camX, world.time, true);
     drawStormBalls(world, camX, world.time);
@@ -418,6 +421,78 @@ const Renderer = (() => {
       const { x, y, on } = backFirefly(k, camX, time);
       if (on < -0.3) continue;
       drawFirefly(x, y, 0.4 + 0.6 * Math.max(0, on));
+    }
+  }
+
+  // ---- The military camp ----
+
+  function drawCampBackground(camX) {
+    const L = sprites.camp;
+    b.drawImage(L.sky, 0, 0);
+    const layer = (img, speed) => {
+      const off = ((camX * speed) % img.width + img.width) % img.width;
+      for (let x = -Math.round(off); x < VIEW_W; x += img.width) b.drawImage(img, x, 0);
+    };
+    layer(L.far, 0.15);
+    layer(L.mid, 0.3);
+    layer(L.near, 0.55);
+  }
+
+  // The twin-rotor helicopter (design H2: olive drab, a row of windows, an open back door, two rotors blurring), facing the way
+  // it flies, its rope hanging from the back door down to a loop; shot down, it falls, smoking
+  function drawHeli(h, camX, time) {
+    const X = Math.round(h.x - camX), Y = Math.round(h.y);
+    if (X < -80 || X > VIEW_W + 80) return;
+    const Q = (c, x, y, w = 1, hh = 1, a = 1) => P(c, h.dir < 0 ? X + x : X + 50 - x - w, Y + y, w, hh, a); // (mirrored when it flies right)
+    const O = "#56602e", D = "#3e4622", L = "#76824a", K = "#1a1e10", G = "#9ad0e0";
+    // the rope (behind it all), from the back door down to the loop
+    const rx = ropeXOf(h) - camX, top = Y + 15, n = Math.max(0, Math.round(h.loopY - top));
+    for (let i = 0; i < n; i++) { const sx = rx + Math.round(Math.sin(time * 3 + i * 0.12) * i * 0.03); P("#d8c89a", sx, top + i); if (i % 4 === 0) P("#8a7a5a", sx, top + i); }
+    const ex = rx + Math.round(Math.sin(time * 3 + n * 0.12) * n * 0.03), ly = top + n;
+    if (h.state !== "hit") { P("#d8c89a", ex - 2, ly, 5, 1); P("#d8c89a", ex - 2, ly + 4, 5, 1); P("#d8c89a", ex - 2, ly, 1, 5); P("#d8c89a", ex + 2, ly, 1, 5); }
+    // the body
+    Q(K, -1, 3, 52, 13); Q(O, 0, 4, 50, 11); Q(L, 2, 4, 46, 2); Q(D, 0, 12, 50, 3);
+    Q(G, 1, 6, 5, 4); Q("#d8f0f6", 2, 6, 2, 1); for (let i = 0; i < 5; i++) Q(G, 12 + i * 6, 7, 3, 2, 0.8);
+    Q(K, 30, 9, 8, 6); Q(O, 44, -2, 6, 6); Q(K, 3, 0, 2, 3); Q(K, 46, -4, 2, 3);
+    Q("#e8e8d0", 20, 11, 2, 2); Q(K, 6, 15, 2, 3); Q(K, 40, 15, 2, 3);
+    const f = Math.floor(time * 30) % 2; // the rotors: a blur of blades
+    for (const [cx, cy] of [[4, 0], [47, -4]]) { Q(K, cx - 1, cy, 3, 2); for (let i = -24; i <= 24; i++) if ((i + f) % 3 !== 0) Q("#2a2e1e", cx + i, cy - 1, 1, 1, Math.abs(i) < 12 ? 0.8 : 0.5); }
+    if (h.state === "missile") { // the missile streaking in at it from high behind, a smoke trail
+      const k = Math.min(1, h.t / HELI.missile), mx = X - 160 + (25 + 160) * k, my = -20 + (Y + 8 + 20) * k;
+      for (let i = 1; i < 10; i++) P("#d8d8d0", mx - i * 5, my - i * 1.2, 2, 2, 0.6 - i * 0.05);
+      P("#2a2a2a", mx - 3, my - 1, 6, 2); P("#ff7a1a", mx - 5, my - 1, 2, 2);
+    }
+    if (h.state === "hit") { // on fire and falling
+      drawGlowAt("fire", 3, X + 25, Y + 8, 0.8);
+      for (let i = 0; i < 6; i++) P(i % 2 ? "#ffb040" : "#e84a2a", X + 18 + hash(i, Math.floor(time * 20)) * 16, Y + 2 + hash(Math.floor(time * 20), i) * 10, 2, 2);
+      for (let i = 0; i < 8; i++) P("#4a4a48", X + 25 - i * 3, Y - 4 - i * 3 + Math.sin(time * 9 + i), 3, 3, 0.5);
+    }
+  }
+  const ropeXOf = (h) => h.x + (h.dir < 0 ? 34 : 16);
+
+  // Coming back from the camp: the jet (dove grey, a dark canopy with you in it) streaking in over the course, its bombs
+  // falling, and then you, floating down under an olive parachute
+  function drawJets(world, camX, time) {
+    for (const bm of world.jetBombs) { const x = Math.round(bm.x - camX); if (x < -6 || x > VIEW_W + 6) continue; P("#2a2e1e", x - 1, Math.round(bm.y) - 1, 3, 2); P("#5a6a3a", x - 2, Math.round(bm.y) - 1, 1, 2); }
+    for (const p of world.players) {
+      const jt = p.jet;
+      if (!jt || p.realm) continue;
+      if (jt.phase === "fly") {
+        const x = Math.round(jt.x - camX), y = JET.height;
+        if (x < -40 || x > VIEW_W + 40) continue;
+        for (let i = 1; i < 12; i++) P("#e8e0d0", x - 14 - i * 4, y + 3 + Math.sin(time * 20 + i) * 0.5, 4, 1, 0.5 - i * 0.04); // (its trail)
+        drawGlowAt("fire", 1, x - 14, y + 3, 0.7);
+        P("#2a2e34", x - 13, y, 26, 7); P("#8a9298", x - 12, y + 1, 24, 5); P("#a8b0b6", x - 12, y + 1, 24, 1); P("#6a7278", x - 12, y + 5, 24, 1);
+        P("#8a9298", x + 12, y + 2, 3, 3); P("#2a2e34", x + 15, y + 3, 1, 1); // the nose
+        P("#2a2e34", x - 13, y - 5, 6, 5); P("#8a9298", x - 12, y - 4, 4, 4); // the tail fin
+        P("#2a2e34", x - 4, y + 4, 10, 3); P("#6a7278", x - 3, y + 5, 8, 1); // a wing
+        P("#1a2a3a", x + 3, y - 1, 6, 2); P(p.palette.c, x + 5, y - 1, 2, 2); // the canopy: you in it
+        P("#ffd040", x - 15, y + 2, 2, 3, 0.9);
+      } else { // the parachute: a dome of olive panels on lines down to you
+        const x = Math.round(p.x - camX), y = Math.round(p.y);
+        for (let i = -7; i <= 7; i++) { const top = y - 16 + Math.round((i * i) / 9); P(Math.abs(i) % 4 < 2 ? "#6e7a42" : "#e8e0c0", x + 3 + i, top, 1, 18 - 16 + 2); P("#3a4422", x + 3 + i, top - 1); }
+        for (const d of [-6, 6]) for (let k = 0; k < 12; k++) P("#d8c89a", x + 3 + Math.round(d * (1 - k / 12)), y - 13 + k, 1, 1, 0.8);
+      }
     }
   }
 
@@ -1929,6 +2004,8 @@ const Renderer = (() => {
               const img = sprites.thorns[n - 1];
               b.drawImage(img, sx - 3, sy + TILE - img.height);
             }
+          } else if (biome === "camp") {
+            b.drawImage(sprites.campWire[Math.floor(hash(c, 77) * 3)], sx, sy);
           } else if (biome === "forest") {
             drawGlowAt("thorn", 2, sx + 4, sy + 3, 0.45 + 0.2 * Math.sin(time * 2 + c));
             b.drawImage(sprites.forestThorns[Math.floor(hash(c, 77) * 3)], sx, sy + TILE - 10);
@@ -1945,6 +2022,9 @@ const Renderer = (() => {
           if (above === T_EMPTY) drawJungleDecoration(c, sx, sy);
         } else if (t === T_GROUND && biome === "ruins") {
           drawRuinsTile(level, c, r, sx, sy);
+        } else if (t === T_GROUND && biome === "camp") {
+          const variant = Math.floor(hash(c, r) * 4);
+          b.drawImage(level.tile(c, r - 1) === T_GROUND ? sprites.campSoil[variant] : sprites.campTop[variant], sx, sy);
         } else if (t === T_GROUND && biome === "forest") {
           const variant = Math.floor(hash(c, r) * 4);
           const above = level.tile(c, r - 1);
@@ -4735,7 +4815,7 @@ const Renderer = (() => {
       if (p.biomeBanner > 0) {
         ctx.globalAlpha = Math.min(1, p.biomeBanner * 2);
         const name = (BIOME_NAMES[p.biome] || p.biome).toUpperCase();
-        const color = { snow: "#e8f6ff", desert: "#ffcc66", jungle: "#5fe07a", forest: "#e2a6ff", ruins: "#7af0d8" }[p.biome] || "#8be070";
+        const color = { snow: "#e8f6ff", desert: "#ffcc66", jungle: "#5fe07a", forest: "#e2a6ff", ruins: "#7af0d8", camp: "#d8c89a" }[p.biome] || "#8be070";
         text(ctx, name, W / 2, top + 64, color, 18, "center");
         ctx.globalAlpha = 1;
       }

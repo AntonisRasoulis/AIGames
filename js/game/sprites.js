@@ -390,6 +390,12 @@ function makeSign(biome) {
     for (const [x, y] of [[4, 6], [15, 3], [14, 8]]) px(g, "#fff27a", x, y);
     return c;
   }
+  if (biome === "camp") { // an olive army board on a pole, a white star
+    px(g, "#4a3a24", 9, 10, 2, 12);
+    px(g, "#2e3a1e", 0, 0, 20, 11); px(g, "#5e6e3a", 1, 1, 18, 9); px(g, "#7a8a4a", 1, 1, 18, 1); px(g, "#46522a", 1, 9, 18, 1);
+    px(g, "#e8e8d0", 9, 2, 2, 7); px(g, "#e8e8d0", 6, 4, 8, 2); px(g, "#e8e8d0", 7, 6, 2, 2); px(g, "#e8e8d0", 11, 6, 2, 2);
+    return c;
+  }
   if (biome === "ruins") { // a stone slab on a stone post, a glowing teal rune
     px(g, "#3a4444", 8, 10, 4, 12); px(g, "#6a7676", 9, 10, 2, 12);
     px(g, "#3a4444", 0, 0, 20, 11); px(g, "#7a8686", 1, 1, 18, 9); px(g, "#a8b4b4", 1, 1, 18, 1); px(g, "#56626a", 1, 9, 18, 1);
@@ -1156,6 +1162,75 @@ const FOREST_SKY = ["#24123f", "#2f1850", "#3c1f62", "#4a2672", "#5a2e7e", "#743
 
 // The forest's background: a twilight sky, and three layers that each repeat sideways (parallax):
 // far treetops, twisted trees, and dark undergrowth with glowing mushrooms (where they glow from is kept)
+// ---- The military camp ----
+
+// Its ground: packed khaki dirt with a strip of trodden grass and tyre ruts on top, darker earth below
+function makeCampTile(variant, top) {
+  const c = makeCanvas(TILE, TILE);
+  const g = c.getContext("2d");
+  px(g, "#5e5034", 0, 0, TILE, TILE);
+  for (let y = 0; y < TILE; y++) for (let x = 0; x < TILE; x++) {
+    const n = hash(x + variant * 31, y + variant * 17);
+    if (n < 0.1) px(g, "#463c26", x, y);
+    else if (n > 0.93) px(g, "#7a6a48", x, y);
+  }
+  if (top) {
+    px(g, "#7a6a40", 0, 0, TILE, 2);
+    px(g, "#6a5a38", 0, 2, TILE, 1);
+    for (let x = 0; x < TILE; x++) {
+      if (hash(x, variant + 3) < 0.35) px(g, "#6e7a3a", x, 0); // tufts of grass
+      if (hash(x, variant + 9) < 0.25) px(g, "#4a3e28", x, 3);  // ruts
+    }
+  }
+  return c;
+}
+
+// Its spike: a coil of barbed wire on the ground (it hurts like any spike)
+function makeCampWire(v) {
+  const c = makeCanvas(TILE, 8);
+  const g = c.getContext("2d");
+  for (let a = 0; a < 20; a++) { // a coil, seen from the side: loops of wire
+    const t = a / 20 * Math.PI * 4 + v, x = 4 + Math.cos(t) * 3.5 + (a / 20 - 0.5) * 2, y = 4 + Math.sin(t) * 3;
+    px(g, "#3a3a3a", Math.round(x), Math.round(y));
+  }
+  for (const [x, y] of [[1, 2], [6, 1], [3, 6], [7, 5], [0, 5]]) { px(g, "#9a9a92", x, y); px(g, "#d8d8d0", x, y - 1 < 0 ? 0 : y - 1); } // barbs, catching the light
+  return c;
+}
+
+// The camp in the background: a grey-blue overcast sky, two layers of green hills, and the camp itself along the back
+// (tents, sandbag walls, a wooden watchtower, crates and drums, a flagpole, all behind a barbed-wire fence)
+function makeCampLayers() {
+  const sky = makeCanvas(VIEW_W, VIEW_H);
+  let g = sky.getContext("2d");
+  for (let y = 0; y < VIEW_H; y++) { const k = y / VIEW_H, m = (a, b) => Math.round(a + (b - a) * k); px(g, `rgb(${m(150, 196)},${m(168, 196)},${m(170, 176)})`, 0, y, VIEW_W, 1); }
+  for (let i = 0; i < 6; i++) { const cx = i * 70 + hash(i, 1) * 40, cy = 10 + hash(i, 2) * 26; for (let k = 0; k < 14; k++) px(g, k % 4 ? "#d8dccc" : "#e8ece0", Math.round(cx + hash(i, k) * 30), Math.round(cy + hash(k, i) * 6), 6, 3); }
+  const hills = (w, base, amp, f, col, top) => {
+    const cv = makeCanvas(w, VIEW_H), hg = cv.getContext("2d");
+    for (let x = 0; x < w; x++) { const h = Math.round(base + Math.sin(x * Math.PI * 2 / w * f) * amp + Math.sin(x * Math.PI * 2 / w * f * 3 + 1) * amp * 0.4); px(hg, col, x, 96 - h, 1, h + 24); px(hg, top, x, 96 - h); }
+    return cv;
+  };
+  const far = hills(400, 40, 6, 2, "#7a8a6a", "#8a9a78"), mid = hills(480, 28, 5, 4, "#5e6e48", "#6e7e54");
+  const near = makeCanvas(600, VIEW_H);
+  g = near.getContext("2d");
+  const tent = (x, w, h, c1, c2, door) => { const y = 96 - h; for (let j = 0; j < h; j++) { const half = Math.round(((j + 1) / h) * w / 2); px(g, c1, x + w / 2 - half, y + j, half, 1); px(g, c2, x + w / 2, y + j, half, 1); } px(g, door, x + w / 2 - 2, 90, 4, 6); px(g, c2, x - 1, 95, w + 2, 1); px(g, "#3a3a24", x + w / 2, y - 2, 1, 2); };
+  const bags = (x, n, rows) => { for (let r = 0; r < rows; r++) for (let i = 0; i < n - (r % 2); i++) { const bx = x + i * 6 + (r % 2) * 3, by = 96 - (r + 1) * 3; px(g, "#8a7a58", bx, by, 6, 3); px(g, "#c8b48a", bx + 1, by, 4, 2); } };
+  const tower = (x, h) => { const top = 96 - h, wood = "#8a6a42", dark = "#4a3a24";
+    for (let y = top + 8; y < 96; y++) { px(g, dark, x + Math.round((y - top) * 0.08), y); px(g, dark, x + 13 - Math.round((y - top) * 0.08), y); }
+    for (let k = top + 12; k < 96; k += 9) for (let i = 0; i < 12; i++) px(g, dark, x + 1 + i, k + (Math.round(i * 0.6) % 9));
+    px(g, wood, x - 2, top + 6, 18, 6); px(g, dark, x - 2, top + 11, 18, 1); for (let i = 0; i < 18; i += 3) px(g, dark, x - 2 + i, top + 6, 1, 5);
+    px(g, "#5e6e3a", x - 3, top, 20, 3); px(g, dark, x - 1, top + 3, 1, 3); px(g, dark, x + 15, top + 3, 1, 3); };
+  const crates = (x) => { px(g, "#4a4026", x, 86, 12, 10); px(g, "#8a7a4a", x + 1, 87, 10, 8); px(g, "#4a4026", x + 1, 87, 10, 1); px(g, "#4a4026", x + 5, 87, 1, 8); px(g, "#4a4026", x + 13, 89, 9, 7); px(g, "#8a7a4a", x + 14, 90, 7, 5); };
+  const drums = (x) => { for (let i = 0; i < 2; i++) { px(g, "#2e3a1e", x + i * 7, 87, 6, 9); px(g, "#5a6a3a", x + i * 7 + 1, 87, 4, 9); px(g, "#2e3a1e", x + i * 7, 90, 6, 1); px(g, "#2e3a1e", x + i * 7, 93, 6, 1); } };
+  const flag = (x) => { px(g, "#3a3a2a", x, 44, 1, 52); px(g, "#b8b8a0", x + 1, 45, 14, 4); px(g, "#5a6a3a", x + 1, 49, 14, 4); };
+  flag(30); tent(70, 34, 22, "#8a8a5a", "#6e6e44", "#3a3a24"); tent(110, 28, 18, "#7e8a52", "#626e3e", "#34381e"); crates(160);
+  tower(250, 64); tent(300, 38, 24, "#8a8a5a", "#6e6e44", "#3a3a24"); drums(350); bags(390, 6, 3); tent(450, 30, 20, "#7e8a52", "#626e3e", "#34381e"); crates(500); bags(540, 5, 2);
+  // the fence in front of it all: posts, three strands of barbed wire, and a coil along the top
+  for (let x = 4; x < 600; x += 22) { px(g, "#5a4a30", x, 74, 2, 16); px(g, "#5a4a30", x - 1, 72, 1, 2); px(g, "#5a4a30", x + 2, 72, 1, 2); }
+  for (const yy of [76, 81, 86]) for (let x = 0; x < 600; x++) { px(g, "#3a3a3a", x, yy + (Math.floor(x / 3) % 2)); if (x % 5 === 0) px(g, "#3a3a3a", x, yy - 1); }
+  for (let x = 0; x < 600; x += 2) px(g, "#3a3a3a", x, 71 + Math.round(Math.sin(x * 0.7) * 1.5));
+  return { sky, far, mid, near };
+}
+
 function makeForestLayers() {
   // the sky: purple at the top to pink at the bottom, dithered in pixel steps
   const sky = makeCanvas(VIEW_W, VIEW_H);
@@ -1795,6 +1870,10 @@ function buildSprites() {
     thorns: [1, 2, 3, 4, 5, 6, 7, 8].map(makeThorns), // thorns[n - 1] is n tiles wide
     jungle: makeJungleLayers(),
     forest: makeForestLayers(),
+    camp: makeCampLayers(),
+    campTop: [0, 1, 2, 3].map((v) => makeCampTile(v, true)),
+    campSoil: [0, 1, 2, 3].map((v) => makeCampTile(v + 4, false)),
+    campWire: [0, 1, 2].map(makeCampWire),
     ruins: makeRuinsLayers(),
     ruinsBricks: makeRuinsBricks(),
     ruinsCracks: makeRuinsCracks(),

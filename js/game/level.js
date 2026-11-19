@@ -87,6 +87,8 @@ class Level {
     this.sleepShroomsOn = options.sleepShrooms !== false; // (the enchanted forest turned off in the biome picker: no sleep mushrooms)
     this.realmExit = undefined;       // ...and where its calm ground at the end starts, once it's built (the fireflies come there)
     this.ruinsOn = options.ruins !== false; // (the arcane ruins turned off in the biome picker: no ruins portal)
+    this.campOn = options.camp !== false;   // (the military camp turned off: no helicopter)
+    this.heliSpots = [];      // where the military camp's helicopter comes (one per race): { x, used }
     this.ruinsGates = [];     // the ruins portal on the main course (one per race): { id, x, gy, state: off | on | broken, presses, openedAt, realm, burstAt, brokenAt }
     this.fireRows = [];       // ruins: rows of fire turrets (in place of spikes): { id, x0, n, gy, speed, kind, phase, second }
     this.laserSwords = [];    // ruins: laser swords { id, x (the pivot), gy, period, phase }
@@ -433,6 +435,7 @@ class Level {
     if (biome === "desert") { const h = this.cactusHeight(c); return [c * TILE + 2, (r + 1) * TILE - h + 2, 4, h - 2]; }
     if (biome === "snow") return [c * TILE + 1.5, r * TILE + 1, 5, 7];
     if (biome === "forest") return [c * TILE + 2, r * TILE + 2, 4, 6]; // a thorny vine: its stem and barbs
+    if (biome === "camp") return [c * TILE + 0.5, r * TILE + 1, 7, 7]; // a coil of barbed wire
     if (biome === "jungle") {
       const kind = this.spikeKind[c];
       if (typeof kind === "number") return [c * TILE + 3, (r + 1) * TILE - kind + 1, 3, kind - 1];
@@ -909,6 +912,14 @@ class Level {
       }
       return this.flat(20, false);
     }
+    if (this.heliAt !== undefined && this.col >= this.heliAt) {
+      this.heliAt = undefined;
+      if (this.col >= CAMP.from) { // (one per race: where the helicopter comes, with open ground to grab its rope on)
+        this.heliPlaced = true;
+        this.heliSpots.push({ x: this.col * TILE, used: false });
+        return this.flat(40, false);
+      }
+    }
     if (this.sleepAt !== undefined && this.col >= this.sleepAt) {
       this.sleepAt = undefined;
       if (this.col >= SLEEP_SHROOM.from) { this.sleepPlaced = true; return SECTIONS.sleepShroom.call(this); } // (one per race: one chance at the forest)
@@ -1320,9 +1331,11 @@ class Level {
   // Each biome's special danger. Snow: two bears, at random spots in the biome (at least 70 m apart).
   addBiomeEvents(length) {
     // somewhere in it, a giant sleep mushroom (not in the forest itself), until the race has its one
-    if (this.realmEnd === undefined && this.biome !== "forest" && this.biome !== "ruins" && this.sleepShroomsOn && !this.sleepPlaced) this.sleepAt = this.col + this.rand(30, Math.max(31, length - 60));
+    if (this.realmEnd === undefined && !SECRET_BIOMES.includes(this.biome) && this.sleepShroomsOn && !this.sleepPlaced) this.sleepAt = this.col + this.rand(30, Math.max(31, length - 60));
     // ...and the arcane ruins' portal (one per race too)
-    if (this.realmEnd === undefined && this.biome !== "forest" && this.biome !== "ruins" && this.ruinsOn && !this.ruinsPlaced) this.ruinsAt = this.col + this.rand(30, Math.max(31, length - 60));
+    if (this.realmEnd === undefined && !SECRET_BIOMES.includes(this.biome) && this.ruinsOn && !this.ruinsPlaced) this.ruinsAt = this.col + this.rand(30, Math.max(31, length - 60));
+    // ...and the military camp's helicopter (one per race too)
+    if (this.realmEnd === undefined && !SECRET_BIOMES.includes(this.biome) && this.campOn && !this.heliPlaced) this.heliAt = this.col + this.rand(30, Math.max(31, length - 60));
     // Leave, the forest's walking tree: near the start of 1 in 3 forest stretches on the main course (from 400 m)
     if (this.biome === "forest" && this.realmEnd === undefined && !this.leg && this.rng() < LEAVE.chance) {
       const sign = this.signs[this.signs.length - 1], end = this.col + length;
