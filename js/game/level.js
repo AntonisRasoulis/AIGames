@@ -905,6 +905,7 @@ class Level {
       // section can run a little past realmEnd, so this is where they come, not realmEnd itself: never mid-obstacle.)
       if (this.realmExit === undefined) {
         this.realmExit = this.col * TILE;
+        if (this.biome === "camp") this.parkedHeli = { x: this.realmExit + CAMP_HELI.past * TILE, gy: this.groundRow * TILE, state: "wait", riders: [], wait: 0, t: 0 }; // (the camp's way out for everyone but the first: a helicopter)
         if (this.biome === "ruins") { // the ruins' way out: a portal floating over calm ground (jump into it)
           this.flat(8, false);
           this.exitPortal = { x: this.col * TILE + TILE / 2, gy: this.groundRow * TILE, y: this.groundRow * TILE - RUINS.gateUp }; // (the clean gateway, standing open: y is its ring's middle)

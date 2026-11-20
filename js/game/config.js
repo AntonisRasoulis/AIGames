@@ -1,7 +1,7 @@
 // The game's version, shown left of the logo. The first number goes up for big updates (a new biome, a new
 // secret world...), the second for smaller additions and fixes (back to 0 with each big update): 6.16 means
 // the 6th big update (the enchanted forest), 16 small ones since. (7: the arcane ruins.)
-const GAME_VERSION = "8.1";
+const GAME_VERSION = "8.2";
 
 // Tunable numbers for the game. Change these to adjust how it feels.
 // Distances are in game pixels; one tile is 8 pixels (about "1 meter").
@@ -583,9 +583,17 @@ const HELI = {
   rescueSpeed: 2,      // times the fire's speed
   escapeAccel: 700,    // how hard it pulls away (pixels a second, each second)
   turn: 1.4,           // seconds a turn takes (it swings round smoothly, seen narrower and darker mid-turn)
-  missile: 0.9,        // seconds the missile takes to reach it
+  missile: 0.9,        // seconds the missile takes to reach it (it's the missile that brings it down: it crashes, and the
+                       // wreck stays where it came down, smoking)
   ropeDamp: 2.2,       // how quickly the rope's swing dies down (it swings as the helicopter speeds up and slows down)
   gone: 1.2,           // a missed helicopter flies off: this far past the last runner's screen (screens), and it's gone for good
+};
+const CAMP_HELI = {    // the other way back out of the camp: only the first one to its end gets the jet; the rest take the helicopter
+  past: 10,            // it stands this many tiles past the camp's end, on the ground, its side door open, rotors idling
+  wait: 5,             // you sit in its door; it waits this long for anyone else (from the last one in), then takes off
+  lift: 1.4,           // seconds it climbs away (then you're flown back to the main course)
+  back: 560,           // back on the main course it flies in from this far behind where you'll come out (pixels)...
+  speed: 240,          // ...this fast, then hovers while you jump out of the door
 };
 const JET = {          // the way back out of the camp
   back: 640,           // it comes in from this far behind where you'll come out (pixels)...

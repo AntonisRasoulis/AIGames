@@ -204,6 +204,7 @@ const Renderer = (() => {
     drawBushes(world.level, camX, true); // bushes torn open by a trap: behind the runners
 
     if (world.heli && world.heli.level === world.level) drawHeli(world.heli, camX, world.time); // (the military camp's helicopter, its rope behind whoever's on it)
+    drawCampHelis(world, camX, world.time); // (its wreck; the helicopter at the camp's end; and bringing people back)
     drawFlood(world, camX, world.time);
     for (const w of world.warps) drawWarp(w, camX, world.time); // (behind the runner going in or coming out)
 
@@ -451,27 +452,7 @@ const Renderer = (() => {
       for (let i = 0; i <= r.L; i++) { const u = i / r.L; P(i % 4 ? "#d8c89a" : "#8a7a5a", hx + (ex - hx) * u + Math.sin(u * Math.PI) * bow, hy + (ey - hy) * u); }
       P("#d8c89a", ex - 2, ey, 5, 1); P("#d8c89a", ex - 2, ey + 4, 5, 1); P("#d8c89a", ex - 2, ey, 1, 5); P("#d8c89a", ex + 2, ey, 1, 5);
     }
-    const sx = Math.sign(h.yaw || 1) * Math.max(0.12, Math.abs(h.yaw)), turn = 1 - Math.abs(h.yaw);
-    b.save();
-    b.translate(Math.round(X), Math.round(h.y));
-    b.rotate(h.pitch);
-    b.scale(sx, 1);
-    b.drawImage(sprites.heli[Math.floor(time * 1.6) % 2], -36, -18);
-    if (turn > 0.05) { b.globalAlpha = turn * 0.4; b.drawImage(sprites.heliShade, -36, -18); b.globalAlpha = 1; }
-    // the masts, and the rotors on top of them
-    b.fillStyle = "#161a0c"; b.fillRect(-26, -13, 1, 4); b.fillRect(20, -18, 1, 4);
-    const spin = time * 26;
-    for (const [hx, hy, dir] of [[-25, -14, 1], [21, -19, -1]]) {
-      b.globalAlpha = 0.18; b.fillStyle = "#2a2e1e"; b.beginPath(); b.ellipse(hx, hy, 25, 1.6, 0, 0, Math.PI * 2); b.fill();
-      for (let k = 0; k < 3; k++) for (let tr = 3; tr >= 0; tr--) {
-        const a = dir * spin + k * Math.PI * 2 / 3 - tr * 0.16 * dir, x = Math.cos(a) * 25, y = Math.sin(a) * 1.4;
-        b.globalAlpha = tr ? 0.16 : 1; b.strokeStyle = tr ? "#3a3e2a" : "#1e2216"; b.lineWidth = 1.4;
-        b.beginPath(); b.moveTo(hx, hy); b.lineTo(hx + x, hy + y); b.stroke();
-        if (!tr) { b.fillStyle = "#c8c070"; b.fillRect(hx + x * 0.96 - 0.5, hy + y - 0.5, 1.2, 1.2); }
-      }
-      b.globalAlpha = 1; b.fillStyle = "#161a0c"; b.fillRect(hx - 1.5, hy - 1, 3, 2.5);
-    }
-    b.restore();
+    drawHeliBody(X, h.y, h.pitch, h.yaw, time, 26, false);
     if (h.missile) { // the prairie's missile, homing in, a smoke trail behind it
       const m = h.missile;
       for (const p of m.trail) { const age = time - p.t, fade = Math.max(0, 1 - age * 3); if (fade > 0) { b.fillStyle = `rgba(150, 150, 160, ${0.6 * fade})`; b.fillRect(Math.round(p.x - camX), Math.round(p.y), 2, 2); } }
@@ -483,6 +464,63 @@ const Renderer = (() => {
       for (let i = 0; i < 6; i++) P(i % 2 ? "#ffb040" : "#e84a2a", X - 8 + hash(i, Math.floor(time * 20)) * 16, h.y - 6 + hash(Math.floor(time * 20), i) * 10, 2, 2);
       for (let i = 0; i < 8; i++) P("#4a4a48", X - i * 3, h.y - 12 - i * 3 + Math.sin(time * 9 + i), 3, 3, 0.5);
     }
+  }
+
+  // The helicopter itself (design T2), its middle at (X, Y) on screen: tipped by pitch, turned by yaw (1 facing left, -1
+  // right; narrower and darker mid-turn), its two rotors spinning (spin: how fast; slow when it's idling on the ground),
+  // its side door open or shut
+  function drawHeliBody(X, Y, pitch, yaw, time, spin, open) {
+    const sx = Math.sign(yaw || 1) * Math.max(0.12, Math.abs(yaw)), turn = 1 - Math.abs(yaw);
+    b.save();
+    b.translate(Math.round(X), Math.round(Y));
+    b.rotate(pitch);
+    b.scale(sx, 1);
+    b.drawImage((open ? sprites.heliOpen : sprites.heli)[Math.floor(time * 1.6) % 2], -36, -18);
+    if (turn > 0.05) { b.globalAlpha = turn * 0.4; b.drawImage(sprites.heliShade, -36, -18); b.globalAlpha = 1; }
+    // the masts, and the rotors on top of them
+    b.fillStyle = "#161a0c"; b.fillRect(-26, -13, 1, 4); b.fillRect(20, -18, 1, 4);
+    const turned = time * spin;
+    for (const [hx, hy, dir] of [[-25, -14, 1], [21, -19, -1]]) {
+      b.globalAlpha = 0.18 * Math.min(1, spin / 20); b.fillStyle = "#2a2e1e"; b.beginPath(); b.ellipse(hx, hy, 25, 1.6, 0, 0, Math.PI * 2); b.fill();
+      for (let k = 0; k < 3; k++) for (let tr = spin > 12 ? 3 : 0; tr >= 0; tr--) {
+        const a = dir * turned + k * Math.PI * 2 / 3 - tr * 0.16 * dir, x = Math.cos(a) * 25, y = Math.sin(a) * 1.4;
+        b.globalAlpha = tr ? 0.16 : 1; b.strokeStyle = tr ? "#3a3e2a" : "#1e2216"; b.lineWidth = 1.4;
+        b.beginPath(); b.moveTo(hx, hy); b.lineTo(hx + x, hy + y); b.stroke();
+        if (!tr) { b.fillStyle = "#c8c070"; b.fillRect(hx + x * 0.96 - 0.5, hy + y - 0.5, 1.2, 1.2); }
+      }
+      b.globalAlpha = 1; b.fillStyle = "#161a0c"; b.fillRect(hx - 1.5, hy - 1, 3, 2.5);
+    }
+    b.restore();
+  }
+
+  // The camp's helicopter after the missile: its wreck where it crashed, nose in the dirt, its rotor blades bent, burning a
+  // while, then smoking (it stays for good)
+  function drawWreck(w, camX, time) {
+    const X = w.x - camX;
+    if (X < -80 || X > VIEW_W + 80) return;
+    if (w.t < 1.2) drawExplosion(X, w.gy - 8, w.t);
+    b.save();
+    b.translate(Math.round(X), Math.round(w.gy - 9));
+    b.rotate(0.32 * w.dir);
+    b.scale(w.dir, 1);
+    b.drawImage(sprites.heliShade, -36, -18);
+    b.globalAlpha = 0.55; b.drawImage(sprites.heli[0], -36, -18); b.globalAlpha = 1; // (burnt dark)
+    b.strokeStyle = "#1e2216"; b.lineWidth = 1.4; // (its rotor blades, bent and still)
+    for (const [hx, hy, a] of [[-25, -14, 0.5], [-25, -14, 2.6], [21, -19, -0.3], [21, -19, 2.2]]) { b.beginPath(); b.moveTo(hx, hy); b.lineTo(hx + Math.cos(a) * 14, hy + Math.sin(a) * 6 - 2); b.lineTo(hx + Math.cos(a) * 20, hy + Math.sin(a) * 8 + 3); b.stroke(); }
+    b.restore();
+    const fire = Math.max(0, 1 - w.t / 6);
+    if (fire > 0) { drawGlowAt("fire", 3, X, w.gy - 10, 0.7 * fire); for (let i = 0; i < 6; i++) P(i % 2 ? "#ffb040" : "#e84a2a", X - 12 + hash(i, Math.floor(time * 15)) * 24, w.gy - 18 + hash(Math.floor(time * 15), i) * 10, 2, 2, fire); }
+    for (let i = 0; i < 10; i++) { const u = (time * 0.4 + i / 10) % 1; P(i % 2 ? "#5a5a58" : "#3a3a38", X - 4 + Math.sin(u * 6 + i) * 3 + u * 10, w.gy - 16 - u * 60, 3 + Math.round(u * 3), 3 + Math.round(u * 3), 0.45 * (1 - u)); } // (smoke, rising)
+  }
+
+  // The camp's way out for everyone but the first: the helicopter standing at the camp's end (side door open, rotors
+  // idling, then lifting off), and on the main course flying in from the left with them sitting in its door
+  function drawCampHelis(world, camX, time) {
+    const ph = world.level.parkedHeli;
+    if (ph && ph.state !== "gone") drawHeliBody(ph.x - camX, ph.y, 0, 1, time, ph.state === "lift" ? 26 : 9, true);
+    if (world.level !== Game.world.level) return;
+    for (const w of world.wrecks) if (w.level === world.level) drawWreck(w, camX, time);
+    for (const dh of world.dropHelis) drawHeliBody(dh.x - camX, dh.y, dh.pitch, -1, time, 26, true);
   }
 
   // Coming back from the camp: the jet (dove grey, a dark canopy with you in it) streaking in over the course, its bombs

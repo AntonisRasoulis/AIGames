@@ -1235,7 +1235,7 @@ function makeCampLayers() {
 // 72 x 32 canvas: a rounded nose with slanted cockpit glass, a side door, square windows, panel lines, a white star, the
 // open back ramp with the rope's hook under it, the tall back tower and the low front one, engine pods, fuel pods, wheels,
 // and a light on top (blinking: beacon). The rotors are drawn as it flies (render.js: drawHeli)
-function makeHeliBody(beacon, dark) {
+function makeHeliBody(beacon, dark, open) {
   const v = makeCanvas(72, 32), g = v.getContext("2d");
   const C = { K: "#161a0c", E: "#5a4a2a", G: "#6fb4cc", g: "#d8f2f8", I: "#14170c", M: "#7a7a6a", W: "#e8e8d8", R: "#c8402e", O: "#b09a64", L: "#c8b47c", H: "#dccca0", D: "#8a764a", S: "#9a8656" };
   const P = (k, x, y, w = 1, h = 1) => px(g, C[k] || k, x, y, w, h);
@@ -1247,7 +1247,8 @@ function makeHeliBody(beacon, dark) {
   for (const [x, y, w, h] of [[14, 13, 6, 3], [26, 17, 7, 3], [40, 13, 5, 4], [48, 18, 6, 3], [33, 12, 4, 2]]) P("#7a6038", x, y, w, h); // camo
   for (let y = 12; y <= 16; y++) { P("G", 3 + (16 - y), y, 4, 1); P("G", 8 + (16 - y), y, 3, 1); }
   P("g", 6, 13); P("g", 10, 13); P("K", 7, 12, 1, 5); P("G", 3, 18, 3, 2); P("g", 3, 18);
-  P("E", 14, 14, 1, 8); P("E", 19, 14, 1, 8); P("E", 14, 14, 6, 1); P("M", 18, 18);
+  if (open) { P("K", 13, 13, 8, 10); P("I", 14, 14, 6, 8); P("#2a2a20", 14, 21, 6, 1); } // (its side door, slid open: dark inside)
+  else { P("E", 14, 14, 1, 8); P("E", 19, 14, 1, 8); P("E", 14, 14, 6, 1); P("M", 18, 18); }
   for (let i = 0; i < 6; i++) { P("K", 23 + i * 5, 14, 4, 3); P("G", 24 + i * 5, 15, 2, 1); P("g", 24 + i * 5, 15); }
   for (const x of [22, 34, 46]) P("S", x, 13, 1, 9);
   P("S", 6, 19, 56, 1);
@@ -1910,6 +1911,7 @@ function buildSprites() {
     camp: makeCampLayers(),
     heli: [makeHeliBody(false), makeHeliBody(true)],
     heliShade: makeHeliBody(false, true),
+    heliOpen: [makeHeliBody(false, false, true), makeHeliBody(true, false, true)],
     campTop: [0, 1, 2, 3].map((v) => makeCampTile(v, true)),
     campSoil: [0, 1, 2, 3].map((v) => makeCampTile(v + 4, false)),
     campWire: [0, 1, 2].map(makeCampWire),

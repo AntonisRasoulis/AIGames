@@ -116,7 +116,7 @@ class Player {
   // How far along the course this player counts as being (for the fire).
   // While dead, that's where they will respawn.
   get trackX() {
-    return this.dead ? this.respawnX : this.jet ? this.jet.to.x : this.x; // (flying back from the camp: where you'll land)
+    return this.dead ? this.respawnX : this.jet ? this.jet.to.x : this.drop ? this.drop.to.x : this.x; // (flying back from the camp: where you'll land)
   }
 
   update(dt, input, level) {

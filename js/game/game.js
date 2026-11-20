@@ -73,6 +73,8 @@ const Game = (() => {
       laserShots: [],   // the ruins' laser gun: { level, p, owner, x, y, dir, t }
       heli: null,       // the military camp's helicopter (once per race, on the main course): { x, y, dir, state, t, riders, loopY, ... }
       jetBombs: [],     // the jet's bombs, falling on the main course as it brings someone back { x, y, vx, vy }
+      wrecks: [],       // the camp's helicopter, shot down: its wreck stays where it crashed { level, x, gy, t, dir }
+      dropHelis: [],    // the camp's helicopter bringing people back to the main course { x, y, to, riders, state, t }
       mushroomThrows: [], // the forest's mushroom orb: a mushroom thrown up, coming back down on its thrower { p, kind, t }
       mortarBombs: [],  // the ruins' mortar bombs in flight { level, x0, y0, x1, y1, top, age, seed }
       booms: [],        // ...and their explosions { level, x, y, gy, t, seed }
@@ -197,7 +199,7 @@ const Game = (() => {
     // The main course's dangers only see who's on it: anyone off in a forest (or on their way) counts as out of the race
     onCourse(level, () => mainCourse(dt, inputs));
     for (const f of forests()) {
-      if (f.biome === "camp") onCourse(f, () => { checkOrbs(); updateBridges(dt); levelSounds(); });
+      if (f.biome === "camp") onCourse(f, () => { checkOrbs(); updateBridges(dt); updateParkedHeli(f, dt); levelSounds(); });
       else if (f.biome === "ruins") onCourse(f, () => { world.players.forEach((p, i) => { if (inputs[i].firePressed && p.power === "laser") usePower(p, i); }); checkOrbs(); updateBridges(dt); updateRuins(f, dt); updateBiomeGates(f); updateStorms(dt); updateMortars(dt); updateRuneTiles(dt); levelSounds(); });
       else if (f.leg) onCourse(f, () => { updateBridges(dt); updateFlytraps(dt); checkThinIce(); levelSounds(); updateLeg(f); });
       else onCourse(f, () => { world.players.forEach((p, i) => { if (inputs[i].firePressed && p.power === "mushroom") usePower(p, i); }); checkOrbs(); updateBridges(dt); updateLooseSaws(dt); updateLooseMaces(dt); updateSpores(); updateLobbers(dt); updateAliveTrees(dt); updateLeaves(dt); levelSounds(); });
@@ -1761,9 +1763,18 @@ const Game = (() => {
       }
     }
     if (h.boom) h.boom.t += dt;
-    if (h.state === "hit" && h.y > VIEW_H + 30) world.heli = null;
-    else if (h.state === "away" && h.y < -50) world.heli = null;
-    else if (h.state === "in" && h.riders.length === 0 && players.every((p) => p.caught || p.realm || h.x + 60 < p.x - VIEW_W * (0.35 + Hc.gone))) world.heli = null; // (missed: gone for good)
+    if (h.state === "hit") { // falling: it crashes into the ground (and its wreck stays there, burning, then smoking)
+      const gy = level.groundTop(h.x);
+      if (gy !== null && h.y + 10 >= gy) {
+        world.wrecks.push({ level, x: h.x, gy, t: 0, dir: Math.sign(h.yaw || 1) });
+        world.quakes.push({ x: h.x, t: 0.4, level });
+        Sound.play("boom");
+        for (let i = 0; i < 20; i++) world.sawBits.push({ x: h.x, y: gy - 4, vx: (Math.random() - 0.5) * 200, vy: -60 - Math.random() * 120, t: 0.9, c: ["#ffd040", "#ff7a1a", "#e84a2a", "#3a3a3a", "#b09a64"][i % 5], big: i % 3 === 0, level });
+        world.heli = null;
+      } else if (h.y > VIEW_H + 30) world.heli = null; // (down a pit)
+    }
+    if (world.heli && h.state === "away" && h.y < -50) world.heli = null;
+    if (world.heli && h.state === "in" && h.riders.length === 0 && players.every((p) => p.caught || p.realm || h.x + 60 < p.x - VIEW_W * (0.35 + Hc.gone))) world.heli = null; // (missed: gone for good)
   }
 
   // The missile's blast: the prairie missile's explosion, and burning bits of helicopter
@@ -1790,7 +1801,8 @@ const Game = (() => {
   function updateFlights(dt) {
     const J = JET;
     for (const p of world.players) {
-      if (!p.flight && !p.jet && p.realm && p.realm.biome === "camp" && !p.dead && !p.caught && !p.held && p.realm.realmExit !== undefined && p.x >= p.realm.realmExit) {
+      if (!p.flight && !p.jet && p.realm && p.realm.biome === "camp" && !p.realm.jetTaken && !p.dead && !p.caught && !p.held && p.realm.realmExit !== undefined && p.x >= p.realm.realmExit) {
+        p.realm.jetTaken = true; // (only the first one to the end gets the jet: the rest take the helicopter waiting past it)
         p.flight = { kind: "out", t: 0, from: p.x }; // (the end of the camp: your ride home)
         Object.assign(p, { held: true, vx: 0, vy: 0 });
         Sound.play("jetRoar");
@@ -1802,7 +1814,14 @@ const Game = (() => {
         if (!f.moved && f.t >= 0.6) {
           f.moved = true;
           if (f.kind === "in") moveTo(p, f.camp, p.grabX + travelGain(world.time - p.grabAt));
-          else { // onto the main course where you'll come out, then into the jet, well behind it
+          else if (f.kind === "heli") { // onto the main course where you'll come out, sitting in the helicopter's door, well behind it
+            const H = CAMP_HELI;
+            moveTo(p, null, f.from + travelGain(0.6 + H.back / H.speed + 1));
+            let dh = world.dropHelis.find((d) => d.group === f.group);
+            if (!dh) { dh = { group: f.group, x: p.x - 17 - H.back, y: HELI.y, to: { x: p.x, y: p.y }, riders: [], state: "fly", t: 0, vx: H.speed, pitch: 0.12 }; world.dropHelis.push(dh); }
+            p.drop = { to: { x: dh.to.x, y: dh.to.y } };
+            dh.riders.push(p);
+          } else { // onto the main course where you'll come out, then into the jet, well behind it
             moveTo(p, null, f.from + travelGain(0.6 + J.back / J.speed + J.chute));
             p.jet = { t: 0, x: p.x - J.back, to: { x: p.x, y: p.y }, phase: "fly", bomb: 0 };
             p.x = p.jet.x;
@@ -1810,7 +1829,7 @@ const Game = (() => {
           }
           p.held = true;
         }
-        if (f.t >= 1.2) { p.flight = null; if (!p.jet) p.held = false; }
+        if (f.t >= 1.2) { p.flight = null; if (!p.jet && !p.drop) p.held = false; }
       }
       const jt = p.jet;
       if (!jt) continue;
@@ -1844,6 +1863,51 @@ const Game = (() => {
       }
     }
     world.jetBombs = world.jetBombs.filter((b) => !b.gone);
+    // the helicopter bringing people back: flying in from the left with them sitting in its door, hovering over where they
+    // come out while they jump down, then off it goes
+    for (const dh of world.dropHelis) {
+      dh.t += dt;
+      dh.riders = dh.riders.filter((p) => !p.caught);
+      if (dh.state === "fly") {
+        dh.x = Math.min(dh.to.x - 17, dh.x + dh.vx * dt);
+        if (dh.x >= dh.to.x - 17) { dh.state = "drop"; dh.t = 0; dh.pitch = -0.08; }
+      } else if (dh.state === "drop") { // out you jump
+        dh.pitch += (0 - dh.pitch) * Math.min(1, dt * 4);
+        if (dh.t > 0.4) { for (const p of dh.riders) { p.held = false; p.drop = null; p.vy = 0; p.vx = 0; p.safeSpots = [{ x: dh.to.x, y: dh.to.y }]; Sound.play("land"); } dh.riders = []; dh.state = "leave"; dh.t = 0; }
+      } else { dh.x += 200 * dt; dh.y -= 30 * dt; dh.pitch = 0.12; }
+      dh.riders.forEach((p, i) => { p.x = dh.x + 17 - i * 3; p.y = dh.y - 6; p.facing = 1; }); // (sitting in the open side door: facing right, it's on this side)
+    }
+    world.dropHelis = world.dropHelis.filter((dh) => !(dh.state === "leave" && dh.t > 4));
+    for (const w of world.wrecks) w.t += dt;
+  }
+
+  // At the camp's end, past where the first one out caught the jet, a helicopter stands on the ground with its side door
+  // open and its rotors idling. Run into the door and you sit in it; it waits 5 s for anyone else (from the last one in),
+  // then takes off with everyone in it and flies them back to the main course (dropping them where they'd have got to)
+  function updateParkedHeli(f, dt) {
+    const ph = f.parkedHeli;
+    if (!ph) return;
+    ph.t += dt;
+    ph.riders = ph.riders.filter((p) => !p.caught);
+    if (ph.state === "wait") {
+      for (const p of world.players) {
+        if (ph.riders.includes(p) || !freeRunner(p) || p.realm !== f || p.flight || p.jet) continue;
+        if (!overlaps(p.x, p.y, HITBOX_W, HITBOX_H, ph.x - 25, ph.gy - 20, 10, 20)) continue; // (its open side door)
+        ph.riders.push(p);
+        Object.assign(p, { held: true, vx: 0, vy: 0, standingOn: null, onGround: true });
+        p.showHit("ALL ABOARD!", "#d8c89a");
+        Sound.play("grab");
+        ph.wait = CAMP_HELI.wait; // (it waits for anyone else, from the last one in)
+      }
+      if (ph.riders.length && (ph.wait -= dt) <= 0) { ph.state = "lift"; ph.t = 0; ph.group = Math.random(); }
+    } else if (ph.state === "lift" && ph.t >= CAMP_HELI.lift) { // up and away: everyone in it is flown back
+      for (const p of ph.riders) p.flight = { kind: "heli", t: 0, from: p.x, group: ph.group };
+      ph.riders = [];
+      ph.state = "gone";
+    }
+    const lift = ph.state === "lift" ? ph.t : ph.state === "gone" ? 99 : 0;
+    ph.y = ph.gy - 14 - Math.max(0, lift - 0.3) * 45; // (its middle: standing on its wheels, then climbing)
+    ph.riders.forEach((p, i) => { p.x = ph.x - 23 + i * 3; p.y = ph.y - 6; p.facing = -1; });
   }
 
   // How dark someone's screen is (0..1) as they go into the camp or come out of it
