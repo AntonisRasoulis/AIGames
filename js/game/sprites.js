@@ -1235,7 +1235,7 @@ function makeCampLayers() {
 // 72 x 32 canvas: a rounded nose with slanted cockpit glass, a side door, square windows, panel lines, a white star, the
 // open back ramp with the rope's hook under it, the tall back tower and the low front one, engine pods, fuel pods, wheels,
 // and a light on top (blinking: beacon). The rotors are drawn as it flies (render.js: drawHeli)
-function makeHeliBody(beacon, dark, open) {
+function makeHeliBody(beacon, dark) {
   const v = makeCanvas(72, 32), g = v.getContext("2d");
   const C = { K: "#161a0c", E: "#5a4a2a", G: "#6fb4cc", g: "#d8f2f8", I: "#14170c", M: "#7a7a6a", W: "#e8e8d8", R: "#c8402e", O: "#b09a64", L: "#c8b47c", H: "#dccca0", D: "#8a764a", S: "#9a8656" };
   const P = (k, x, y, w = 1, h = 1) => px(g, C[k] || k, x, y, w, h);
@@ -1244,15 +1244,17 @@ function makeHeliBody(beacon, dark, open) {
   for (let y = 13; y <= 22; y++) P("K", 1 + Math.max(0, Math.abs(y - 17) - 1), y, 3, 1);
   for (let y = 13; y <= 21; y++) P(y < 15 ? "L" : y > 19 ? "D" : "O", 2 + Math.max(0, Math.abs(y - 17) - 1), y, 4, 1);
   P("H", 8, 12, 50, 1);
-  for (const [x, y, w, h] of [[14, 13, 6, 3], [26, 17, 7, 3], [40, 13, 5, 4], [48, 18, 6, 3], [33, 12, 4, 2]]) P("#7a6038", x, y, w, h); // camo
+  for (const [x, y, w, h] of [[14, 17, 6, 3], [44, 17, 4, 3], [40, 13, 2, 3], [48, 18, 6, 3], [33, 12, 4, 1]]) P("#7a6038", x, y, w, h); // camo
   for (let y = 12; y <= 16; y++) { P("G", 3 + (16 - y), y, 4, 1); P("G", 8 + (16 - y), y, 3, 1); }
   P("g", 6, 13); P("g", 10, 13); P("K", 7, 12, 1, 5); P("G", 3, 18, 3, 2); P("g", 3, 18);
-  if (open) { P("K", 13, 13, 8, 10); P("I", 14, 14, 6, 8); P("#2a2a20", 14, 21, 6, 1); } // (its side door, slid open: dark inside)
-  else { P("E", 14, 14, 1, 8); P("E", 19, 14, 1, 8); P("E", 14, 14, 6, 1); P("M", 18, 18); }
-  for (let i = 0; i < 6; i++) { P("K", 23 + i * 5, 14, 4, 3); P("G", 24 + i * 5, 15, 2, 1); P("g", 24 + i * 5, 15); }
-  for (const x of [22, 34, 46]) P("S", x, 13, 1, 9);
+  for (const x of [14, 43]) { P("K", x, 14, 4, 3); P("G", x + 1, 15, 2, 1); P("g", x + 1, 15); } // (a window each side of the door)
+  for (const x of [22, 41]) P("S", x, 13, 1, 9);
   P("S", 6, 19, 56, 1);
-  P("W", 37, 17, 5, 1); P("W", 38, 16, 3, 3); P("W", 39, 15, 1, 5);
+  // the doorway in its middle (its two sliding panels are drawn over it, see drawHeliDoors): dark inside, a bench, the rail
+  // the panels slide along above it
+  P("K", 24, 13, 14, 10); P("I", 25, 14, 12, 8); P("#2a2a20", 25, 21, 12, 1); P("#3a3a2c", 26, 18, 10, 1); P("#2e2e22", 26, 19, 1, 2); P("#2e2e22", 35, 19, 1, 2);
+  P("K", 18, 13, 26, 1); P("M", 19, 13, 1, 1); P("M", 42, 13, 1, 1);
+  P("W", 48, 17, 5, 1); P("W", 49, 16, 3, 3); P("W", 50, 15, 1, 5);
   P("K", 55, 14, 7, 10); P("I", 56, 15, 5, 8); P("M", 56, 23, 6, 1); P("M", 58, 24, 2, 2);
   for (let y = 4; y <= 12; y++) { const w = 8 + Math.round((y - 4) * 0.6); P("K", 64 - w, y, w + 1, 1); P(y < 6 ? "L" : "O", 65 - w, y, w - 1, 1); }
   P("H", 58, 5, 5, 1); P("S", 59, 8, 1, 4);
@@ -1266,6 +1268,63 @@ function makeHeliBody(beacon, dark, open) {
   P("K", 0, 15, 4, 1); P("M", 0, 14, 2, 1); // the refuelling probe
   P(beacon ? "R" : "#5a2a22", 30, 10, 2, 2); if (beacon) P("#ff9a8a", 30, 10);
   if (dark) { g.globalCompositeOperation = "source-atop"; g.fillStyle = "#000"; g.fillRect(0, 0, 72, 32); } // (its shape, all dark: mid-turn shading)
+  return v;
+}
+
+// The camp's jet (dove grey, facing right, a white star on its side), 48 x 24: its wheels down when it's parked (bottom row
+// on the ground), up when flying. Its bubble canopy is hinged at the back: shut (0), half open (1) or wide open (2), the
+// cockpit's seat showing inside. (Whoever flies it is drawn in by drawJets / drawParkedJet: their head in the cockpit.)
+function makeJet(gear, canopy) {
+  const v = makeCanvas(48, 24), g = v.getContext("2d");
+  const C = { K: "#24282e", B: "#8a9298", L: "#b4bcc2", D: "#6a7278", N: "#4a5058", C: "#1a2a3a", c: "#6fb4cc", W: "#e8e8e0", R: "#c8402e", T: "#161a1c", S: "#a0a6ac", I: "#101418", Y: "#d8b040" };
+  const P = (k, x, y, w = 1, h = 1) => px(g, C[k] || k, x, y + 4, w, h); // (4 rows of room above it, for the canopy opening)
+  const row = (y, x0, x1, fill) => { P("K", x0, y, x1 - x0 + 1, 1); if (fill) P(fill, x0 + 1, y, x1 - x0 - 1, 1); };
+  // the tail fin: swept back, a red tip
+  [[0, 4, 7], [1, 5, 8], [2, 5, 9], [3, 6, 10], [4, 6, 11], [5, 7, 12], [6, 7, 14]].forEach(([y, a, z]) => row(y, a, z, y < 1 ? null : "B"));
+  P("R", 5, 0, 2, 1); P("L", 6, 1, 2, 1);
+  // the fuselage, its nose coming to a point
+  row(7, 8, 38); [[8, 6, 39, "L"], [9, 5, 42, "B"], [10, 4, 46, "B"], [11, 4, 47, "B"], [12, 5, 44, "B"], [13, 6, 40, "D"]].forEach(([y, a, z, f]) => row(y, a, z, f));
+  row(14, 8, 37);
+  P("L", 9, 9, 28, 1); P("N", 44, 10, 2, 2); // (a light along its back; the nose's dark tip)
+  // the exhaust at the back, the tailplane, the wing, the air intake
+  P("K", 0, 8, 4, 6); P("N", 1, 9, 3, 4); P("I", 1, 10, 1, 2);
+  row(12, 2, 12, "D"); P("K", 4, 13, 7, 1);
+  P("K", 19, 12, 14, 2); P("#5a6268", 20, 12, 12, 1); P("K", 22, 14, 9, 1);
+  P("K", 26, 9, 5, 4); P("N", 27, 10, 3, 3); P("I", 27, 10, 3, 1);
+  // a white star (the camp's own markings), a warning stripe under the cockpit
+  P("W", 10, 10, 5, 1); P("W", 11, 9, 3, 3); P("W", 12, 8, 1, 5);
+  P("Y", 32, 9, 5, 1);
+  // the cockpit and its canopy
+  // its canopy: a glass bubble, hinged at its back corner (29, 6); open, it's the same bubble turned up about the hinge
+  // (pixel by pixel, so it stays crisp), the seat showing inside
+  const bubble = [];
+  const glass = (x, y, k) => bubble.push([x, y, k]);
+  for (let x = 32; x <= 35; x++) glass(x, 3, "K");
+  glass(31, 4, "K"); glass(36, 4, "K"); for (let x = 32; x <= 35; x++) glass(x, 4, x < 35 && x > 32 ? "c" : "C");
+  glass(30, 5, "K"); glass(37, 5, "K"); for (let x = 31; x <= 36; x++) glass(x, 5, x === 32 ? "c" : "C");
+  glass(29, 6, "K"); glass(38, 6, "K"); for (let x = 30; x <= 37; x++) glass(x, 6, "C");
+  if (canopy === 0) for (const [x, y, k] of bubble) P(k, x, y);
+  else {
+    P("K", 30, 6, 9, 1); P("I", 31, 6, 7, 1); P("K", 30, 3, 3, 3); P("N", 31, 3, 1, 3); P("Y", 31, 4); // (the seat)
+    const a = canopy === 1 ? 0.45 : 0.95, cs = Math.cos(a), sn = Math.sin(a), got = new Map();
+    for (const [x, y, k] of bubble) { // (each glass pixel turned up about the hinge; inside pixels win over outline ones)
+      const dx = x - 29, dy = y - 6.5, nx = Math.round(29 + dx * cs + dy * sn), ny = Math.round(6.5 - dx * sn + dy * cs);
+      const key = nx + "," + ny; if (!got.has(key) || got.get(key) === "K") got.set(key, k);
+    }
+    for (const [key, k] of got) { const [x, y] = key.split(",").map(Number); P(k, x, y); }
+  }
+  if (gear) { // its wheels down, on dark legs
+    P("N", 40, 15, 1, 2); P("K", 39, 15, 1, 1); P("K", 39, 17, 3, 3); P("T", 40, 18); // (the nose wheel)
+    P("N", 23, 15, 2, 2); P("K", 22, 16, 1, 1); P("K", 21, 17, 4, 3); P("K", 22, 16, 2, 4); P("N", 22, 18, 2, 1); // (the main wheel)
+  }
+  return v;
+}
+
+// The yellow boarding ladder hooked on the jet's cockpit (a hint where to jump in): 5 x 14
+function makeJetLadder() {
+  const v = makeCanvas(5, 14), g = v.getContext("2d");
+  px(g, "#24282e", 0, 0, 5, 1); px(g, "#d8b040", 0, 1, 1, 13); px(g, "#d8b040", 4, 1, 1, 13);
+  for (let y = 3; y < 14; y += 3) px(g, "#b08a28", 1, y, 3, 1);
   return v;
 }
 
@@ -1911,7 +1970,7 @@ function buildSprites() {
     camp: makeCampLayers(),
     heli: [makeHeliBody(false), makeHeliBody(true)],
     heliShade: makeHeliBody(false, true),
-    heliOpen: [makeHeliBody(false, false, true), makeHeliBody(true, false, true)],
+    jet: { fly: makeJet(false, 0), parked: [makeJet(true, 0), makeJet(true, 1), makeJet(true, 2)], ladder: makeJetLadder() },
     campTop: [0, 1, 2, 3].map((v) => makeCampTile(v, true)),
     campSoil: [0, 1, 2, 3].map((v) => makeCampTile(v + 4, false)),
     campWire: [0, 1, 2].map(makeCampWire),

@@ -1,7 +1,7 @@
 // The game's version, shown left of the logo. The first number goes up for big updates (a new biome, a new
 // secret world...), the second for smaller additions and fixes (back to 0 with each big update): 6.16 means
 // the 6th big update (the enchanted forest), 16 small ones since. (7: the arcane ruins.)
-const GAME_VERSION = "8.2";
+const GAME_VERSION = "8.3";
 
 // Tunable numbers for the game. Change these to adjust how it feels.
 // Distances are in game pixels; one tile is 8 pixels (about "1 meter").
@@ -588,10 +588,26 @@ const HELI = {
   ropeDamp: 2.2,       // how quickly the rope's swing dies down (it swings as the helicopter speeds up and slows down)
   gone: 1.2,           // a missed helicopter flies off: this far past the last runner's screen (screens), and it's gone for good
 };
+const CAMP_JET = {     // the way back out of the camp for the first one there: a jet parked just past its end, its canopy open
+  at: 3,               // its tail is this many tiles past the camp's end (its cockpit 4 tiles further on): jump into the cockpit
+  close: 0.4,          // seconds the canopy takes to shut over you...
+  pause: 0.3,          // ...then this long before it rolls
+  accel: 320,          // it speeds up along the ground this hard (pixels a second, each second)...
+  rotate: 170,         // ...lifts its nose at this speed (pixels a second)...
+  climb: 0.45,         // ...and climbs away tipped up this far (radians): over the helicopter (it clears its rotors by ~10 px)
+  takeoff: 0.5,        // seconds after it leaves the ground your screen fades and you're flown home (see JET)
+  fall: 0.4,           // seconds its boarding ladder takes to topple over once it rolls away (it lies there after)
+};
 const CAMP_HELI = {    // the other way back out of the camp: only the first one to its end gets the jet; the rest take the helicopter
-  past: 10,            // it stands this many tiles past the camp's end, on the ground, its side door open, rotors idling
+  past: 36,            // it stands this many tiles past the camp's end, on the ground, rotors idling (far enough past the jet
+                       // that the jet clears it as it takes off)
+  door: 0.5,           // seconds its two doors in the middle take to slide open (or shut)...
+  near: 140,           // ...opening when someone in the camp comes this close (pixels; they board once they're open)
   wait: 5,             // you sit in its door; it waits this long for anyone else (from the last one in), then takes off
-  lift: 1.4,           // seconds it climbs away (then you're flown back to the main course)
+  lift: 1.4,           // seconds it climbs away (its doors sliding shut first; then you're flown back to the main course)
+  again: 3,            // if anyone's still in the camp, it comes back this long after leaving...
+  land: 2,             // ...and lands again (seconds), doors shut, to wait for them: just ahead of the one furthest on
+  landAhead: 80,       // (where they'll be when it touches down, if they keep running, and this many pixels more)
   back: 560,           // back on the main course it flies in from this far behind where you'll come out (pixels)...
   speed: 240,          // ...this fast, then hovers while you jump out of the door
 };

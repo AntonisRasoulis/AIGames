@@ -18,7 +18,7 @@ costs ground to the fire. 1 Player: one big view, race the fire for distance (be
 - Repo: `AntonisRasoulis/VibeCodingPractice`. Development branch: `claude/nice-meitner-muga6l`
   (a fresh chat may be given a different branch: use the one you're told).
 - Published as a claude.ai Artifact (a single bundled HTML file):
-  **https://claude.ai/artifact/Uh5CKSPymdWERadhojnY7P** (Version 174 at the time of writing). Always
+  **https://claude.ai/artifact/Uh5CKSPymdWERadhojnY7P** (Version 175 at the time of writing). Always
   republish to this same URL (pass it as `url`); never create a new artifact for the game.
 
 ## Style
@@ -180,10 +180,12 @@ Scripts load in this order (all globals, no modules), each with a `?v=` cache-bu
   (owner's design): once per race after 400 m a twin-rotor helicopter (v8.1: chosen T2, desert camo; tips into its motion, turns
   smoothly, rotors spinning, rope a damped pendulum tied under the ramp) flies in from the right; jump and grab the loop; it carries on 5 s (others can grab on), then climbs away into the camp (`updateHeli`, `world.heli`, `makeCamp`,
   `p.flight`). Miss it: gone. Fire on a rider's screen while carried (or within 0.8 s): it pulls away at once, flies them at twice the
-  fire's speed until they're 100 m ahead of the fire, and the prairie's missile shoots it down (they die, back to life there); v8.2: it crashes and its wreck stays (`world.wrecks`). Way out (owner's design): v8.2: only the first to the camp's end gets the jet; the rest board the helicopter waiting
-  past it (door open; waits 5 s from the last one in; flies them back and they jump out: `updateParkedHeli`,
-  `world.dropHelis`). The jet flies in from the left over the main
-  course carpet-bombing it (bombs just for show for now: ask the owner whether they should hurt), then you parachute down
+  fire's speed until they're 100 m ahead of the fire, and the prairie's missile shoots it down (they die, back to life there); v8.2: it crashes and its wreck stays (`world.wrecks`). Way out (owner's design): v8.3: a jet parked at the camp's end, canopy open: jump into the cockpit (only the first
+  gets it: `CAMP_JET`, `level.parkedJet`, `updateParkedJet`, `drawParkedJet`, `p.cockpit`); it rolls, takes off over the helicopter,
+  and the screen fades. The rest board the helicopter standing past it: its two doors in the middle slide open left and right
+  as you come (`ph.door`, `drawHeliDoors`; owner's ask); waits 5 s from the last one in; flies them back and they jump out
+  (`updateParkedHeli`, `world.dropHelis`); if anyone's left in the camp it comes back and lands ahead of them. The jet flies
+  in from the left over the main course carpet-bombing it (bombs just for show for now: ask the owner whether they should hurt), then you parachute down
   where you'd have got to (`p.jet`, `world.jetBombs`, `drawJets`; `trackX` is the landing spot while flying). Camp is a
   secret-biome chip (`campOn`), regular-mode and all-camp races work.
 - **The arcane ruins** (the second secret world; **a first, playable version is built**, v7.0): a portal on the

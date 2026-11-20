@@ -199,7 +199,7 @@ const Game = (() => {
     // The main course's dangers only see who's on it: anyone off in a forest (or on their way) counts as out of the race
     onCourse(level, () => mainCourse(dt, inputs));
     for (const f of forests()) {
-      if (f.biome === "camp") onCourse(f, () => { checkOrbs(); updateBridges(dt); updateParkedHeli(f, dt); levelSounds(); });
+      if (f.biome === "camp") onCourse(f, () => { checkOrbs(); updateBridges(dt); updateParkedJet(f, dt); updateParkedHeli(f, dt); levelSounds(); });
       else if (f.biome === "ruins") onCourse(f, () => { world.players.forEach((p, i) => { if (inputs[i].firePressed && p.power === "laser") usePower(p, i); }); checkOrbs(); updateBridges(dt); updateRuins(f, dt); updateBiomeGates(f); updateStorms(dt); updateMortars(dt); updateRuneTiles(dt); levelSounds(); });
       else if (f.leg) onCourse(f, () => { updateBridges(dt); updateFlytraps(dt); checkThinIce(); levelSounds(); updateLeg(f); });
       else onCourse(f, () => { world.players.forEach((p, i) => { if (inputs[i].firePressed && p.power === "mushroom") usePower(p, i); }); checkOrbs(); updateBridges(dt); updateLooseSaws(dt); updateLooseMaces(dt); updateSpores(); updateLobbers(dt); updateAliveTrees(dt); updateLeaves(dt); levelSounds(); });
@@ -1795,30 +1795,26 @@ const Game = (() => {
     return f;
   }
 
-  // Going in (the screen fades as the helicopter climbs away, and you come in at the camp), and coming back: at the camp's
-  // end the screen fades and you're in a jet, flying in from the left over the main course, carpet-bombing it, until you're
-  // over where you should be (as far on as you'd have run: no ground lost), then you parachute down
+  // Going in (the screen fades as the helicopter climbs away, and you come in at the camp), and coming back: the jet you
+  // jumped into at the camp's end takes off, the screen fades and you're in it, flying in from the left over the main
+  // course, carpet-bombing it, until you're over where you should be (as far on as you'd have run: no ground lost), then
+  // you parachute down (or you're in the helicopter's door, flown back the same way, and jump out)
   function updateFlights(dt) {
     const J = JET;
     for (const p of world.players) {
-      if (!p.flight && !p.jet && p.realm && p.realm.biome === "camp" && !p.realm.jetTaken && !p.dead && !p.caught && !p.held && p.realm.realmExit !== undefined && p.x >= p.realm.realmExit) {
-        p.realm.jetTaken = true; // (only the first one to the end gets the jet: the rest take the helicopter waiting past it)
-        p.flight = { kind: "out", t: 0, from: p.x }; // (the end of the camp: your ride home)
-        Object.assign(p, { held: true, vx: 0, vy: 0 });
-        Sound.play("jetRoar");
-      }
       const f = p.flight;
       if (f) {
         f.t += dt;
         if (p.caught) { p.flight = null; continue; }
         if (!f.moved && f.t >= 0.6) {
           f.moved = true;
+          if (p.cockpit) { p.cockpit.pilot = null; p.cockpit = null; } // (out of the camp's jet, into the one coming home)
           if (f.kind === "in") moveTo(p, f.camp, p.grabX + travelGain(world.time - p.grabAt));
           else if (f.kind === "heli") { // onto the main course where you'll come out, sitting in the helicopter's door, well behind it
             const H = CAMP_HELI;
             moveTo(p, null, f.from + travelGain(0.6 + H.back / H.speed + 1));
             let dh = world.dropHelis.find((d) => d.group === f.group);
-            if (!dh) { dh = { group: f.group, x: p.x - 17 - H.back, y: HELI.y, to: { x: p.x, y: p.y }, riders: [], state: "fly", t: 0, vx: H.speed, pitch: 0.12 }; world.dropHelis.push(dh); }
+            if (!dh) { dh = { group: f.group, x: p.x - 3 - H.back, y: HELI.y, to: { x: p.x, y: p.y }, riders: [], state: "fly", t: 0, vx: H.speed, pitch: 0.12, door: 1 }; world.dropHelis.push(dh); }
             p.drop = { to: { x: dh.to.x, y: dh.to.y } };
             dh.riders.push(p);
           } else { // onto the main course where you'll come out, then into the jet, well behind it
@@ -1838,7 +1834,7 @@ const Game = (() => {
         jt.x = Math.min(jt.to.x, jt.x + J.speed * dt);
         p.x = jt.x;
         p.y = J.height + 6;
-        if ((jt.bomb -= dt) <= 0) { jt.bomb = J.bombEvery; world.jetBombs.push({ x: jt.x + 4, y: J.height + 8, vx: J.speed * 0.55, vy: 30 }); }
+        if ((jt.bomb -= dt) <= 0) { jt.bomb = J.bombEvery; world.jetBombs.push({ x: jt.x - 14, y: J.height + 8, vx: J.speed * 0.55, vy: 30 }); }
         if (jt.x >= jt.to.x) { jt.phase = "chute"; jt.t = 0; Sound.play("grab"); }
       } else { // floating down under a parachute
         const k = Math.min(1, jt.t / J.chute);
@@ -1863,51 +1859,106 @@ const Game = (() => {
       }
     }
     world.jetBombs = world.jetBombs.filter((b) => !b.gone);
-    // the helicopter bringing people back: flying in from the left with them sitting in its door, hovering over where they
-    // come out while they jump down, then off it goes
+    // the helicopter bringing people back: flying in from the left with them sitting in its open doorway, hovering over
+    // where they come out while they jump down, then off it goes, its doors sliding shut
     for (const dh of world.dropHelis) {
       dh.t += dt;
       dh.riders = dh.riders.filter((p) => !p.caught);
       if (dh.state === "fly") {
-        dh.x = Math.min(dh.to.x - 17, dh.x + dh.vx * dt);
-        if (dh.x >= dh.to.x - 17) { dh.state = "drop"; dh.t = 0; dh.pitch = -0.08; }
+        dh.x = Math.min(dh.to.x - 3, dh.x + dh.vx * dt);
+        if (dh.x >= dh.to.x - 3) { dh.state = "drop"; dh.t = 0; dh.pitch = -0.08; }
       } else if (dh.state === "drop") { // out you jump
         dh.pitch += (0 - dh.pitch) * Math.min(1, dt * 4);
         if (dh.t > 0.4) { for (const p of dh.riders) { p.held = false; p.drop = null; p.vy = 0; p.vx = 0; p.safeSpots = [{ x: dh.to.x, y: dh.to.y }]; Sound.play("land"); } dh.riders = []; dh.state = "leave"; dh.t = 0; }
-      } else { dh.x += 200 * dt; dh.y -= 30 * dt; dh.pitch = 0.12; }
-      dh.riders.forEach((p, i) => { p.x = dh.x + 17 - i * 3; p.y = dh.y - 6; p.facing = 1; }); // (sitting in the open side door: facing right, it's on this side)
+      } else { dh.x += 200 * dt; dh.y -= 30 * dt; dh.pitch = 0.12; if (dh.t > 0.3) dh.door = Math.max(0, dh.door - dt / CAMP_HELI.door); }
+      dh.riders.forEach((p, i) => { p.x = dh.x + 3 - i * 2.5; p.y = dh.y - 6; p.facing = 1; }); // (sitting in the doorway in its middle)
     }
     world.dropHelis = world.dropHelis.filter((dh) => !(dh.state === "leave" && dh.t > 4));
     for (const w of world.wrecks) w.t += dt;
   }
 
-  // At the camp's end, past where the first one out caught the jet, a helicopter stands on the ground with its side door
-  // open and its rotors idling. Run into the door and you sit in it; it waits 5 s for anyone else (from the last one in),
-  // then takes off with everyone in it and flies them back to the main course (dropping them where they'd have got to)
+  // At the camp's end the first one there finds a jet, its canopy open and a ladder up to it: jump into the cockpit and the
+  // canopy shuts over you, it rolls, speeds up, lifts its nose and climbs away, and your screen fades: you're flown home
+  // (see updateFlights). Run past it and you go on to the helicopter (it's only for one: once it's gone, it's gone)
+  function updateParkedJet(f, dt) {
+    const j = f.parkedJet, J = CAMP_JET;
+    if (!j || j.state === "gone") return;
+    j.t += dt;
+    if (j.fallT !== undefined) j.fallT += dt / J.fall;
+    if (j.state === "wait") {
+      for (const p of world.players) {
+        if (!freeRunner(p) || p.realm !== f || p.flight || p.jet || p.vy < 0) continue; // (coming down into it)
+        if (!overlaps(p.x, p.y + HITBOX_H - 3, HITBOX_W, 3, j.x + 27, j.gy - 24, 14, 16)) continue; // (its open cockpit, and a little round it)
+        Object.assign(j, { state: "close", t: 0, pilot: p, palette: p.palette, boardX: p.x, boardAt: world.time });
+        f.jetTaken = true;
+        p.cockpit = j;
+        Object.assign(p, { held: true, vx: 0, vy: 0, standingOn: null });
+        p.showHit("TAKE OFF!", "#d8c89a");
+        Sound.play("canopy");
+        break;
+      }
+    } else if (j.state === "close") { // the canopy shutting
+      j.k = Math.max(0, 1 - j.t / J.close);
+      if (j.t >= J.close + J.pause) { j.state = "roll"; j.t = 0; j.fallT = 0; Sound.play("jetRoar"); }
+    } else { // rolling, then climbing away
+      j.vx += J.accel * dt;
+      j.x += j.vx * dt;
+      if (j.state === "roll" && j.vx >= J.rotate) { j.state = "climb"; j.t = 0; }
+      if (j.state === "climb") {
+        j.pitch += (-J.climb - j.pitch) * Math.min(1, dt * 5);
+        j.lift += j.vx * Math.sin(-j.pitch) * dt;
+        const p = j.pilot;
+        if (p && !p.flight && j.t >= J.takeoff) p.flight = { kind: "out", t: 0, from: j.boardX + travelGain(world.time - j.boardAt) }; // (the ride home)
+        if (j.lift > VIEW_H * 2) j.state = "gone";
+      }
+    }
+    const p = j.pilot;
+    if (p && p.cockpit === j) {
+      if (p.caught) { p.cockpit = null; j.pilot = null; } // (the fire got them first: it goes on without them)
+      else { p.x = j.x + 31; p.y = j.gy - j.lift - 17 + Math.sin(j.pitch) * 8; p.facing = 1; }
+    }
+  }
+
+  // Past the jet, a helicopter stands on the ground, its rotors idling. Its two doors in the middle slide open as someone
+  // comes near; run into the doorway and you sit in it; it waits 5 s for anyone else (from the last one in), slides its
+  // doors shut, takes off with everyone in it and flies them back to the main course (dropping them where they'd have got
+  // to). If anyone's still in the camp, it comes back and lands again for them
   function updateParkedHeli(f, dt) {
-    const ph = f.parkedHeli;
+    const ph = f.parkedHeli, H = CAMP_HELI;
     if (!ph) return;
     ph.t += dt;
     ph.riders = ph.riders.filter((p) => !p.caught);
+    const left = world.players.filter((p) => freeRunner(p) && p.realm === f && !p.flight && !p.jet && !p.cockpit && !ph.riders.includes(p)); // (still in the camp, not on their way out)
+    let open = false;
     if (ph.state === "wait") {
-      for (const p of world.players) {
-        if (ph.riders.includes(p) || !freeRunner(p) || p.realm !== f || p.flight || p.jet) continue;
-        if (!overlaps(p.x, p.y, HITBOX_W, HITBOX_H, ph.x - 25, ph.gy - 20, 10, 20)) continue; // (its open side door)
+      open = ph.riders.length > 0 || left.some((p) => p.x > ph.x - H.near);
+      for (const p of left) {
+        if (ph.door < 0.8 || !overlaps(p.x, p.y, HITBOX_W, HITBOX_H, ph.x - 11, ph.gy - 20, 11, 20)) continue; // (its open doorway)
         ph.riders.push(p);
         Object.assign(p, { held: true, vx: 0, vy: 0, standingOn: null, onGround: true });
         p.showHit("ALL ABOARD!", "#d8c89a");
         Sound.play("grab");
-        ph.wait = CAMP_HELI.wait; // (it waits for anyone else, from the last one in)
+        ph.wait = H.wait; // (it waits for anyone else, from the last one in)
       }
-      if (ph.riders.length && (ph.wait -= dt) <= 0) { ph.state = "lift"; ph.t = 0; ph.group = Math.random(); }
-    } else if (ph.state === "lift" && ph.t >= CAMP_HELI.lift) { // up and away: everyone in it is flown back
+      if (ph.riders.length && (ph.wait -= dt) <= 0) { ph.state = "lift"; ph.t = 0; ph.group = Math.random(); Sound.play("heliDoor"); }
+    } else if (ph.state === "lift" && ph.t >= H.lift) { // up and away: everyone in it is flown back
       for (const p of ph.riders) p.flight = { kind: "heli", t: 0, from: p.x, group: ph.group };
       ph.riders = [];
-      ph.state = "gone";
+      ph.state = "gone"; ph.t = 0;
+    } else if (ph.state === "gone" && ph.t >= H.again && left.length) { // back for whoever's left, coming down just ahead of them
+      const ahead = left.reduce((a, p) => (p.x > a.x ? p : a));
+      ph.x = Math.max(ph.x, ahead.x + Math.max(0, ahead.vx) * H.land + H.landAhead);
+      ph.state = "land"; ph.t = 0;
     }
-    const lift = ph.state === "lift" ? ph.t : ph.state === "gone" ? 99 : 0;
-    ph.y = ph.gy - 14 - Math.max(0, lift - 0.3) * 45; // (its middle: standing on its wheels, then climbing)
-    ph.riders.forEach((p, i) => { p.x = ph.x - 23 + i * 3; p.y = ph.y - 6; p.facing = -1; });
+    else if (ph.state === "land" && ph.t >= H.land) { ph.state = "wait"; ph.t = 0; ph.wait = 0; }
+    const was = ph.door;
+    ph.door = Math.max(0, Math.min(1, ph.door + (open ? 1 : -1) * dt / H.door));
+    if (was === 0 && ph.door > 0) Sound.play("heliDoor");
+    ph.y = ph.gy - 14; // (its middle, standing on its wheels)
+    if (ph.state === "lift") ph.y -= Math.max(0, ph.t - H.door) * 45; // (doors shut, then it climbs)
+    else if (ph.state === "gone") ph.y -= 200;
+    else if (ph.state === "land") ph.y -= 160 * (1 - Math.min(1, ph.t / H.land)) ** 2;
+    ph.riders.forEach((p, i) => { p.x = ph.x - 10 + i * 2.5; p.y = ph.y - 6; p.facing = -1; }); // (sitting in its doorway)
   }
 
   // How dark someone's screen is (0..1) as they go into the camp or come out of it

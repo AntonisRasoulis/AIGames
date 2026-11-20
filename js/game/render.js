@@ -209,7 +209,7 @@ const Renderer = (() => {
     for (const w of world.warps) drawWarp(w, camX, world.time); // (behind the runner going in or coming out)
 
     // (someone hiding in a bush can't be seen, on either screen)
-    const hiddenTrip = (p) => (p.trip && p.trip.stage === "build") || (p.jet && p.jet.phase === "fly"); // (inside a portal that's still building itself, or in the jet)
+    const hiddenTrip = (p) => (p.trip && p.trip.stage === "build") || (p.jet && p.jet.phase === "fly") || p.cockpit; // (inside a portal that's still building itself, or in a jet)
     for (const other of others) if (!other.dead && !other.caught && !other.hiddenIn && !other.eatenBy && !hiddenTrip(other)) {
       drawAuroraLights(other, camX, world.time, true, true); // (its lights behind them)
       b.globalAlpha = 0.35; // the other runners show as ghosts
@@ -468,14 +468,15 @@ const Renderer = (() => {
 
   // The helicopter itself (design T2), its middle at (X, Y) on screen: tipped by pitch, turned by yaw (1 facing left, -1
   // right; narrower and darker mid-turn), its two rotors spinning (spin: how fast; slow when it's idling on the ground),
-  // its side door open or shut
-  function drawHeliBody(X, Y, pitch, yaw, time, spin, open) {
+  // its doors in the middle slid open (door: 0 shut .. 1 wide open)
+  function drawHeliBody(X, Y, pitch, yaw, time, spin, door = 0) {
     const sx = Math.sign(yaw || 1) * Math.max(0.12, Math.abs(yaw)), turn = 1 - Math.abs(yaw);
     b.save();
     b.translate(Math.round(X), Math.round(Y));
     b.rotate(pitch);
     b.scale(sx, 1);
-    b.drawImage((open ? sprites.heliOpen : sprites.heli)[Math.floor(time * 1.6) % 2], -36, -18);
+    b.drawImage(sprites.heli[Math.floor(time * 1.6) % 2], -36, -18);
+    drawHeliDoors(door);
     if (turn > 0.05) { b.globalAlpha = turn * 0.4; b.drawImage(sprites.heliShade, -36, -18); b.globalAlpha = 1; }
     // the masts, and the rotors on top of them
     b.fillStyle = "#161a0c"; b.fillRect(-26, -13, 1, 4); b.fillRect(20, -18, 1, 4);
@@ -493,6 +494,21 @@ const Renderer = (() => {
     b.restore();
   }
 
+  // The helicopter's two doors in its middle (in its own drawing's coordinates, already turned and tipped): shut, they meet in
+  // the middle; opening, the left one slides left and the right one right along the rail above, over its sides
+  function drawHeliDoors(k, a = 1) {
+    const o = Math.round(6 * Math.max(0, Math.min(1, k)));
+    for (const [x0, dir] of [[25 - o, -1], [31 + o, 1]]) {
+      const x = x0 - 36, y = 14 - 18;
+      P("#b09a64", x, y, 6, 7, a); P("#c8b47c", x, y, 6, 1, a); P("#8a764a", x, y + 7, 6, 1, a); P("#9a8656", x, y + 5, 6, 1, a); // (the stripe along its side, carried on)
+      P("#5a4a2a", dir < 0 ? x : x + 5, y, 1, 8, a); // (its outer edge)
+      P("#161a0c", x + 2, y + 1, 2, 2, a); P("#6fb4cc", x + 2, y + 2, 2, 1, a); P("#d8f2f8", x + 2, y + 2, 1, 1, a); // (its little window)
+      P("#7a7a6a", dir < 0 ? x + 4 : x + 1, y + 4, 1, 1, a); // (its handle)
+      P("#161a0c", x, y - 1, 6, 1, a); // (hung on the rail)
+    }
+    if (o === 0) P("#3a3020", 30 - 36, 14 - 18, 1, 8, a); // (the line where they meet)
+  }
+
   // The camp's helicopter after the missile: its wreck where it crashed, nose in the dirt, its rotor blades bent, burning a
   // while, then smoking (it stays for good)
   function drawWreck(w, camX, time) {
@@ -504,7 +520,7 @@ const Renderer = (() => {
     b.rotate(0.32 * w.dir);
     b.scale(w.dir, 1);
     b.drawImage(sprites.heliShade, -36, -18);
-    b.globalAlpha = 0.55; b.drawImage(sprites.heli[0], -36, -18); b.globalAlpha = 1; // (burnt dark)
+    b.globalAlpha = 0.55; b.drawImage(sprites.heli[0], -36, -18); drawHeliDoors(0, 0.55); b.globalAlpha = 1; // (burnt dark)
     b.strokeStyle = "#1e2216"; b.lineWidth = 1.4; // (its rotor blades, bent and still)
     for (const [hx, hy, a] of [[-25, -14, 0.5], [-25, -14, 2.6], [21, -19, -0.3], [21, -19, 2.2]]) { b.beginPath(); b.moveTo(hx, hy); b.lineTo(hx + Math.cos(a) * 14, hy + Math.sin(a) * 6 - 2); b.lineTo(hx + Math.cos(a) * 20, hy + Math.sin(a) * 8 + 3); b.stroke(); }
     b.restore();
@@ -513,17 +529,47 @@ const Renderer = (() => {
     for (let i = 0; i < 10; i++) { const u = (time * 0.4 + i / 10) % 1; P(i % 2 ? "#5a5a58" : "#3a3a38", X - 4 + Math.sin(u * 6 + i) * 3 + u * 10, w.gy - 16 - u * 60, 3 + Math.round(u * 3), 3 + Math.round(u * 3), 0.45 * (1 - u)); } // (smoke, rising)
   }
 
-  // The camp's way out for everyone but the first: the helicopter standing at the camp's end (side door open, rotors
-  // idling, then lifting off), and on the main course flying in from the left with them sitting in its door
+  // The camp's ways out: the jet parked at its end (for the first one there), the helicopter standing past it (its doors
+  // sliding open, rotors idling, then lifting off, or landing again), and on the main course flying in from the left with
+  // them sitting in its doorway
   function drawCampHelis(world, camX, time) {
     const ph = world.level.parkedHeli;
-    if (ph && ph.state !== "gone") drawHeliBody(ph.x - camX, ph.y, 0, 1, time, ph.state === "lift" ? 26 : 9, true);
+    if (ph && ph.state !== "gone") drawHeliBody(ph.x - camX, ph.y, 0, 1, time, ph.state === "wait" ? 9 : 26, ph.door);
+    if (world.level.parkedJet) drawParkedJet(world.level.parkedJet, camX, time);
     if (world.level !== Game.world.level) return;
     for (const w of world.wrecks) if (w.level === world.level) drawWreck(w, camX, time);
-    for (const dh of world.dropHelis) drawHeliBody(dh.x - camX, dh.y, dh.pitch, -1, time, 26, true);
+    for (const dh of world.dropHelis) drawHeliBody(dh.x - camX, dh.y, dh.pitch, -1, time, 26, dh.door);
   }
 
-  // Coming back from the camp: the jet (dove grey, a dark canopy with you in it) streaking in over the course, its bombs
+  // The jet at the camp's end: canopy open, a yellow ladder hooked on, an arrow bobbing over the cockpit; then shut with
+  // its pilot inside, rolling (its engine lit), lifting its nose and climbing away, its ladder toppled over behind it
+  function drawParkedJet(j, camX, time) {
+    const X = j.x - camX, J = sprites.jet;
+    const ladder = () => {
+      const lx = j.ladderX - camX, fall = j.fallT === undefined ? 0 : Math.min(1, j.fallT) ** 2;
+      if (lx < -20 || lx > VIEW_W + 20) return;
+      b.save(); b.translate(Math.round(lx + 4), j.gy); b.rotate(fall * Math.PI / 2); b.drawImage(J.ladder, -4, -14); b.restore();
+    };
+    if (j.state === "gone" || X < -70 || X > VIEW_W + 70) { ladder(); return; }
+    b.save();
+    b.translate(Math.round(X + 23), Math.round(j.gy - j.lift)); // (it turns about its main wheels)
+    b.rotate(j.pitch);
+    if (j.state === "roll" || j.state === "climb") { // its engine lit
+      drawGlowAt("fire", 1, -23, -10, 0.8);
+      P("#ffd040", -26, -11, 3, 4); P("#ff7a1a", -29, -10, 3, 2); P("#fff0b0", -24, -10, 2, 2);
+    }
+    b.drawImage(j.lift > 10 ? J.fly : J.parked[j.k > 0.66 ? 2 : j.k > 0.2 ? 1 : 0], -23, -24);
+    if (j.palette && j.state !== "wait") P(j.palette.c, 33 - 23, 8 - 24, 2, 2); // (whoever's flying it, in the cockpit)
+    b.restore();
+    ladder();
+    if (j.state === "wait") { // a bobbing arrow: jump in here
+      const ax = Math.round(X + 34), ay = Math.round(j.gy - 34 + Math.abs(Math.sin(time * 5)) * -4);
+      [[-4, 9], [-3, 7], [-2, 5], [-1, 3], [0, 1]].forEach(([dx, w], i) => P("#24282e", ax + dx, ay + i - 1, w, 2)); P("#24282e", ax - 2, ay - 5, 5, 5); // (its dark outline)
+      [[-3, 7], [-2, 5], [-1, 3], [0, 1]].forEach(([dx, w], i) => P("#d8b040", ax + dx, ay + i, w, 1)); P("#d8b040", ax - 1, ay - 4, 3, 4);
+    }
+  }
+
+  // Coming back from the camp: the jet (the one from the camp's end, its wheels up, you in its cockpit) streaking in over the course, its bombs
   // falling, and then you, floating down under an olive parachute
   function drawJets(world, camX, time) {
     for (const bm of world.jetBombs) { const x = Math.round(bm.x - camX); if (x < -6 || x > VIEW_W + 6) continue; P("#2a2e1e", x - 1, Math.round(bm.y) - 1, 3, 2); P("#5a6a3a", x - 2, Math.round(bm.y) - 1, 1, 2); }
@@ -533,14 +579,11 @@ const Renderer = (() => {
       if (jt.phase === "fly") {
         const x = Math.round(jt.x - camX), y = JET.height;
         if (x < -40 || x > VIEW_W + 40) continue;
-        for (let i = 1; i < 12; i++) P("#e8e0d0", x - 14 - i * 4, y + 3 + Math.sin(time * 20 + i) * 0.5, 4, 1, 0.5 - i * 0.04); // (its trail)
-        drawGlowAt("fire", 1, x - 14, y + 3, 0.7);
-        P("#2a2e34", x - 13, y, 26, 7); P("#8a9298", x - 12, y + 1, 24, 5); P("#a8b0b6", x - 12, y + 1, 24, 1); P("#6a7278", x - 12, y + 5, 24, 1);
-        P("#8a9298", x + 12, y + 2, 3, 3); P("#2a2e34", x + 15, y + 3, 1, 1); // the nose
-        P("#2a2e34", x - 13, y - 5, 6, 5); P("#8a9298", x - 12, y - 4, 4, 4); // the tail fin
-        P("#2a2e34", x - 4, y + 4, 10, 3); P("#6a7278", x - 3, y + 5, 8, 1); // a wing
-        P("#1a2a3a", x + 3, y - 1, 6, 2); P(p.palette.c, x + 5, y - 1, 2, 2); // the canopy: you in it
-        P("#ffd040", x - 15, y + 2, 2, 3, 0.9);
+        for (let i = 1; i < 12; i++) P("#e8e0d0", x - 36 - i * 4, y + 3 + Math.sin(time * 20 + i) * 0.5, 4, 1, 0.5 - i * 0.04); // (its trail)
+        drawGlowAt("fire", 1, x - 34, y + 3, 0.7);
+        b.drawImage(sprites.jet.fly, x - 34, y - 11);
+        P(p.palette.c, x - 1, y - 3, 2, 2); // (you, in the cockpit)
+        P("#ffd040", x - 37, y + 2, 3, 3, 0.9); P("#fff0b0", x - 35, y + 3, 1, 1);
       } else { // the parachute: a dome of olive panels on lines down to you
         const x = Math.round(p.x - camX), y = Math.round(p.y);
         for (let i = -7; i <= 7; i++) { const top = y - 16 + Math.round((i * i) / 9); P(Math.abs(i) % 4 < 2 ? "#6e7a42" : "#e8e0c0", x + 3 + i, top, 1, 18 - 16 + 2); P("#3a4422", x + 3 + i, top - 1); }
