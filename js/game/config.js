@@ -1,7 +1,7 @@
 // The game's version, shown left of the logo. The first number goes up for big updates (a new biome, a new
 // secret world...), the second for smaller additions and fixes (back to 0 with each big update): 6.16 means
 // the 6th big update (the enchanted forest), 16 small ones since. (7: the arcane ruins.)
-const GAME_VERSION = "8.0";
+const GAME_VERSION = "8.1";
 
 // Tunable numbers for the game. Change these to adjust how it feels.
 // Distances are in game pixels; one tile is 8 pixels (about "1 meter").
@@ -569,16 +569,22 @@ const CAMP = {
 };
 const HELI = {
   speed: 70,           // it flies in from the right this fast (pixels a second, leftwards: back toward the fire)
-  top: 14,             // its body's top this far down from the top of the screen
+  accel: 200,          // how quickly it speeds up or slows down (pixels a second, each second)
+  y: 30,               // its middle, this far down from the top of the screen (it rides up and down with the ground below)
   ropeLow: 18,         // the rope's loop hangs this far above the ground (you jump 39: jump and grab it)
   loop: [8, 8],        // the loop's grab box (pixels wide, high)
   carry: 5,            // after the first grab it carries on this long (anyone else can still grab on)...
   rise: 1.2,           // ...then climbs away with everyone on the rope (seconds), and they're in the camp
-  // If the fire is on a rider's screen while it's carrying them, it won't take them in: it turns round and flies them
-  // this far ahead of the fire, where a missile shoots it down (the crash kills them; they come back there, safe)
-  rescue: 50,          // meters ahead of the fire
-  rescueSpeed: 220,    // how fast it flies back (pixels a second)
-  missile: 0.7,        // seconds the missile takes to reach it
+  // If the fire is on a rider's screen while it's carrying them (or about to be: within `warn` seconds of it), it won't take
+  // them in: it pulls away at once (flying backwards as it turns round) and flies them off at twice the fire's speed until
+  // they're this far ahead of it, where the prairie's missile shoots it down (the crash kills them; they come back to life there)
+  warn: 0.8,           // seconds: how soon before the fire would come onto their screen it turns back (a fast fire needs the head start)
+  rescue: 100,         // meters ahead of the fire
+  rescueSpeed: 2,      // times the fire's speed
+  escapeAccel: 700,    // how hard it pulls away (pixels a second, each second)
+  turn: 1.4,           // seconds a turn takes (it swings round smoothly, seen narrower and darker mid-turn)
+  missile: 0.9,        // seconds the missile takes to reach it
+  ropeDamp: 2.2,       // how quickly the rope's swing dies down (it swings as the helicopter speeds up and slows down)
   gone: 1.2,           // a missed helicopter flies off: this far past the last runner's screen (screens), and it's gone for good
 };
 const JET = {          // the way back out of the camp

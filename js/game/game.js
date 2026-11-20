@@ -1664,14 +1664,19 @@ const Game = (() => {
 
   // ---- The military camp (the third secret world): a helicopter in, a jet back out ----
 
-  // Where the helicopter's rope hangs from (its back door: the twin-rotor faces the way it flies)
-  const ropeX = (h) => h.x + (h.dir < 0 ? 34 : 16);
+  // Where the helicopter's rope is tied: a hook under its back ramp, wherever the helicopter is tipped and turned to
+  // (yaw: 1 facing left, -1 facing right, in between mid-turn)
+  function heliHook(h) {
+    const sx = Math.sign(h.yaw || 1) * Math.max(0.12, Math.abs(h.yaw)), lx = 22.5 * sx, ly = 7.5;
+    return { x: h.x + lx * Math.cos(h.pitch) - ly * Math.sin(h.pitch), y: h.y + lx * Math.sin(h.pitch) + ly * Math.cos(h.pitch) };
+  }
 
-  // Once per race, when the leader nears its spot, a twin-rotor helicopter flies in from the right, back toward the fire, a
-  // rope with a loop hanging down. Jump and grab it: it carries on for 5 s (anyone else can grab on too), then climbs away
-  // with everyone on the rope into the camp. But if the fire comes onto a rider's screen while it's carrying them, it turns
-  // round and flies them 50 m ahead of the fire instead, where a missile shoots it down (they come back to life there).
-  // Miss it and it flies off for good.
+  // Once per race, when the leader nears its spot, a twin-rotor helicopter (design T2, desert camo) flies in from the right,
+  // back toward the fire, nose tipped down, a rope swinging from a hook under its ramp. Jump and grab the loop: it carries on
+  // for 5 s (anyone else can grab on too), then climbs away with everyone on the rope into the camp. If the fire comes onto a
+  // rider's screen while it's carrying them, it brakes, turns round and flies them away at twice the fire's speed until
+  // they're 100 m ahead of it, where the prairie's missile shoots it down (they come back to life there). Miss it and it
+  // flies off for good.
   function updateHeli(dt) {
     const { level, players } = world, Hc = HELI;
     const spot = level.heliSpots.find((s) => !s.used);
@@ -1679,33 +1684,44 @@ const Game = (() => {
       const lead = players.filter((p) => !p.caught).reduce((a, b) => (!a || b.x > a.x ? b : a), null);
       if (lead && lead.x >= spot.x - VIEW_W * 0.3) {
         spot.used = true;
-        world.heli = { level, x: lead.x + VIEW_W * 0.7, y: Hc.top, dir: -1, state: "in", t: 0, riders: [], loopY: null, ground: lead.y + HITBOX_H, vy: 0, chop: 0 };
+        const g = lead.y + HITBOX_H;
+        world.heli = { level, x: lead.x + VIEW_W * 0.7, y: Hc.y, vx: -Hc.speed, vy: 0, pitch: 0, yaw: 1, state: "in", t: 0, riders: [], ground: g, rope: { L: g - Hc.ropeLow - (Hc.y + 7.5), a: 0, w: 0 }, chop: 0 };
       }
     }
     const h = world.heli;
     if (!h) return;
     h.t += dt;
-    if (h.state === "in" || h.state === "carry") h.x -= Hc.speed * dt;
-    else if (h.state === "rise" || h.state === "away") { h.x -= Hc.speed * 1.6 * dt; h.y -= 50 * dt; }
-    else if (h.state === "rescue") h.x += Hc.rescueSpeed * dt;
-    else if (h.state === "missile") h.x += world.fire.speed * dt; // (keeping its 50 m on the fire)
-    else if (h.state === "hit") { h.vy += 320 * dt; h.y += h.vy * dt; h.x += 50 * dt; }
-    // the rope's loop, hanging a jump's height over the ground (its length kept once it climbs)
-    const g = level.groundTop(ropeX(h));
+    // how fast it wants to go, and the way it faces
+    let want = h.vx;
+    if (h.state === "in" || h.state === "carry") want = -Hc.speed;
+    else if (h.state === "rise" || h.state === "away") want = -Hc.speed * 1.6;
+    else if (h.state === "rescue") { want = Hc.rescueSpeed * world.fire.speed; h.yaw = Math.cos(Math.min(1, h.t / Hc.turn) * Math.PI); }
+    else if (h.state === "missile") want = world.fire.speed; // (keeping its 100 m from the fire while the missile comes)
+    const was = h.vx;
+    if (h.state !== "hit") h.vx += Math.sign(want - h.vx) * Math.min(Math.abs(want - h.vx), (h.state === "rescue" || h.state === "missile" ? Hc.escapeAccel : Hc.accel) * dt);
+    const ax = (h.vx - was) / dt;
+    h.x += h.vx * dt;
+    // up and down: climbing away, falling when it's hit, or else keeping its rope's loop a jump's height over the ground below
+    const g = level.groundTop(h.x);
     if (g !== null) h.ground = g;
-    if (h.state === "rise" || h.state === "away" || h.state === "hit") h.loopY = h.y + 15 + h.ropeLen;
-    else {
-      const want = h.ground - Hc.ropeLow;
-      h.loopY = h.loopY === null ? want : h.loopY + Math.sign(want - h.loopY) * Math.min(Math.abs(want - h.loopY), 80 * dt);
-      h.ropeLen = h.loopY - (h.y + 15);
-    }
-    if ((h.chop -= dt) <= 0) { h.chop = 0.11; if (players.some((p) => !p.realm && Math.abs(h.x + 25 - p.x) < VIEW_W)) Sound.play("heliChop"); }
+    if (h.state === "rise" || h.state === "away") h.y -= 50 * dt;
+    else if (h.state === "hit") { h.vy += 320 * dt; h.y += h.vy * dt; h.pitch += dt * 1.5; }
+    else { const wantY = h.ground - Hc.ropeLow - h.rope.L - 7.5; h.y += Math.sign(wantY - h.y) * Math.min(Math.abs(wantY - h.y), 40 * dt); }
+    // tipped into its motion: nose down speeding along, nose up as it brakes
+    if (h.state !== "hit") h.pitch = Math.max(-0.22, Math.min(0.22, (h.vx / Hc.speed) * 0.12 + ax * 0.0012));
+    // the rope: a pendulum from the hook, swung by the helicopter speeding up and slowing down, damped
+    const r = h.rope;
+    r.w += (-(PHYSICS.gravity / r.L) * Math.sin(r.a) - (ax / r.L) * Math.cos(r.a) - Hc.ropeDamp * r.w) * dt;
+    r.a = Math.max(-0.6, Math.min(0.6, r.a + r.w * dt));
+    h.hook = heliHook(h);
+    h.loop = { x: h.hook.x + Math.sin(r.a) * r.L, y: h.hook.y + Math.cos(r.a) * r.L };
+    if ((h.chop -= dt) <= 0) { h.chop = 0.11; if (players.some((p) => !p.realm && Math.abs(h.x - p.x) < VIEW_W)) Sound.play("heliChop"); }
     // grabbing the rope: jump and touch the loop (until it climbs away)
     if (h.state === "in" || h.state === "carry") {
-      const [w, hh] = Hc.loop, lx = ropeX(h) - w / 2;
+      const [w, hh] = Hc.loop;
       for (const p of players) {
         if (h.riders.includes(p) || !freeRunner(p) || p.realm || p.jet || p.flight) continue;
-        if (!overlaps(p.x, p.y, HITBOX_W, HITBOX_H, lx, h.loopY - 2, w, hh)) continue;
+        if (!overlaps(p.x, p.y, HITBOX_W, HITBOX_H, h.loop.x - w / 2, h.loop.y - 2, w, hh)) continue;
         h.riders.push(p);
         Object.assign(p, { held: true, vx: 0, vy: 0, standingOn: null, onGround: false, inQuick: false, inRiver: null, trapped: 0, dashHold: 0, dashTime: 0, windTime: 0, grabAt: world.time, grabX: p.x });
         p.showHit("HANG ON!", "#d8c89a");
@@ -1714,30 +1730,46 @@ const Game = (() => {
       }
     }
     h.riders = h.riders.filter((p) => !p.caught);
-    h.riders.forEach((p, i) => { p.x = ropeX(h) - HITBOX_W / 2; p.y = h.loopY - 2 - i * 12; p.facing = h.dir; });
-    // the fire on a rider's screen: it won't take them in, it turns round (once it's climbing, it's too late for that)
-    if (h.state === "carry" && h.riders.some((p) => world.fire.x >= p.x - VIEW_W * 0.35)) {
-      Object.assign(h, { state: "rescue", t: 0, dir: 1, x: h.x - 18 }); // (turned round: the rope's at its other end now)
+    h.riders.forEach((p, i) => { const d = r.L - i * 12; p.x = h.hook.x + Math.sin(r.a) * d - HITBOX_W / 2; p.y = h.hook.y + Math.cos(r.a) * d - 2; p.facing = h.vx < 0 ? -1 : 1; });
+    // the fire on a rider's screen: it won't take them in (once it's climbing away, it's too late for that)
+    if (h.state === "carry" && h.riders.some((p) => world.fire.x + world.fire.speed * Hc.warn >= p.x - VIEW_W * 0.35)) {
+      h.state = "rescue"; h.t = 0;
       for (const p of h.riders) p.showHit("TOO HOT! GETTING YOU OUT!", "#ffb347");
-      Sound.play("heliChop");
     }
-    if (h.state === "carry" && h.t >= Hc.carry) { h.state = "rise"; h.t = 0; Sound.play("heliChop"); }
+    if (h.state === "carry" && h.t >= Hc.carry) { h.state = "rise"; h.t = 0; }
     else if (h.state === "rise" && h.t >= Hc.rise) { // up and away: everyone on the rope goes to the camp
       const first = h.riders[0];
       if (first) h.camp = makeCamp(first.grabX + travelGain(world.time - first.grabAt + 0.6));
       for (const p of h.riders) p.flight = { kind: "in", t: 0, camp: h.camp };
       h.riders = [];
       h.state = "away";
-    } else if (h.state === "rescue" && h.x >= world.fire.x + Hc.rescue * TILE) { h.state = "missile"; h.t = 0; Sound.play("incoming"); }
-    else if (h.state === "missile" && h.t >= Hc.missile) { // shot down: everyone on board dies (and comes back to life there, safe)
-      h.state = "hit"; h.t = 0; h.vy = -40;
-      Sound.play("boom");
-      for (let i = 0; i < 16; i++) world.sawBits.push({ x: h.x + 25, y: h.y + 8, vx: (Math.random() - 0.5) * 160, vy: -40 - Math.random() * 90, t: 0.8, c: ["#ffd040", "#ff7a1a", "#e84a2a", "#3a3a3a"][i % 4], big: i % 3 === 0, level });
-      for (const p of h.riders) { p.held = false; p.showHit("SHOT DOWN!", "#ff7a3a"); p.die(); }
-      h.riders = [];
-    } else if (h.state === "hit" && h.y > VIEW_H + 20) world.heli = null;
-    else if (h.state === "away" && h.y < -40) world.heli = null;
+    } else if (h.state === "rescue" && h.riders.length && Math.min(...h.riders.map((p) => p.x)) >= world.fire.x + Hc.rescue * TILE) { // far enough: here comes the missile
+      h.state = "missile"; h.t = 0;
+      h.missile = { x: h.x - 240, y: -16, trail: [] };
+      Sound.play("launch");
+    } else if (h.state === "missile") { // the prairie's missile, homing in on it
+      const m = h.missile, k = Math.min(1, h.t / Hc.missile), tx = h.x, ty = h.y;
+      m.angle = Math.atan2(ty - m.y, tx - m.x);
+      const step = Math.hypot(tx - m.x, ty - m.y) * Math.min(1, dt / Math.max(0.02, Hc.missile - h.t + dt));
+      m.x += Math.cos(m.angle) * step; m.y += Math.sin(m.angle) * step;
+      m.trail.push({ x: m.x, y: m.y, t: world.time });
+      if (k >= 1) { // shot down: everyone on board dies (and comes back to life there, safe)
+        h.state = "hit"; h.t = 0; h.vy = -30; h.missile = null; h.boom = { x: h.x, y: h.y, t: 0 };
+        explodeAt(h);
+        for (const p of h.riders) { p.held = false; p.showHit("SHOT DOWN!", "#ff7a3a"); p.die(); }
+        h.riders = [];
+      }
+    }
+    if (h.boom) h.boom.t += dt;
+    if (h.state === "hit" && h.y > VIEW_H + 30) world.heli = null;
+    else if (h.state === "away" && h.y < -50) world.heli = null;
     else if (h.state === "in" && h.riders.length === 0 && players.every((p) => p.caught || p.realm || h.x + 60 < p.x - VIEW_W * (0.35 + Hc.gone))) world.heli = null; // (missed: gone for good)
+  }
+
+  // The missile's blast: the prairie missile's explosion, and burning bits of helicopter
+  function explodeAt(h) {
+    Sound.play("boom");
+    for (let i = 0; i < 16; i++) world.sawBits.push({ x: h.x, y: h.y, vx: (Math.random() - 0.5) * 160, vy: -40 - Math.random() * 90, t: 0.8, c: ["#ffd040", "#ff7a1a", "#e84a2a", "#3a3a3a"][i % 4], big: i % 3 === 0, level: h.level });
   }
 
   // The camp: its own course covering the same stretch as the main one from where you come in (calm ground there), 156-216

@@ -438,37 +438,52 @@ const Renderer = (() => {
     layer(L.near, 0.55);
   }
 
-  // The twin-rotor helicopter (design H2: olive drab, a row of windows, an open back door, two rotors blurring), facing the way
-  // it flies, its rope hanging from the back door down to a loop; shot down, it falls, smoking
+  // The twin-rotor helicopter (design T2: desert camo, a refuelling probe), tipped into its motion and turning smoothly (seen
+  // narrower and darker mid-turn), two three-bladed rotors spinning in their discs (each blade growing and shrinking as it
+  // turns, faint trails where it sweeps), a rope swinging from the hook under its ramp to a loop; then the prairie's missile
+  // homing in on it, its explosion, and the wreck falling, burning
   function drawHeli(h, camX, time) {
-    const X = Math.round(h.x - camX), Y = Math.round(h.y);
-    if (X < -80 || X > VIEW_W + 80) return;
-    const Q = (c, x, y, w = 1, hh = 1, a = 1) => P(c, h.dir < 0 ? X + x : X + 50 - x - w, Y + y, w, hh, a); // (mirrored when it flies right)
-    const O = "#56602e", D = "#3e4622", L = "#76824a", K = "#1a1e10", G = "#9ad0e0";
-    // the rope (behind it all), from the back door down to the loop
-    const rx = ropeXOf(h) - camX, top = Y + 15, n = Math.max(0, Math.round(h.loopY - top));
-    for (let i = 0; i < n; i++) { const sx = rx + Math.round(Math.sin(time * 3 + i * 0.12) * i * 0.03); P("#d8c89a", sx, top + i); if (i % 4 === 0) P("#8a7a5a", sx, top + i); }
-    const ex = rx + Math.round(Math.sin(time * 3 + n * 0.12) * n * 0.03), ly = top + n;
-    if (h.state !== "hit") { P("#d8c89a", ex - 2, ly, 5, 1); P("#d8c89a", ex - 2, ly + 4, 5, 1); P("#d8c89a", ex - 2, ly, 1, 5); P("#d8c89a", ex + 2, ly, 1, 5); }
-    // the body
-    Q(K, -1, 3, 52, 13); Q(O, 0, 4, 50, 11); Q(L, 2, 4, 46, 2); Q(D, 0, 12, 50, 3);
-    Q(G, 1, 6, 5, 4); Q("#d8f0f6", 2, 6, 2, 1); for (let i = 0; i < 5; i++) Q(G, 12 + i * 6, 7, 3, 2, 0.8);
-    Q(K, 30, 9, 8, 6); Q(O, 44, -2, 6, 6); Q(K, 3, 0, 2, 3); Q(K, 46, -4, 2, 3);
-    Q("#e8e8d0", 20, 11, 2, 2); Q(K, 6, 15, 2, 3); Q(K, 40, 15, 2, 3);
-    const f = Math.floor(time * 30) % 2; // the rotors: a blur of blades
-    for (const [cx, cy] of [[4, 0], [47, -4]]) { Q(K, cx - 1, cy, 3, 2); for (let i = -24; i <= 24; i++) if ((i + f) % 3 !== 0) Q("#2a2e1e", cx + i, cy - 1, 1, 1, Math.abs(i) < 12 ? 0.8 : 0.5); }
-    if (h.state === "missile") { // the missile streaking in at it from high behind, a smoke trail
-      const k = Math.min(1, h.t / HELI.missile), mx = X - 160 + (25 + 160) * k, my = -20 + (Y + 8 + 20) * k;
-      for (let i = 1; i < 10; i++) P("#d8d8d0", mx - i * 5, my - i * 1.2, 2, 2, 0.6 - i * 0.05);
-      P("#2a2a2a", mx - 3, my - 1, 6, 2); P("#ff7a1a", mx - 5, my - 1, 2, 2);
+    const X = h.x - camX;
+    if (X < -90 || X > VIEW_W + 90) return;
+    // the rope (behind it all): from the hook to the loop, bowing a little as it swings
+    if (h.hook && h.state !== "hit") {
+      const r = h.rope, hx = h.hook.x - camX, hy = h.hook.y, ex = h.loop.x - camX, ey = h.loop.y, bow = -r.w * 2;
+      for (let i = 0; i <= r.L; i++) { const u = i / r.L; P(i % 4 ? "#d8c89a" : "#8a7a5a", hx + (ex - hx) * u + Math.sin(u * Math.PI) * bow, hy + (ey - hy) * u); }
+      P("#d8c89a", ex - 2, ey, 5, 1); P("#d8c89a", ex - 2, ey + 4, 5, 1); P("#d8c89a", ex - 2, ey, 1, 5); P("#d8c89a", ex + 2, ey, 1, 5);
     }
-    if (h.state === "hit") { // on fire and falling
-      drawGlowAt("fire", 3, X + 25, Y + 8, 0.8);
-      for (let i = 0; i < 6; i++) P(i % 2 ? "#ffb040" : "#e84a2a", X + 18 + hash(i, Math.floor(time * 20)) * 16, Y + 2 + hash(Math.floor(time * 20), i) * 10, 2, 2);
-      for (let i = 0; i < 8; i++) P("#4a4a48", X + 25 - i * 3, Y - 4 - i * 3 + Math.sin(time * 9 + i), 3, 3, 0.5);
+    const sx = Math.sign(h.yaw || 1) * Math.max(0.12, Math.abs(h.yaw)), turn = 1 - Math.abs(h.yaw);
+    b.save();
+    b.translate(Math.round(X), Math.round(h.y));
+    b.rotate(h.pitch);
+    b.scale(sx, 1);
+    b.drawImage(sprites.heli[Math.floor(time * 1.6) % 2], -36, -18);
+    if (turn > 0.05) { b.globalAlpha = turn * 0.4; b.drawImage(sprites.heliShade, -36, -18); b.globalAlpha = 1; }
+    // the masts, and the rotors on top of them
+    b.fillStyle = "#161a0c"; b.fillRect(-26, -13, 1, 4); b.fillRect(20, -18, 1, 4);
+    const spin = time * 26;
+    for (const [hx, hy, dir] of [[-25, -14, 1], [21, -19, -1]]) {
+      b.globalAlpha = 0.18; b.fillStyle = "#2a2e1e"; b.beginPath(); b.ellipse(hx, hy, 25, 1.6, 0, 0, Math.PI * 2); b.fill();
+      for (let k = 0; k < 3; k++) for (let tr = 3; tr >= 0; tr--) {
+        const a = dir * spin + k * Math.PI * 2 / 3 - tr * 0.16 * dir, x = Math.cos(a) * 25, y = Math.sin(a) * 1.4;
+        b.globalAlpha = tr ? 0.16 : 1; b.strokeStyle = tr ? "#3a3e2a" : "#1e2216"; b.lineWidth = 1.4;
+        b.beginPath(); b.moveTo(hx, hy); b.lineTo(hx + x, hy + y); b.stroke();
+        if (!tr) { b.fillStyle = "#c8c070"; b.fillRect(hx + x * 0.96 - 0.5, hy + y - 0.5, 1.2, 1.2); }
+      }
+      b.globalAlpha = 1; b.fillStyle = "#161a0c"; b.fillRect(hx - 1.5, hy - 1, 3, 2.5);
+    }
+    b.restore();
+    if (h.missile) { // the prairie's missile, homing in, a smoke trail behind it
+      const m = h.missile;
+      for (const p of m.trail) { const age = time - p.t, fade = Math.max(0, 1 - age * 3); if (fade > 0) { b.fillStyle = `rgba(150, 150, 160, ${0.6 * fade})`; b.fillRect(Math.round(p.x - camX), Math.round(p.y), 2, 2); } }
+      b.save(); b.translate(Math.round(m.x - camX), Math.round(m.y)); b.rotate(m.angle || 0); b.drawImage(sprites.missile, -Math.floor(sprites.missile.width / 2), -Math.floor(sprites.missile.height / 2)); b.restore();
+    }
+    if (h.boom && h.boom.t < 1.2) drawExplosion(h.boom.x - camX, h.boom.y, h.boom.t);
+    if (h.state === "hit") { // burning as it falls
+      drawGlowAt("fire", 3, X, h.y, 0.8);
+      for (let i = 0; i < 6; i++) P(i % 2 ? "#ffb040" : "#e84a2a", X - 8 + hash(i, Math.floor(time * 20)) * 16, h.y - 6 + hash(Math.floor(time * 20), i) * 10, 2, 2);
+      for (let i = 0; i < 8; i++) P("#4a4a48", X - i * 3, h.y - 12 - i * 3 + Math.sin(time * 9 + i), 3, 3, 0.5);
     }
   }
-  const ropeXOf = (h) => h.x + (h.dir < 0 ? 34 : 16);
 
   // Coming back from the camp: the jet (dove grey, a dark canopy with you in it) streaking in over the course, its bombs
   // falling, and then you, floating down under an olive parachute

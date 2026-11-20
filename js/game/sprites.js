@@ -1231,6 +1231,43 @@ function makeCampLayers() {
   return { sky, far, mid, near };
 }
 
+// The camp's helicopter (chosen T2: a twin-rotor transport in desert camo, with a refuelling probe), facing left, on a
+// 72 x 32 canvas: a rounded nose with slanted cockpit glass, a side door, square windows, panel lines, a white star, the
+// open back ramp with the rope's hook under it, the tall back tower and the low front one, engine pods, fuel pods, wheels,
+// and a light on top (blinking: beacon). The rotors are drawn as it flies (render.js: drawHeli)
+function makeHeliBody(beacon, dark) {
+  const v = makeCanvas(72, 32), g = v.getContext("2d");
+  const C = { K: "#161a0c", E: "#5a4a2a", G: "#6fb4cc", g: "#d8f2f8", I: "#14170c", M: "#7a7a6a", W: "#e8e8d8", R: "#c8402e", O: "#b09a64", L: "#c8b47c", H: "#dccca0", D: "#8a764a", S: "#9a8656" };
+  const P = (k, x, y, w = 1, h = 1) => px(g, C[k] || k, x, y, w, h);
+  for (let y = 11; y <= 24; y++) { const i = y < 13 ? 13 - y : y > 22 ? (y - 22) * 2 : 0; P("K", 4 + i, y, 60 - i, 1); }
+  for (let y = 12; y <= 23; y++) { const i = y < 13 ? 13 - y + 1 : y > 21 ? (y - 21) * 2 + 1 : 1; P(y < 14 ? "L" : y > 20 ? "D" : "O", 4 + i, y, 58 - i, 1); }
+  for (let y = 13; y <= 22; y++) P("K", 1 + Math.max(0, Math.abs(y - 17) - 1), y, 3, 1);
+  for (let y = 13; y <= 21; y++) P(y < 15 ? "L" : y > 19 ? "D" : "O", 2 + Math.max(0, Math.abs(y - 17) - 1), y, 4, 1);
+  P("H", 8, 12, 50, 1);
+  for (const [x, y, w, h] of [[14, 13, 6, 3], [26, 17, 7, 3], [40, 13, 5, 4], [48, 18, 6, 3], [33, 12, 4, 2]]) P("#7a6038", x, y, w, h); // camo
+  for (let y = 12; y <= 16; y++) { P("G", 3 + (16 - y), y, 4, 1); P("G", 8 + (16 - y), y, 3, 1); }
+  P("g", 6, 13); P("g", 10, 13); P("K", 7, 12, 1, 5); P("G", 3, 18, 3, 2); P("g", 3, 18);
+  P("E", 14, 14, 1, 8); P("E", 19, 14, 1, 8); P("E", 14, 14, 6, 1); P("M", 18, 18);
+  for (let i = 0; i < 6; i++) { P("K", 23 + i * 5, 14, 4, 3); P("G", 24 + i * 5, 15, 2, 1); P("g", 24 + i * 5, 15); }
+  for (const x of [22, 34, 46]) P("S", x, 13, 1, 9);
+  P("S", 6, 19, 56, 1);
+  P("W", 37, 17, 5, 1); P("W", 38, 16, 3, 3); P("W", 39, 15, 1, 5);
+  P("K", 55, 14, 7, 10); P("I", 56, 15, 5, 8); P("M", 56, 23, 6, 1); P("M", 58, 24, 2, 2);
+  for (let y = 4; y <= 12; y++) { const w = 8 + Math.round((y - 4) * 0.6); P("K", 64 - w, y, w + 1, 1); P(y < 6 ? "L" : "O", 65 - w, y, w - 1, 1); }
+  P("H", 58, 5, 5, 1); P("S", 59, 8, 1, 4);
+  for (let y = 8; y <= 11; y++) P("K", 6 + (11 - y), y, 14 - (11 - y), 1);
+  for (let y = 9; y <= 11; y++) P("O", 7 + (11 - y), y, 12 - (11 - y), 1);
+  P("H", 9, 9, 7, 1);
+  for (const ex of [44, 50]) { P("K", ex, 9, 6, 4); P("E", ex + 1, 10, 4, 2); P("I", ex, 10, 1, 2); P("M", ex + 5, 10, 1, 2); }
+  for (let y = 22; y <= 26; y++) { const i = Math.abs(y - 24) > 1 ? 1 : 0; P("K", 18 + i, y, 26 - i * 2, 1); }
+  for (let y = 23; y <= 25; y++) P(y === 23 ? "O" : "D", 19, y, 24, 1);
+  for (const wx of [10, 47, 51]) { P("K", wx, 25, 1, 3); P("K", wx - 1, 27, 3, 3); P("M", wx, 28); }
+  P("K", 0, 15, 4, 1); P("M", 0, 14, 2, 1); // the refuelling probe
+  P(beacon ? "R" : "#5a2a22", 30, 10, 2, 2); if (beacon) P("#ff9a8a", 30, 10);
+  if (dark) { g.globalCompositeOperation = "source-atop"; g.fillStyle = "#000"; g.fillRect(0, 0, 72, 32); } // (its shape, all dark: mid-turn shading)
+  return v;
+}
+
 function makeForestLayers() {
   // the sky: purple at the top to pink at the bottom, dithered in pixel steps
   const sky = makeCanvas(VIEW_W, VIEW_H);
@@ -1871,6 +1908,8 @@ function buildSprites() {
     jungle: makeJungleLayers(),
     forest: makeForestLayers(),
     camp: makeCampLayers(),
+    heli: [makeHeliBody(false), makeHeliBody(true)],
+    heliShade: makeHeliBody(false, true),
     campTop: [0, 1, 2, 3].map((v) => makeCampTile(v, true)),
     campSoil: [0, 1, 2, 3].map((v) => makeCampTile(v + 4, false)),
     campWire: [0, 1, 2].map(makeCampWire),

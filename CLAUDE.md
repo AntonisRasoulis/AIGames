@@ -18,7 +18,7 @@ costs ground to the fire. 1 Player: one big view, race the fire for distance (be
 - Repo: `AntonisRasoulis/VibeCodingPractice`. Development branch: `claude/nice-meitner-muga6l`
   (a fresh chat may be given a different branch: use the one you're told).
 - Published as a claude.ai Artifact (a single bundled HTML file):
-  **https://claude.ai/artifact/Uh5CKSPymdWERadhojnY7P** (Version 172 at the time of writing). Always
+  **https://claude.ai/artifact/Uh5CKSPymdWERadhojnY7P** (Version 173 at the time of writing). Always
   republish to this same URL (pass it as `url`); never create a new artifact for the game.
 
 ## Style
@@ -177,10 +177,10 @@ Scripts load in this order (all globals, no modules), each with a `?v=` cache-bu
 - **The military camp** (the third secret world, v8.0; a first version: its own dangers, challenge and gift still to be
   talked through, owner said "will figure out"). Look chosen A: a realistic daytime army camp (tents, sandbags, watchtower,
   barbed-wire fence, olive drab); barbed-wire coils for its spikes (`makeCampLayers`, `makeCampTile`, `makeCampWire`). Way in
-  (owner's design): once per race after 400 m a twin-rotor helicopter (H2) flies in from the right with a rope; jump and grab
-  the loop; it carries on 5 s (others can grab on), then climbs away into the camp (`updateHeli`, `world.heli`, `makeCamp`,
-  `p.flight`). Miss it: gone. Fire on a rider's screen while carried: it turns round, flies them 50 m ahead of the fire and a
-  missile shoots it down (they die, back to life there). Way out (owner's design): a jet flies in from the left over the main
+  (owner's design): once per race after 400 m a twin-rotor helicopter (v8.1: chosen T2, desert camo; tips into its motion, turns
+  smoothly, rotors spinning, rope a damped pendulum tied under the ramp) flies in from the right; jump and grab the loop; it carries on 5 s (others can grab on), then climbs away into the camp (`updateHeli`, `world.heli`, `makeCamp`,
+  `p.flight`). Miss it: gone. Fire on a rider's screen while carried (or within 0.8 s): it pulls away at once, flies them at twice the
+  fire's speed until they're 100 m ahead of the fire, and the prairie's missile shoots it down (they die, back to life there). Way out (owner's design): a jet flies in from the left over the main
   course carpet-bombing it (bombs just for show for now: ask the owner whether they should hurt), then you parachute down
   where you'd have got to (`p.jet`, `world.jetBombs`, `drawJets`; `trackX` is the landing spot while flying). Camp is a
   secret-biome chip (`campOn`), regular-mode and all-camp races work.
