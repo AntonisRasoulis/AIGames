@@ -1,7 +1,7 @@
 // The game's version, shown left of the logo. The first number goes up for big updates (a new biome, a new
 // secret world...), the second for smaller additions and fixes (back to 0 with each big update): 6.16 means
 // the 6th big update (the enchanted forest), 16 small ones since. (7: the arcane ruins.)
-const GAME_VERSION = "8.3";
+const GAME_VERSION = "8.4";
 
 // Tunable numbers for the game. Change these to adjust how it feels.
 // Distances are in game pixels; one tile is 8 pixels (about "1 meter").
@@ -581,10 +581,11 @@ const HELI = {
   warn: 0.8,           // seconds: how soon before the fire would come onto their screen it turns back (a fast fire needs the head start)
   rescue: 100,         // meters ahead of the fire
   rescueSpeed: 2,      // times the fire's speed
-  escapeAccel: 700,    // how hard it pulls away (pixels a second, each second)
+  escapeAccel: 1200,    // how hard it pulls away (pixels a second, each second)
   turn: 1.4,           // seconds a turn takes (it swings round smoothly, seen narrower and darker mid-turn)
   missile: 0.9,        // seconds the missile takes to reach it (it's the missile that brings it down: it crashes, and the
                        // wreck stays where it came down, smoking)
+  reel: 0.8,           // seconds it takes to reel its riders up into it, hovering, before it climbs away
   ropeDamp: 2.2,       // how quickly the rope's swing dies down (it swings as the helicopter speeds up and slows down)
   gone: 1.2,           // a missed helicopter flies off: this far past the last runner's screen (screens), and it's gone for good
 };
@@ -615,7 +616,9 @@ const JET = {          // the way back out of the camp
   back: 640,           // it comes in from this far behind where you'll come out (pixels)...
   speed: 320,          // ...flying right this fast...
   height: 18,          // ...this far down from the top of the screen...
-  bombEvery: 0.09,     // ...dropping a bomb this often (they blow up on the ground: just for show, for now)
+  bombEvery: 0.09,     // ...dropping a bomb this often (each marks the ground where it'll land, about half a second ahead)
+  blast: 7,            // a bomb blows up anyone whose middle is this close to where it lands (pixels, sideways)...
+  blastHigh: 8,        // ...and whose feet are this low over the ground (jump and it misses you)
   chute: 1.4,          // then you parachute down (seconds)
 };
 

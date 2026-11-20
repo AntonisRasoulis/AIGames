@@ -209,7 +209,7 @@ const Renderer = (() => {
     for (const w of world.warps) drawWarp(w, camX, world.time); // (behind the runner going in or coming out)
 
     // (someone hiding in a bush can't be seen, on either screen)
-    const hiddenTrip = (p) => (p.trip && p.trip.stage === "build") || (p.jet && p.jet.phase === "fly") || p.cockpit; // (inside a portal that's still building itself, or in a jet)
+    const hiddenTrip = (p) => (p.trip && p.trip.stage === "build") || (p.jet && p.jet.phase === "fly") || p.cockpit || p.inCabin; // (inside a portal that's still building itself, in a jet, or inside a helicopter)
     for (const other of others) if (!other.dead && !other.caught && !other.hiddenIn && !other.eatenBy && !hiddenTrip(other)) {
       drawAuroraLights(other, camX, world.time, true, true); // (its lights behind them)
       b.globalAlpha = 0.35; // the other runners show as ghosts
@@ -572,6 +572,12 @@ const Renderer = (() => {
   // Coming back from the camp: the jet (the one from the camp's end, its wheels up, you in its cockpit) streaking in over the course, its bombs
   // falling, and then you, floating down under an olive parachute
   function drawJets(world, camX, time) {
+    for (const bm of world.jetBombs) { // where each will land: a red mark on the ground, blinking faster as it comes
+      if (bm.ty == null) continue;
+      const x = Math.round(bm.tx - camX), y = bm.ty;
+      if (x < -6 || x > VIEW_W + 6 || Math.floor(time * 16) % 2) continue;
+      P("#2a0a08", x - 4, y - 2, 9, 3); P("#ff3a2a", x - 3, y - 1, 7, 1); P("#ff3a2a", x, y - 3, 1, 3, 0.9);
+    }
     for (const bm of world.jetBombs) { const x = Math.round(bm.x - camX); if (x < -6 || x > VIEW_W + 6) continue; P("#2a2e1e", x - 1, Math.round(bm.y) - 1, 3, 2); P("#5a6a3a", x - 2, Math.round(bm.y) - 1, 1, 2); }
     for (const p of world.players) {
       const jt = p.jet;

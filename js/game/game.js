@@ -1683,7 +1683,7 @@ const Game = (() => {
     const { level, players } = world, Hc = HELI;
     const spot = level.heliSpots.find((s) => !s.used);
     if (spot && !world.heli) {
-      const lead = players.filter((p) => !p.caught).reduce((a, b) => (!a || b.x > a.x ? b : a), null);
+      const lead = players.filter((p) => !p.caught && !p.realm && !p.jet && !p.drop && !p.flight).reduce((a, b) => (!a || b.x > a.x ? b : a), null);
       if (lead && lead.x >= spot.x - VIEW_W * 0.3) {
         spot.used = true;
         const g = lead.y + HITBOX_H;
@@ -1696,7 +1696,8 @@ const Game = (() => {
     // how fast it wants to go, and the way it faces
     let want = h.vx;
     if (h.state === "in" || h.state === "carry") want = -Hc.speed;
-    else if (h.state === "rise" || h.state === "away") want = -Hc.speed * 1.6;
+    else if (h.state === "rise") want = 0; // (it stops and reels its riders up: never carrying them back toward the fire)
+    else if (h.state === "away") want = -Hc.speed * 1.6;
     else if (h.state === "rescue") { want = Hc.rescueSpeed * world.fire.speed; h.yaw = Math.cos(Math.min(1, h.t / Hc.turn) * Math.PI); }
     else if (h.state === "missile") want = world.fire.speed; // (keeping its 100 m from the fire while the missile comes)
     const was = h.vx;
@@ -1706,13 +1707,16 @@ const Game = (() => {
     // up and down: climbing away, falling when it's hit, or else keeping its rope's loop a jump's height over the ground below
     const g = level.groundTop(h.x);
     if (g !== null) h.ground = g;
-    if (h.state === "rise" || h.state === "away") h.y -= 50 * dt;
+    if (h.state === "away" || (h.state === "rise" && h.t > Hc.reel)) h.y -= 50 * dt;
     else if (h.state === "hit") { h.vy += 320 * dt; h.y += h.vy * dt; h.pitch += dt * 1.5; }
     else { const wantY = h.ground - Hc.ropeLow - h.rope.L - 7.5; h.y += Math.sign(wantY - h.y) * Math.min(Math.abs(wantY - h.y), 40 * dt); }
     // tipped into its motion: nose down speeding along, nose up as it brakes
     if (h.state !== "hit") h.pitch = Math.max(-0.22, Math.min(0.22, (h.vx / Hc.speed) * 0.12 + ax * 0.0012));
-    // the rope: a pendulum from the hook, swung by the helicopter speeding up and slowing down, damped
+    // the rope: a pendulum from the hook, swung by the helicopter speeding up and slowing down, damped; reeled in as it
+    // climbs away (its riders pulled up into it), let out again if it has to turn back
     const r = h.rope;
+    if (r.L0 === undefined) r.L0 = r.L;
+    r.L = h.state === "rise" ? Math.max(3, r.L0 * (1 - h.t / Hc.reel)) : Math.min(r.L0, r.L + r.L0 * dt / Hc.reel);
     r.w += (-(PHYSICS.gravity / r.L) * Math.sin(r.a) - (ax / r.L) * Math.cos(r.a) - Hc.ropeDamp * r.w) * dt;
     r.a = Math.max(-0.6, Math.min(0.6, r.a + r.w * dt));
     h.hook = heliHook(h);
@@ -1732,11 +1736,11 @@ const Game = (() => {
       }
     }
     h.riders = h.riders.filter((p) => !p.caught);
-    h.riders.forEach((p, i) => { const d = r.L - i * 12; p.x = h.hook.x + Math.sin(r.a) * d - HITBOX_W / 2; p.y = h.hook.y + Math.cos(r.a) * d - 2; p.facing = h.vx < 0 ? -1 : 1; });
-    // the fire on a rider's screen: it won't take them in (once it's climbing away, it's too late for that)
-    if (h.state === "carry" && h.riders.some((p) => world.fire.x + world.fire.speed * Hc.warn >= p.x - VIEW_W * 0.35)) {
+    h.riders.forEach((p, i) => { const d = Math.max(0, r.L - i * 12); p.x = h.hook.x + Math.sin(r.a) * d - HITBOX_W / 2; p.y = h.hook.y + Math.cos(r.a) * d - 2; p.facing = h.vx < 0 ? -1 : 1; p.inCabin = d < 4; }); // (pulled up in at the hook: inside it)
+    // the fire on a rider's screen (or about to be): it won't take them in, even once it's started reeling them up
+    if ((h.state === "carry" || h.state === "rise") && h.riders.some((p) => world.fire.x + world.fire.speed * Hc.warn >= p.x - VIEW_W * 0.35)) {
       h.state = "rescue"; h.t = 0;
-      for (const p of h.riders) p.showHit("TOO HOT! GETTING YOU OUT!", "#ffb347");
+      for (const p of h.riders) { p.showHit("TOO HOT! GETTING YOU OUT!", "#ffb347"); p.inCabin = false; }
     }
     if (h.state === "carry" && h.t >= Hc.carry) { h.state = "rise"; h.t = 0; }
     else if (h.state === "rise" && h.t >= Hc.rise) { // up and away: everyone on the rope goes to the camp
@@ -1773,6 +1777,7 @@ const Game = (() => {
         world.heli = null;
       } else if (h.y > VIEW_H + 30) world.heli = null; // (down a pit)
     }
+    if (h.state === "rescue" && !h.riders.length) h.state = "away"; // (nobody left to rescue: off it goes)
     if (world.heli && h.state === "away" && h.y < -50) world.heli = null;
     if (world.heli && h.state === "in" && h.riders.length === 0 && players.every((p) => p.caught || p.realm || h.x + 60 < p.x - VIEW_W * (0.35 + Hc.gone))) world.heli = null; // (missed: gone for good)
   }
@@ -1809,6 +1814,7 @@ const Game = (() => {
         if (!f.moved && f.t >= 0.6) {
           f.moved = true;
           if (p.cockpit) { p.cockpit.pilot = null; p.cockpit = null; } // (out of the camp's jet, into the one coming home)
+          p.inCabin = false; // (out of the helicopter: in the camp, or sitting in its doorway coming back)
           if (f.kind === "in") moveTo(p, f.camp, p.grabX + travelGain(world.time - p.grabAt));
           else if (f.kind === "heli") { // onto the main course where you'll come out, sitting in the helicopter's door, well behind it
             const H = CAMP_HELI;
@@ -1834,7 +1840,7 @@ const Game = (() => {
         jt.x = Math.min(jt.to.x, jt.x + J.speed * dt);
         p.x = jt.x;
         p.y = J.height + 6;
-        if ((jt.bomb -= dt) <= 0) { jt.bomb = J.bombEvery; world.jetBombs.push({ x: jt.x - 14, y: J.height + 8, vx: J.speed * 0.55, vy: 30 }); }
+        if ((jt.bomb -= dt) <= 0) { jt.bomb = J.bombEvery; world.jetBombs.push(bombFrom(jt.x - 14, J.height + 8, J.speed * 0.55, 30, p)); }
         if (jt.x >= jt.to.x) { jt.phase = "chute"; jt.t = 0; Sound.play("grab"); }
       } else { // floating down under a parachute
         const k = Math.min(1, jt.t / J.chute);
@@ -1843,7 +1849,8 @@ const Game = (() => {
         if (k >= 1) { p.jet = null; p.held = false; p.onGround = true; p.vy = 0; p.safeSpots = [{ x: p.x, y: p.y }]; Sound.play("land"); }
       }
     }
-    // the jet's bombs: falling on the main course and blowing up there (just for show, for now)
+    // the jet's bombs: falling on the main course and blowing up there; anyone right by one when it lands (on the ground or
+    // near it: a jump clears it) is blown up. Each marks where it'll land the moment it's dropped
     const level = world.level;
     for (const b of world.jetBombs) {
       b.vy += 420 * dt;
@@ -1856,6 +1863,12 @@ const Game = (() => {
         for (let i = 0; i < 9; i++) world.sawBits.push({ x: b.x, y, vx: (Math.random() - 0.5) * 120, vy: -40 - Math.random() * 110, t: 0.55, c: ["#ffd040", "#ff7a1a", "#e84a2a", "#5a5040"][i % 4], big: i % 3 === 0, level });
         if (Math.random() < 0.5) world.quakes.push({ x: b.x, t: 0.12, level });
         Sound.play("bombBoom");
+        for (const p of world.players) {
+          if (p === b.by || p.dead || p.caught || p.held || p.realm || p.jet || p.flight || p.hiddenIn || p.blink > 0) continue;
+          if (Math.abs(p.x + HITBOX_W / 2 - b.x) > J.blast || p.y + HITBOX_H < y + 2 - J.blastHigh) continue;
+          p.showHit("BOMBED!", "#ff7a3a");
+          p.die();
+        }
       }
     }
     world.jetBombs = world.jetBombs.filter((b) => !b.gone);
@@ -1869,7 +1882,7 @@ const Game = (() => {
         if (dh.x >= dh.to.x - 3) { dh.state = "drop"; dh.t = 0; dh.pitch = -0.08; }
       } else if (dh.state === "drop") { // out you jump
         dh.pitch += (0 - dh.pitch) * Math.min(1, dt * 4);
-        if (dh.t > 0.4) { for (const p of dh.riders) { p.held = false; p.drop = null; p.vy = 0; p.vx = 0; p.safeSpots = [{ x: dh.to.x, y: dh.to.y }]; Sound.play("land"); } dh.riders = []; dh.state = "leave"; dh.t = 0; }
+        if (dh.t > 0.4) { for (const p of dh.riders) { p.held = false; p.drop = null; p.vy = -70; p.vx = 0; p.onGround = false; p.safeSpots = [{ x: dh.to.x, y: dh.to.y }]; Sound.play("land"); } dh.riders = []; dh.state = "leave"; dh.t = 0; }
       } else { dh.x += 200 * dt; dh.y -= 30 * dt; dh.pitch = 0.12; if (dh.t > 0.3) dh.door = Math.max(0, dh.door - dt / CAMP_HELI.door); }
       dh.riders.forEach((p, i) => { p.x = dh.x + 3 - i * 2.5; p.y = dh.y - 6; p.facing = 1; }); // (sitting in the doorway in its middle)
     }
@@ -1935,12 +1948,12 @@ const Game = (() => {
       for (const p of left) {
         if (ph.door < 0.8 || !overlaps(p.x, p.y, HITBOX_W, HITBOX_H, ph.x - 11, ph.gy - 20, 11, 20)) continue; // (its open doorway)
         ph.riders.push(p);
-        Object.assign(p, { held: true, vx: 0, vy: 0, standingOn: null, onGround: true });
+        Object.assign(p, { held: true, vx: 0, vy: 0, standingOn: null, onGround: true, hop: { x: p.x, y: p.y, t: 0 } }); // (hopping up into the doorway)
         p.showHit("ALL ABOARD!", "#d8c89a");
         Sound.play("grab");
         ph.wait = H.wait; // (it waits for anyone else, from the last one in)
       }
-      if (ph.riders.length && (ph.wait -= dt) <= 0) { ph.state = "lift"; ph.t = 0; ph.group = Math.random(); Sound.play("heliDoor"); }
+      if (ph.riders.length && (ph.wait -= dt) <= 0) { ph.state = "lift"; ph.t = 0; ph.group = Math.random(); Sound.play("heliDoor"); for (const p of ph.riders) p.inCabin = true; } // (they step inside, and the doors slide shut)
     } else if (ph.state === "lift" && ph.t >= H.lift) { // up and away: everyone in it is flown back
       for (const p of ph.riders) p.flight = { kind: "heli", t: 0, from: p.x, group: ph.group };
       ph.riders = [];
@@ -1958,7 +1971,24 @@ const Game = (() => {
     if (ph.state === "lift") ph.y -= Math.max(0, ph.t - H.door) * 45; // (doors shut, then it climbs)
     else if (ph.state === "gone") ph.y -= 200;
     else if (ph.state === "land") ph.y -= 160 * (1 - Math.min(1, ph.t / H.land)) ** 2;
-    ph.riders.forEach((p, i) => { p.x = ph.x - 10 + i * 2.5; p.y = ph.y - 6; p.facing = -1; }); // (sitting in its doorway)
+    ph.riders.forEach((p, i) => { // sitting in its doorway (after a hop up into it)
+      const sx = ph.x - 10 + i * 2.5, sy = ph.y - 6, hp = p.hop;
+      if (hp && hp.t < 0.25) { hp.t += dt; const k = Math.min(1, hp.t / 0.25); p.x = hp.x + (sx - hp.x) * k; p.y = hp.y + (sy - hp.y) * k - Math.sin(k * Math.PI) * 8; }
+      else { p.x = sx; p.y = sy; }
+      p.facing = -1;
+    });
+  }
+
+  // A jet's bomb, dropped: where it'll land is worked out now (falling the way it will), so the ground can be marked there
+  function bombFrom(x, y, vx, vy, by) {
+    const b = { x, y, vx, vy, by }, level = world.level;
+    let tx = x, ty = y, tvy = vy;
+    for (let i = 0; i < 400; i++) {
+      tvy += 420 / 120; tx += vx / 120; ty += tvy / 120;
+      const g = level.groundTop(tx);
+      if ((g !== null && ty >= g - 1) || ty > VIEW_H + 8) { b.tx = tx; b.ty = g; break; }
+    }
+    return b;
   }
 
   // How dark someone's screen is (0..1) as they go into the camp or come out of it
