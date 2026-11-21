@@ -857,9 +857,22 @@ class Level {
   }
 
   addPlatform(kind, col, row, widthTiles, extra = {}) {
+    const ruins = this.biome === "ruins" && (kind === "static" || kind === "move" || kind === "fall");
+    if (ruins && kind === "fall") kind = "static"; // (the ruins' crumbling slabs are electric ones instead)
     const p = { id: this.nextId++, kind, x: col * TILE, y: row * TILE, w: widthTiles * TILE, dx: 0, ...extra };
+    if (ruins) { // an electric slab: every other one in its group live, swapping together
+      const prev = this.platforms.findLast((q) => q.elec);
+      p.elec = prev && prev.elec.section === this.sectionNo ? { section: this.sectionNo, idx: prev.elec.idx + 1, phase: prev.elec.phase } : { section: this.sectionNo, idx: 0, phase: this.rng() < 0.5 ? 0 : 1 };
+    }
     this.platforms.push(p);
     return p;
+  }
+
+  // An electric slab right now (worked out from the clock, so everyone sees the same): live or not, and whether it's
+  // about to swap (its warning)
+  elecState(p, time) {
+    const E = ELEC, n = Math.floor(time / E.period);
+    return { live: (n + p.elec.idx + p.elec.phase) % 2 === 0, warn: time - n * E.period > E.period - E.warn };
   }
 
   // 0 at the start, rising to 1 after about 900 tiles.
@@ -870,6 +883,7 @@ class Level {
   // ---- Sections ----
 
   addSection() {
+    this.sectionNo = (this.sectionNo || 0) + 1; // (the ruins' electric slabs: the ones in one section swap as a group)
     if (this.biome === "ruins" && this.landingFor && this.col >= this.landingFor.landCol - 2) { // where an optional biome portal's stretch lets you out: calm ground
       this.landingFor.calmX = this.col * TILE;
       this.landingFor = null;

@@ -251,6 +251,7 @@ const Sound = (() => {
     jetRoar: () => { noise({ filter: "bandpass", f: 900, to: 300, q: 0.8, dur: 1.4, vol: 0.18, attack: 0.3 }); tone({ f: 180, to: 90, dur: 1.2, type: "sawtooth", vol: 0.04 }); },
     heliDoor: () => { noise({ filter: "bandpass", f: 500, to: 1100, q: 2, dur: 0.45, vol: 0.12 }); tone({ f: 140, to: 120, dur: 0.1, type: "square", vol: 0.04, at: 0.42 }); },
     canopy: () => { noise({ filter: "highpass", f: 2500, to: 1200, dur: 0.35, vol: 0.08 }); tone({ f: 260, to: 180, dur: 0.06, type: "square", vol: 0.06, at: 0.38 }); },
+    elecZap: () => { noise({ filter: "highpass", f: 3000, dur: 0.25, vol: 0.18 }); tone({ f: 120, to: 60, dur: 0.25, type: "sawtooth", vol: 0.08, vibrato: 40 }); },
     bombBoom: () => { noise({ filter: "lowpass", f: 700, to: 90, dur: 0.35, vol: 0.22 }); tone({ f: 90, to: 35, dur: 0.3, type: "sine", vol: 0.12 }); },
     // Leave, the walking tree
     leaveWake: () => { tone({ f: 60, to: 95, dur: 0.6, type: "sawtooth", vol: 0.07, vibrato: 8 }); noise({ filter: "bandpass", f: 350, to: 650, q: 2, dur: 0.5, vol: 0.12 }); },

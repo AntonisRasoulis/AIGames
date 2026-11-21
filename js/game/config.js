@@ -626,6 +626,15 @@ const JET = {          // the way back out of the camp
 // A portal on the main course (one per race): run over the button under it and it bursts on, the aurora pulling
 // in anyone close by. Inside, everyone has 60 seconds (one clock, from when it opened) to reach the exit
 // portal at the far end; the ruins crumble as time runs out. Escape: the aurora's preservation for good.
+// The ruins' electric slabs (v8.5): every platform there is a stone slab with a carved rune post at each end. In a group (2-4
+// over one pit) every other slab is live, an arc jumping between its posts, and they all swap together; a slab on its own
+// (the sliding one, the high ledge) switches on and off by itself. Standing on a live one: "ZAPPED!" (you die). The ruins'
+// crumbling slabs are electric ones instead.
+const ELEC = {
+  period: 1.5,         // seconds each slab is live, then safe (they swap every 1.5 s)
+  warn: 0.4,           // the last this many seconds before a swap: the posts of a safe slab light up, a live one's arc flickers
+};
+
 const RUINS = {
   from: 400,           // meters before the portal can turn up (like the sleep mushroom)
   grab: 40,            // turning it on pulls in anyone within this many pixels of it

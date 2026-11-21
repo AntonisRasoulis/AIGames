@@ -1575,11 +1575,29 @@ const Renderer = (() => {
   }
 
   // The ruins' platforms: stone slabs with glowing teal runes (the moving one floats on a glow; the crumbling one is cracked)
-  function drawRuinsPlatform(kind, x, y, w, time) {
+  // (v8.5: they're all electric, design E2: a carved rune post at each end, and while it's live a zigzag arc jumping between
+  // them along its top, a blue glow, sparks; about to go live, the posts light up; about to go safe, the arc flickers)
+  function drawRuinsPlatform(kind, x, y, w, time, el) {
     if (kind === "move") drawGlowAt("teal", 1, x + w / 2, y + 5, 0.4 + 0.15 * Math.sin(time * 2));
     P("#5a6668", x, y, w, 4); P("#7a8688", x, y, w, 1); P("#3f4a4c", x, y + 3, w, 1);
-    for (let i = 2; i < w - 2; i += 6) P(RUNE, x + i, y + 1, 3, 1, kind === "fall" ? 0.4 : 1);
+    for (let i = 2; i < w - 2; i += 6) P(RUNE, x + i, y + 1, 3, 1, kind === "fall" || el ? 0.6 : 1);
     if (kind === "fall") for (let k = 4; k < w - 2; k += 9) { P("#2f3939", x + k, y, 1, 2); P("#2f3939", x + k + 1, y + 2, 1, 2); }
+    if (!el) return;
+    const lit = el.live || el.warn, f = Math.floor(time * 20);
+    for (const px of [x, x + w - 3]) { // the posts
+      P("#1c2426", px - 1, y - 6, 5, 6); P("#2a3436", px, y - 5, 3, 5); P("#7a8688", px, y - 5, 3, 1);
+      P(lit ? "#8ae8ff" : "#2a5a66", px + 1, y - 4, 1, 2);
+      if (lit) drawGlowAt("blue", 0, px + 1.5, y - 3, el.live ? 0.8 : 0.6);
+    }
+    if (!el.live && el.warn) { for (let i = x + 3; i < x + w - 3; i++) if (hash(i, f) < 0.4) P("#8ad8ff", i, y - 3, 1, 1, 0.5); return; } // (about to go live: a faint line between the posts)
+    if (!el.live) return;
+    if (el.warn && f % 3 === 0) return; // (about to go safe: flickering)
+    drawGlowAt("blue", 1, x + w / 2, y - 3, 0.5);
+    for (const [col, amp] of [["#5ab8ff", 3], ["#ffffff", 2]]) { // the arc: blue, a white core
+      let yy = y - 3;
+      for (let i = x + 3; i < x + w - 3; i++) { if (i % 2 === 0) yy = y - 3 + Math.round((hash(i * 3 + amp, f) - 0.5) * 2 * amp); P(col, i, yy, 1, 1); }
+    }
+    for (let k = 0; k < 2; k++) { const sx = x + 3 + hash(k, f) * (w - 6); for (let j = 0; j < 3; j++) P("#c8f0ff", sx + (j % 2), y - 2 - j, 1, 1, 1 - j * 0.3); } // (sparks)
   }
 
   // ---- The giant sleep mushroom (the way into the forest) ----
@@ -3438,7 +3456,7 @@ const Renderer = (() => {
         } else if (s && s.t < FALLING.shakeTime) shake = Math.floor(time * 40) % 2 ? 1 : -1;
       }
       if (forestAt(level, p.x + p.w / 2)) { drawForestPlatform(p.kind, sx + shake, Math.round(y), p.w, time, crack); continue; }
-      if (ruinsAt(level, p.x + p.w / 2)) { drawRuinsPlatform(p.kind, sx + shake, Math.round(y), p.w, time); continue; }
+      if (ruinsAt(level, p.x + p.w / 2) || p.elec) { drawRuinsPlatform(p.kind, sx + shake, Math.round(y), p.w, time, p.elec ? level.elecState(p, level.time) : null); continue; }
       const colors = {
         static: ["#e8b37a", "#a0663a", "#6e4325"],
         move: ["#dfe9f2", "#7a8fa6", "#4d5d70"],

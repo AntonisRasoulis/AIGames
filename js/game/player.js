@@ -418,6 +418,7 @@ class Player {
     if (this.onGround && !this.standingOn && !this.inQuick) this.checkTraps(level);
     if (this.onGround && !this.standingOn && !this.inQuick && !this.dead) this.checkSinkholes(level);
     if (this.dead) return;
+    if (this.onGround && this.standingOn && this.standingOn.elec && level.elecState(this.standingOn, level.time).live) { this.die("ZAPPED!"); Sound.play("elecZap"); return; } // (the ruins' electric slabs)
     this.checkHazards(level);
     if (this.dead) return;
     this.checkPortals(level);
