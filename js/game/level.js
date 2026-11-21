@@ -871,7 +871,12 @@ class Level {
   // An electric slab right now (worked out from the clock, so everyone sees the same): live or not, and whether it's
   // about to swap (its warning)
   elecState(p, time) {
-    const E = ELEC, n = Math.floor(time / E.period);
+    const E = ELEC;
+    if (p.kind === "move") { // the sliding one keeps time with its slide: safe as it comes to your side and slides across (step on, ride it over), live on the way back
+      const u = ((time / p.period + p.phase + E.moveLead) % 1 + 1) % 1, cut = E.moveLead + E.moveSafe, w = E.warn / p.period;
+      return { live: u >= cut, warn: u >= cut ? u > 1 - w : u > cut - w };
+    }
+    const n = Math.floor(time / E.period);
     return { live: (n + p.elec.idx + p.elec.phase) % 2 === 0, warn: time - n * E.period > E.period - E.warn };
   }
 

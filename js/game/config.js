@@ -1,7 +1,7 @@
 // The game's version, shown left of the logo. The first number goes up for big updates (a new biome, a new
 // secret world...), the second for smaller additions and fixes (back to 0 with each big update): 6.16 means
 // the 6th big update (the enchanted forest), 16 small ones since. (7: the arcane ruins.)
-const GAME_VERSION = "8.4";
+const GAME_VERSION = "8.5";
 
 // Tunable numbers for the game. Change these to adjust how it feels.
 // Distances are in game pixels; one tile is 8 pixels (about "1 meter").
@@ -633,6 +633,9 @@ const JET = {          // the way back out of the camp
 const ELEC = {
   period: 1.5,         // seconds each slab is live, then safe (they swap every 1.5 s)
   warn: 0.4,           // the last this many seconds before a swap: the posts of a safe slab light up, a live one's arc flickers
+  // The sliding slab keeps its own time, with its slide (one there-and-back is its period, 2.2-3.2 s):
+  moveLead: 0.15,      // it turns safe this much of a period before it reaches your side of the pit...
+  moveSafe: 0.5,       // ...and stays safe this much of a period: all the way across; it goes live as it starts back (hop off)
 };
 
 const RUINS = {
