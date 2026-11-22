@@ -1575,29 +1575,48 @@ const Renderer = (() => {
   }
 
   // The ruins' platforms: stone slabs with glowing teal runes (the moving one floats on a glow; the crumbling one is cracked)
-  // (v8.5: they're all electric, design E2: a carved rune post at each end, and while it's live a zigzag arc jumping between
-  // them along its top, a blue glow, sparks; about to go live, the posts light up; about to go safe, the arc flickers)
+  // (v8.5: they're all electric, design E2: a carved rune post at each end. v8.6, the lightning chosen L1: while it's live, a
+  // jagged bolt from post tip to post tip, re-striking many times a second, a white-hot core in a blue edge, little forks
+  // flicking off it, the post tips white-hot and the slab's top lit blue; about to go live, sparks spit off the post tips;
+  // about to go safe, the bolt sputters out)
   function drawRuinsPlatform(kind, x, y, w, time, el) {
     if (kind === "move") drawGlowAt("teal", 1, x + w / 2, y + 5, 0.4 + 0.15 * Math.sin(time * 2));
+    const f = Math.floor(time * 24), on = el && el.live && !(el.warn && hash(f, 2) < 0.35); // (sputtering out: off some frames)
     P("#5a6668", x, y, w, 4); P("#7a8688", x, y, w, 1); P("#3f4a4c", x, y + 3, w, 1);
+    if (on) P("#9adcff", x + 2, y, w - 4, 1, 0.5 + 0.3 * hash(f, 9)); // (its top lit by the bolt)
     for (let i = 2; i < w - 2; i += 6) P(RUNE, x + i, y + 1, 3, 1, kind === "fall" || el ? 0.6 : 1);
     if (kind === "fall") for (let k = 4; k < w - 2; k += 9) { P("#2f3939", x + k, y, 1, 2); P("#2f3939", x + k + 1, y + 2, 1, 2); }
     if (!el) return;
-    const lit = el.live || el.warn, f = Math.floor(time * 20);
+    const lit = el.live || el.warn, a = x + 1.5, b = x + w - 1.5, yy = y - 4;
     for (const px of [x, x + w - 3]) { // the posts
       P("#1c2426", px - 1, y - 6, 5, 6); P("#2a3436", px, y - 5, 3, 5); P("#7a8688", px, y - 5, 3, 1);
       P(lit ? "#8ae8ff" : "#2a5a66", px + 1, y - 4, 1, 2);
-      if (lit) drawGlowAt("blue", 0, px + 1.5, y - 3, el.live ? 0.8 : 0.6);
+      if (lit) drawGlowAt("blue", 0, px + 1.5, y - 4, 0.6);
     }
-    if (!el.live && el.warn) { for (let i = x + 3; i < x + w - 3; i++) if (hash(i, f) < 0.4) P("#8ad8ff", i, y - 3, 1, 1, 0.5); return; } // (about to go live: a faint line between the posts)
-    if (!el.live) return;
-    if (el.warn && f % 3 === 0) return; // (about to go safe: flickering)
-    drawGlowAt("blue", 1, x + w / 2, y - 3, 0.5);
-    for (const [col, amp] of [["#5ab8ff", 3], ["#ffffff", 2]]) { // the arc: blue, a white core
-      let yy = y - 3;
-      for (let i = x + 3; i < x + w - 3; i++) { if (i % 2 === 0) yy = y - 3 + Math.round((hash(i * 3 + amp, f) - 0.5) * 2 * amp); P(col, i, yy, 1, 1); }
+    if (!el.live) { // about to go live: sparks spitting off the post tips
+      if (el.warn) for (const px of [a, b]) for (let k = 0; k < 2; k++) if (hash(px + k, f) < 0.7) P("#c8f0ff", px + (hash(k, f) - 0.5) * 4, yy - hash(f, k + px) * 4);
+      return;
     }
-    for (let k = 0; k < 2; k++) { const sx = x + 3 + hash(k, f) * (w - 6); for (let j = 0; j < 3; j++) P("#c8f0ff", sx + (j % 2), y - 2 - j, 1, 1, 1 - j * 0.3); } // (sparks)
+    if (!on) return;
+    drawGlowAt("blue", 1, (a + b) / 2, yy, 0.45 + 0.2 * hash(f, 1));
+    // the bolt: kinks re-rolled every frame, a blue edge 2 wide, a white core
+    const n = Math.max(3, Math.round(w / 6)), pts = [[a, yy]];
+    for (let i = 1; i < n; i++) pts.push([a + (b - a) * i / n + (hash(i, f) - 0.5) * 2, yy + (hash(f, i * 3) - 0.5) * 6]);
+    pts.push([b, yy]);
+    boltLine(pts, "#3a8aff", 0.9, 2); boltLine(pts, "#e8f8ff", 1, 1);
+    for (let k = 0; k < 2; k++) { // two little forks
+      const s0 = pts[1 + Math.floor(hash(k, f) * (pts.length - 2))], d = hash(f, k) < 0.5 ? -1 : 1;
+      boltLine([s0, [s0[0] + 2 + hash(k, f + 3) * 3, s0[1] + d * (2 + hash(f + 1, k) * 2)], [s0[0] + 4, s0[1] + d * 4]], "#8ad8ff", 0.8, 1);
+    }
+    for (const px of [a, b]) { drawGlowAt("white", 0, px, yy, 0.7); P("#ffffff", px - 1, yy - 1, 2, 2); } // (the post tips, white-hot)
+  }
+
+  // A line of pixels through a list of points (the slabs' lightning bolts)
+  function boltLine(pts, col, alpha, thick) {
+    for (let s = 0; s < pts.length - 1; s++) {
+      const [ax, ay] = pts[s], [bx, by] = pts[s + 1], n = Math.max(Math.abs(bx - ax), Math.abs(by - ay), 1);
+      for (let i = 0; i <= n; i++) P(col, ax + (bx - ax) * i / n, ay + (by - ay) * i / n, thick, thick, alpha);
+    }
   }
 
   // ---- The giant sleep mushroom (the way into the forest) ----

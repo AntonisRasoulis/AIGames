@@ -18,7 +18,7 @@ costs ground to the fire. 1 Player: one big view, race the fire for distance (be
 - Repo: `AntonisRasoulis/VibeCodingPractice`. Development branch: `claude/nice-meitner-muga6l`
   (a fresh chat may be given a different branch: use the one you're told).
 - Published as a claude.ai Artifact (a single bundled HTML file):
-  **https://claude.ai/artifact/Uh5CKSPymdWERadhojnY7P** (Version 177 at the time of writing). Always
+  **https://claude.ai/artifact/Uh5CKSPymdWERadhojnY7P** (Version 178 at the time of writing). Always
   republish to this same URL (pass it as `url`); never create a new artifact for the game.
 
 ## Style
@@ -357,7 +357,7 @@ Scripts load in this order (all globals, no modules), each with a `?v=` cache-bu
   - **Laser swords** (v7.52, `LASER_SWORD`, `laserSwords`, `swordState`, `drawLaserSwords`; in place of the ruins' maces): a laser
     blade hanging from a gear under the arch, swinging like a mace and stretching so its tip always touches the ground (no
     jumping it); off 0.4 s in the middle of each swing, outline flickering back for the last 0.2 s; each its own speed 2-3.5 s.
-  - **Electric slabs** (v8.5, owner's design; look E2: a carved rune post at each end, a zigzag arc between them while live;
+  - **Electric slabs** (v8.5, owner's design; look E2: a carved rune post at each end, v8.6 lightning L1: a jagged re-striking bolt with forks, white-hot post tips, sparks at the tips as a warning;
     `ELEC`, `p.elec`, `Level.elecState`, `drawRuinsPlatform`): every ruins platform; in a group every other one live, all swapping
     every 1.5 s (0.4 s warning); lone ones (moving, ledge) switch by themselves; live = "ZAPPED!"; the crumbling ones are electric instead.
   - **Rune tiles** (v7.40, `RUNE_TILE`, `runeTiles`, `updateRuneTiles`, `drawRuneTiles`; the ruins' own trap): a ground tile
