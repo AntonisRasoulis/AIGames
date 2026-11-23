@@ -252,6 +252,12 @@ const Sound = (() => {
     heliDoor: () => { noise({ filter: "bandpass", f: 500, to: 1100, q: 2, dur: 0.45, vol: 0.12 }); tone({ f: 140, to: 120, dur: 0.1, type: "square", vol: 0.04, at: 0.42 }); },
     canopy: () => { noise({ filter: "highpass", f: 2500, to: 1200, dur: 0.35, vol: 0.08 }); tone({ f: 260, to: 180, dur: 0.06, type: "square", vol: 0.06, at: 0.38 }); },
     elecZap: () => { noise({ filter: "highpass", f: 3000, dur: 0.25, vol: 0.18 }); tone({ f: 120, to: 60, dur: 0.25, type: "sawtooth", vol: 0.08, vibrato: 40 }); },
+    crate: () => { noise({ filter: "bandpass", f: 900, to: 400, q: 1.5, dur: 0.18, vol: 0.2 }); tone({ f: 180, to: 90, dur: 0.12, type: "square", vol: 0.06 }); },
+    rifle: () => { noise({ filter: "highpass", f: 1500, to: 600, dur: 0.07, vol: 0.16 }); tone({ f: 140, to: 60, dur: 0.06, type: "square", vol: 0.06 }); },
+    pistol: () => { noise({ filter: "highpass", f: 1200, to: 500, dur: 0.1, vol: 0.18 }); tone({ f: 180, to: 70, dur: 0.08, type: "square", vol: 0.07 }); },
+    reload: () => { tone({ f: 600, to: 500, dur: 0.04, type: "square", vol: 0.05 }); tone({ f: 420, to: 380, dur: 0.05, type: "square", vol: 0.05, at: 0.3 }); },
+    gunThrow: () => { noise({ filter: "bandpass", f: 600, to: 1400, q: 1.5, dur: 0.25, vol: 0.1 }); },
+    gunClatter: () => { tone({ f: 900, to: 600, dur: 0.05, type: "square", vol: 0.05 }); tone({ f: 700, to: 500, dur: 0.05, type: "square", vol: 0.04, at: 0.08 }); },
     bombBoom: () => { noise({ filter: "lowpass", f: 700, to: 90, dur: 0.35, vol: 0.22 }); tone({ f: 90, to: 35, dur: 0.3, type: "sine", vol: 0.12 }); },
     // Leave, the walking tree
     leaveWake: () => { tone({ f: 60, to: 95, dur: 0.6, type: "sawtooth", vol: 0.07, vibrato: 8 }); noise({ filter: "bandpass", f: 350, to: 650, q: 2, dur: 0.5, vol: 0.12 }); },

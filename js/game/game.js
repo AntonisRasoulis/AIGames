@@ -56,6 +56,8 @@ const Game = (() => {
       roots: [], // the enchanted forest's roots: holding someone and stabbing them, flinging them back, impaling them
       rootWall: null, // alone: the roots holding the fire back { t, x }
       missiles: [], // missiles zooming in, locking on, flying or exploding
+      bullets: [],     // the camp's guns: bullets flying (on the main course)
+      thrownGuns: [],  // ...and empty guns thrown, spinning
       bears: [],    // bears chasing a player (snow only)
       jaguars: [],  // jaguars and black panthers hunting the leader (jungle only)
       decoys: [],   // harmless eyes blinking in the jungle's bushes
@@ -118,6 +120,7 @@ const Game = (() => {
       input.jump ||= keys.has(flip ? c.fire : c.jump);
       input.jumpPressed ||= flip ? fireQueued[k] : jumpQueued[k];
       input.firePressed ||= flip ? jumpQueued[k] : fireQueued[k];
+      input.fire ||= keys.has(flip ? c.jump : c.fire); // (held down: the M16's full auto)
       jumpQueued[k] = false;
       fireQueued[k] = false;
     }
@@ -201,7 +204,7 @@ const Game = (() => {
     // The main course's dangers only see who's on it: anyone off in a forest (or on their way) counts as out of the race
     onCourse(level, () => mainCourse(dt, inputs));
     for (const f of forests()) {
-      if (f.biome === "camp") onCourse(f, () => { checkOrbs(); updateBridges(dt); updateParkedJet(f, dt); updateParkedHeli(f, dt); levelSounds(); });
+      if (f.biome === "camp") onCourse(f, () => { checkOrbs(); updateBridges(dt); updateCrates(f); updateParkedJet(f, dt); updateParkedHeli(f, dt); levelSounds(); });
       else if (f.biome === "ruins") onCourse(f, () => { world.players.forEach((p, i) => { if (inputs[i].firePressed && p.power === "laser") usePower(p, i); }); checkOrbs(); updateBridges(dt); updateRuins(f, dt); updateBiomeGates(f); updateStorms(dt); updateMortars(dt); updateRuneTiles(dt); levelSounds(); });
       else if (f.leg) onCourse(f, () => { updateBridges(dt); updateFlytraps(dt); checkThinIce(); levelSounds(); updateLeg(f); });
       else onCourse(f, () => { world.players.forEach((p, i) => { if (inputs[i].firePressed && p.power === "mushroom") usePower(p, i); }); checkOrbs(); updateBridges(dt); updateLooseSaws(dt); updateLooseMaces(dt); updateSpores(); updateLobbers(dt); updateAliveTrees(dt); updateLeaves(dt); levelSounds(); });
@@ -239,6 +242,7 @@ const Game = (() => {
       updateRuneTiles(dt);
     }
     updateMonkeys(dt);
+    updateGuns(dt, inputs);
     updateHeli(dt);
     updateWarps(dt);
     updateGrapples(dt);
@@ -439,6 +443,7 @@ const Game = (() => {
 
   // S (Red) or Down (Blue): use whatever power you're holding
   function usePower(p, owner) {
+    if (p.gun) return; // (a gun from the camp takes your power key till it's thrown: see updateGuns)
     if (!p.power || p.dead || p.caught || p.held || p.frozen > 0 || p.dashHold > 0) return;
     if (p.power === "wind" && (p.stun > 0 || p.inQuick)) return; // can't dash out of a hand's throw or quicksand
     if (p.power === "zap") fireBolt(p, owner);
@@ -1817,7 +1822,7 @@ const Game = (() => {
           f.moved = true;
           if (p.cockpit) { p.cockpit.pilot = null; p.cockpit = null; } // (out of the camp's jet, into the one coming home)
           p.inCabin = false; // (out of the helicopter: in the camp, or sitting in its doorway coming back)
-          if (f.kind === "in") moveTo(p, f.camp, p.grabX + travelGain(world.time - p.grabAt));
+          if (f.kind === "in") { moveTo(p, f.camp, p.grabX + travelGain(world.time - p.grabAt)); p.ammo = 0; p.gas = 0; p.cratesOpened.clear(); }
           else if (f.kind === "heli") { // onto the main course where you'll come out, sitting in the helicopter's door, well behind it
             const H = CAMP_HELI;
             moveTo(p, null, f.from + travelGain(0.6 + H.back / H.speed + 1));
@@ -1826,7 +1831,9 @@ const Game = (() => {
             p.drop = { to: { x: dh.to.x, y: dh.to.y } };
             dh.riders.push(p);
           } else { // onto the main course where you'll come out, then into the jet, well behind it
-            moveTo(p, null, f.from + travelGain(0.6 + J.back / J.speed + J.chute));
+            let to = f.from + travelGain(0.6 + J.back / J.speed + J.chute);
+            if (world.solo) to = Math.max(to, world.fire.x + CAMP_GUNS.soloFar * TILE) + p.gas * CAMP_GUNS.gasMeters * TILE; // (alone: far from the fire, and further for each gas can)
+            moveTo(p, null, to);
             p.jet = { t: 0, x: p.x - J.back, to: { x: p.x, y: p.y }, phase: "fly", bomb: 0 };
             p.x = p.jet.x;
             p.y = J.height + 6;
@@ -1905,6 +1912,7 @@ const Game = (() => {
         if (!freeRunner(p) || p.realm !== f || p.flight || p.jet || p.vy < 0) continue; // (coming down into it)
         if (!overlaps(p.x, p.y + HITBOX_H - 3, HITBOX_W, 3, j.x + 27, j.gy - 24, 14, 16)) continue; // (its open cockpit, and a little round it)
         Object.assign(j, { state: "close", t: 0, pilot: p, palette: p.palette, boardX: p.x, boardAt: world.time });
+        if (!world.solo) p.gun = makeGun("m16", p.ammo * CAMP_GUNS.m16.times); // (the first one out: an M16, twice the bullets)
         f.jetTaken = true;
         p.cockpit = j;
         Object.assign(p, { held: true, vx: 0, vy: 0, standingOn: null });
@@ -1950,6 +1958,7 @@ const Game = (() => {
       for (const p of left) {
         if (ph.door < 0.8 || !overlaps(p.x, p.y, HITBOX_W, HITBOX_H, ph.x - 11, ph.gy - 20, 11, 20)) continue; // (its open doorway)
         ph.riders.push(p);
+        if (!world.solo) p.gun = makeGun("pistol", p.ammo); // (everyone after: a pistol)
         Object.assign(p, { held: true, vx: 0, vy: 0, standingOn: null, onGround: true, hop: { x: p.x, y: p.y, t: 0 } }); // (hopping up into the doorway)
         p.showHit("ALL ABOARD!", "#d8c89a");
         Sound.play("grab");
@@ -1991,6 +2000,107 @@ const Game = (() => {
       if ((g !== null && ty >= g - 1) || ty > VIEW_H + 8) { b.tx = tx; b.ty = g; break; }
     }
     return b;
+  }
+
+  // The camp's crates: land on one (coming down onto its top) and it smashes open, its bullets yours (a shared one just for
+  // you: everyone opens their own; a steel ammo can for whoever gets there first). Alone: gas cans for the jet
+  function updateCrates(f) {
+    for (const p of world.players) {
+      if (p.realm !== f || p.dead || p.caught || p.held || p.vy <= 0) continue;
+      const feet = p.y + HITBOX_H;
+      for (const c of f.crates) {
+        if (c.kind === "shared" ? p.cratesOpened.has(c.id) : c.taken) continue;
+        const top = c.gy - 10;
+        if (feet < top - 1 || feet > top + 5 || p.x + HITBOX_W <= c.x + 1 || p.x >= c.x + 11) continue;
+        if (c.kind === "shared") p.cratesOpened.add(c.id); else { c.taken = true; c.takenAt = world.time; }
+        if (c.kind === "gas") { p.gas++; p.showHit("+GAS", "#ff7a5a"); }
+        else { p.ammo += c.bullets; p.showHit(`+${c.bullets} AMMO`, "#e8c060"); }
+        Object.assign(p, { vy: -CAMP_GUNS.bounce, onGround: false, standingOn: null });
+        const cols = c.kind === "shared" ? ["#a8823e", "#8a6a30", "#3a2a14"] : c.kind === "first" ? ["#5a6a3a", "#e8c030", "#1e2414"] : ["#c83a2a", "#9a2a1e", "#d8d8c8"];
+        for (let i = 0; i < 10; i++) world.sawBits.push({ x: c.x + 6, y: top + 3, vx: (Math.random() - 0.5) * 150, vy: -50 - Math.random() * 110, t: 0.6, c: cols[i % 3], big: i % 3 === 0, level: f });
+        Sound.play("crate");
+      }
+    }
+  }
+
+  function makeGun(kind, bullets) {
+    const cap = kind === "m16" ? CAMP_GUNS.m16.mag : CAMP_GUNS.pistol.mag, mag = Math.min(cap, bullets);
+    return { kind, cap, mag, reserve: bullets - mag, reload: 0, cool: 0, flash: 0 };
+  }
+
+  // The guns from the camp (on the main course): your power key shoots the way you face (the M16 held down: full auto),
+  // reloading by itself when a magazine's empty; out of bullets, the next press throws the gun. Bullets fly a screen, then
+  // drop; one hitting another runner kills them. A thrown gun stuns whoever it hits
+  function updateGuns(dt, inputs) {
+    const G = CAMP_GUNS, level = world.level;
+    world.players.forEach((p, i) => {
+      const gun = p.gun;
+      if (!gun) return;
+      gun.flash = Math.max(0, gun.flash - dt);
+      gun.cool -= dt;
+      if (gun.reload > 0) { // reloading
+        if ((gun.reload -= dt) <= 0) { const n = Math.min(gun.cap, gun.reserve); gun.mag = n; gun.reserve -= n; gun.reload = 0; }
+        return;
+      }
+      if (p.dead || p.caught || p.held || p.realm || p.frozen > 0 || p.stun > 0) return;
+      const inp = inputs[i] || {};
+      if (gun.mag <= 0) {
+        if (gun.reserve > 0) { gun.reload = gun.kind === "m16" ? G.m16.reload : G.pistol.reload; Sound.play("reload"); }
+        else if (inp.firePressed) throwGun(p);
+        return;
+      }
+      if ((gun.kind === "m16" ? inp.fire || inp.firePressed : inp.firePressed) && gun.cool <= 0) {
+        const f = p.facing || 1;
+        world.bullets.push({ x: p.x + (f > 0 ? HITBOX_W + 5 : -5), y: p.y + 5.5, vx: f * G.speed, vy: 0, dist: 0, t: 0, owner: p });
+        gun.mag--;
+        gun.cool = gun.kind === "m16" ? 1 / G.m16.rate : G.pistol.cool;
+        gun.flash = 0.06;
+        Sound.play(gun.kind === "m16" ? "rifle" : "pistol");
+      }
+    });
+    const targets = world.players.filter((q) => !q.dead && !q.caught && !q.held && !q.realm && !q.jet && !q.flight);
+    for (const b of world.bullets) {
+      b.t += dt;
+      b.x += b.vx * dt;
+      b.dist += Math.abs(b.vx * dt);
+      if (b.dist > G.dropAfter) { b.vy += G.gravity * dt; b.y += b.vy * dt; } // (a screen on: it starts to drop)
+      const g = level.groundTop(b.x), tile = level.tile(Math.floor(b.x / TILE), Math.floor(b.y / TILE));
+      if ((g !== null && b.y >= g) || (tile !== T_EMPTY && tile !== undefined && tile !== null) || b.y > VIEW_H + 8 || b.t > G.life) { b.done = true; if (g !== null && b.y >= g - 2 && b.y < g + 4) world.sawBits.push({ x: b.x, y: g - 1, vx: -Math.sign(b.vx) * 40, vy: -60, t: 0.2, c: "#ffd040", level }); continue; }
+      for (const q of targets) {
+        if (q === b.owner || !overlaps(q.x, q.y, HITBOX_W, HITBOX_H, b.x - 1, b.y - 1, 2, 2)) continue;
+        q.showHit("SHOT!", "#ff5a3a");
+        q.die();
+        b.done = true;
+        break;
+      }
+    }
+    world.bullets = world.bullets.filter((b) => !b.done);
+    for (const t of world.thrownGuns) {
+      t.t += dt;
+      if (t.landed) continue;
+      t.vy += G.throwGravity * dt;
+      t.x += t.vx * dt;
+      t.y += t.vy * dt;
+      t.rot += t.spin * dt;
+      for (const q of targets) {
+        if (q === t.owner || q.dizzy > 0 || !overlaps(q.x, q.y, HITBOX_W, HITBOX_H, t.x - 4, t.y - 2, 8, 4)) continue;
+        q.bonk(); // (stunned 1 s, stars round your head: a coconut's bonk)
+        t.landed = true; t.t = 0; t.y = Math.min(t.y, (level.groundTop(t.x) ?? VIEW_H) - 2);
+        break;
+      }
+      const g = level.groundTop(t.x);
+      if (!t.landed && g !== null && t.y >= g - 2) { t.landed = true; t.t = 0; t.y = g - 2; Sound.play("gunClatter"); }
+      if (t.y > VIEW_H + 20) t.done = true;
+    }
+    world.thrownGuns = world.thrownGuns.filter((t) => !t.done && !(t.landed && t.t > 3));
+  }
+
+  function throwGun(p) {
+    const G = CAMP_GUNS, f = p.facing || 1;
+    world.thrownGuns.push({ x: p.x + HITBOX_W / 2, y: p.y + 5, vx: f * G.throwVx, vy: G.throwVy, rot: 0, spin: f * 14, owner: p, kind: p.gun.kind, t: 0 });
+    p.gun = null;
+    p.showHit("THROW!", "#d8c89a");
+    Sound.play("gunThrow");
   }
 
   // How dark someone's screen is (0..1) as they go into the camp or come out of it

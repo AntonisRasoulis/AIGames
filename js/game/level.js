@@ -119,6 +119,8 @@ class Level {
     this.saws = [];      // spinning saw blades: sliding along a slot in the ground, or up and down a rail
     this.traps = [];     // bear traps in the prairie grass: { id, x (middle), size, bush }
     this.bushes = [];    // bushes you can hide in: { x0, w, h, gy, seed, berries, tops, torn }
+    this.crates = [];     // the military camp: crates to smash open for bullets (gas cans alone) { id, x, gy, kind: shared | first | gas, bullets, taken }
+    this.lastCrate = -99;
     this.scatterFrom = 0; // traps, bushes and sinkholes have been sprinkled over the course up to here
     this.sinkholes = [];  // desert sinkholes: { id, x (middle), col, size, gy, state: idle | open, openedAt }
     this.pending = [];    // sinkholes and thin ice a section wants: put in once the ground round them is built and checked
@@ -510,6 +512,14 @@ class Level {
     // nothing else dangerous anywhere you might bait it from or be spat out onto
     for (let k = -9; k <= 9; k++) if (this.threatened(x - HITBOX_W / 2 + k * TILE, this.groundTop(x) - HITBOX_H)) return false;
     return true;
+  }
+
+  // A crate on flat, open ground, nothing dangerous round it (you stop and jump on it)
+  tryCrate(c) {
+    if (!this.spotFits(c, 1, true, "camp", 0, () => {}, () => {})) return;
+    const G = CAMP_GUNS;
+    this.crates.push({ id: this.nextId++, x: c * TILE - 2, gy: this.groundTop(c * TILE), kind: this.solo ? "gas" : this.rng() < G.firstChance ? "first" : "shared", bullets: this.rand(G.bullets[0], G.bullets[1]), taken: false });
+    this.lastCrate = c;
   }
 
   addFlytrap(c) {
@@ -1035,6 +1045,11 @@ class Level {
       this.tryTrap(Math.floor((bush.x0 + bush.w / 2) / TILE), bush);
     }
     for (let c = Math.max(this.scatterFrom, 61); c < until; c++) {
+      if (this.colBiome[c] === "camp") { // the camp's crates (only in a camp you're taken to: that's where the guns come from)
+        const G = CAMP_GUNS;
+        if (this.realmEnd !== undefined && c * TILE < this.realmEnd && c - this.lastCrate >= G.crateEvery && this.rng() < G.crateChance) this.tryCrate(c);
+        continue;
+      }
       if (this.colBiome[c] === "jungle") {
         if (this.rng() < SCATTER.flytrap && !this.easy) this.tryFlytrap(c); // (Easy: none)
         if (c - this.lastPalm >= COCONUT.every[0] && this.rng() < 3 / (COCONUT.every[1] - COCONUT.every[0])) this.tryPalm(c);

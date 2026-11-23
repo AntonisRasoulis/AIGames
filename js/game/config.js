@@ -1,7 +1,7 @@
 // The game's version, shown left of the logo. The first number goes up for big updates (a new biome, a new
 // secret world...), the second for smaller additions and fixes (back to 0 with each big update): 6.16 means
 // the 6th big update (the enchanted forest), 16 small ones since. (7: the arcane ruins.)
-const GAME_VERSION = "8.12";
+const GAME_VERSION = "8.13";
 
 // Tunable numbers for the game. Change these to adjust how it feels.
 // Distances are in game pixels; one tile is 8 pixels (about "1 meter").
@@ -603,6 +603,31 @@ const HELI = {
   ropeDamp: 2.2,       // how quickly the rope's swing dies down (it swings as the helicopter speeds up and slows down)
   gone: 1.2,           // a missed helicopter flies off: this far past the last runner's screen (screens), and it's gone for good
 };
+// The camp's crates and guns (v8.13, owner's design): crates all over the camp; land on one to smash it open for 1-3 bullets.
+// Half are wooden crates every runner can open for themselves, half steel ammo cans: first come, first served. Whoever
+// escapes first (the jet) gets an M16 with twice the bullets they collected (12 to a magazine, full auto); everyone after
+// (the helicopter) a pistol with theirs (6 to a magazine). Shoot with your power key the way you face: a bullet kills
+// ("SHOT!"), flies a screen, then starts to drop. Out of bullets, the next press throws the gun: whoever it hits is stunned
+// 1 s, like a coconut. Alone there's no one to shoot: the crates are gas cans, and the jet takes you further for each.
+const CAMP_GUNS = {
+  crateEvery: 9,       // at least this many tiles between crates...
+  crateChance: 0.16,   // ...and a crate on this many of the spots that fit (about 12 in a camp)
+  bullets: [1, 3],     // bullets in a crate
+  firstChance: 0.5,    // the share of crates that are steel ammo cans (first come, first served); the rest are shared
+  bounce: 150,         // you bounce up off a crate you smash this fast (pixels a second)
+  m16: { mag: 12, rate: 8, reload: 1, times: 2 }, // the first one out: 12 to a magazine, 8 shots a second held down, 1 s to reload, 2x the bullets
+  pistol: { mag: 6, cool: 0.18, reload: 0.7 },    // everyone after: 6 to a magazine, one shot a press, 0.7 s to reload
+  speed: 400,          // bullets fly this fast (pixels a second)...
+  dropAfter: 400,      // ...this far (a screen) straight, then start to drop...
+  gravity: 300,        // ...this hard (pixels a second, each second)
+  life: 3,             // seconds before a bullet that hits nothing is gone
+  throwVx: 260,        // the thrown gun: this fast forward...
+  throwVy: -60,        // ...and a little up (a flat throw at chest height: it lands about 80 px on)...
+  throwGravity: 500,   // ...falling back this hard; whoever it hits is stunned (COCONUT.stun)
+  gasMeters: 10,       // alone: each gas can takes the jet this many meters further...
+  soloFar: 100,        // ...and it always sets you down at least this many meters ahead of the fire
+};
+
 const CAMP_JET = {     // the way back out of the camp for the first one there: a jet parked just past its end, its canopy open
   at: 3,               // its tail is this many tiles past the camp's end (its cockpit 4 tiles further on): jump into the cockpit
   close: 0.4,          // seconds the canopy takes to shut over you...

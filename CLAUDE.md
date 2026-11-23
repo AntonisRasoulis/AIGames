@@ -18,7 +18,7 @@ costs ground to the fire. 1 Player: one big view, race the fire for distance (be
 - Repo: `AntonisRasoulis/AIGames` (renamed from VibeCodingPractice; the local folder may still have the old name). Development branch: `claude/nice-meitner-muga6l`
   (a fresh chat may be given a different branch: use the one you're told).
 - Published as a claude.ai Artifact (a single bundled HTML file):
-  **https://claude.ai/artifact/Uh5CKSPymdWERadhojnY7P** (Version 184 at the time of writing). Always
+  **https://claude.ai/artifact/Uh5CKSPymdWERadhojnY7P** (Version 185 at the time of writing). Always
   republish to this same URL (pass it as `url`); never create a new artifact for the game.
 
 ## Style
@@ -190,7 +190,12 @@ Scripts load in this order (all globals, no modules), each with a `?v=` cache-bu
   (`updateParkedHeli`, `world.dropHelis`); if anyone's left in the camp it comes back and lands ahead of them. The jet flies
   in from the left over the main course carpet-bombing it (v8.4: the bombs hurt: each marks where it lands, a jump clears the blast, "BOMBED!"; `JET.blast`, `bombFrom`), then you parachute down
   where you'd have got to (`p.jet`, `world.jetBombs`, `drawJets`; `trackX` is the landing spot while flying). Camp is a
-  secret-biome chip (`campOn`), regular-mode and all-camp races work.
+  secret-biome chip (`campOn`), regular-mode and all-camp races work. **v8.13 crates and guns** (owner's design; `CAMP_GUNS`,
+  `level.crates`, `updateCrates`, `makeGun`, `updateGuns`, `throwGun`, `drawCrates` / `drawHeldGun` / `drawBullets`): land on crates
+  for 1-3 bullets (wooden = shared per player, steel ammo cans = first come); first out (jet): an M16 with 2x the bullets (12/mag,
+  full auto 8/s), the rest (heli): a pistol (6/mag); the power key shoots the way you face, a bullet kills ("SHOT!"), straight a screen
+  then drops; empty, the next press throws the gun (1 s bonk). Alone: gas cans, the jet lands you 100 m + 10 m a can ahead of the fire.
+  Still to come: the camp's own dangers (owner picked landmines, gun turrets, grenades, tripwires; their details still to settle).
 - **The arcane ruins** (the second secret world; **a first, playable version is built**, v7.0): a portal on the
   main course (one per race after 400 m) with a button under it; inside, a 20 s race (v7.6; it was 60 s) to an exit portal past fire
   turrets, laser eye-stones and gear lasers, crumbling as time runs out; escape for the aurora's preservation.

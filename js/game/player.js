@@ -50,6 +50,10 @@ class Player {
     this.icicleState = new Map(); // icicles *this* player has set off (each player gets their own, like the platforms)
     this.coconutState = new Map(); // jungle coconuts *this* player has set off (the same)
     this.dizzy = 0;               // seconds of stars round your head (bonked by a coconut)
+    this.ammo = 0;                // the military camp: bullets collected from its crates...
+    this.gas = 0;                 // ...(alone: gas cans)...
+    this.cratesOpened = new Set(); // ...the shared crates you've smashed (everyone opens their own)...
+    this.gun = null;              // ...and the gun you came out with { kind: m16 | pistol, cap, mag, reserve, reload, cool, flash }
     this.trapState = new Set();   // bear traps that have snapped on *this* player
     this.rescueBlock = 0;         // just got knocked free of a trap: can't knock anyone else in for a moment
     this.trapped = 0;             // wiggles (left, right, left...) still needed to get out of a bear trap

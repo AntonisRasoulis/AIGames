@@ -64,7 +64,7 @@ const Renderer = (() => {
       const course = p.realm || world.level;
       const mine = (list) => list.filter((e) => (e.level || world.level) === course);
       const view = Object.assign(Object.create(world), { level: course, sawBits: mine(world.sawBits), wisps: mine(world.wisps), quakes: mine(world.quakes), builtPortals: mine(world.builtPortals), stormBalls: mine(world.stormBalls), blasts: mine(world.blasts), mortarBombs: mine(world.mortarBombs), booms: mine(world.booms), mushroomThrows: world.mushroomThrows.filter((m) => (m.p.realm || world.level) === course), laserShots: mine(world.laserShots) });
-      if (p.realm) Object.assign(view, { inForest: true, monsoon: null, missiles: [], bears: [], jaguars: [], decoys: [], arrows: [], vultures: [], hawks: [], sticks: [], burns: [], drones: [], hands: [], roots: [], bolts: [], monkeys: [], thrownSnowballs: [], grapples: [], vines: [], warps: [] });
+      if (p.realm) Object.assign(view, { inForest: true, monsoon: null, bullets: [], thrownGuns: [], missiles: [], bears: [], jaguars: [], decoys: [], arrows: [], vultures: [], hawks: [], sticks: [], burns: [], drones: [], hands: [], roots: [], bolts: [], monkeys: [], thrownSnowballs: [], grapples: [], vines: [], warps: [] });
       drawView(view, p, world.players.filter((q) => q !== p && q.realm === p.realm && !q.dream), camX); // (everyone else on this course shows as a ghost)
       drawDream(p, camX, world.time);
       if (Game.blackoutDark(course, world.time)) drawBlackout(r.x, r.y, camX, world, course); // (the ruins' power cut: pitch black)
@@ -205,6 +205,7 @@ const Renderer = (() => {
 
     if (world.heli && world.heli.level === world.level) drawHeli(world.heli, camX, world.time); // (the military camp's helicopter, its rope behind whoever's on it)
     drawCampHelis(world, camX, world.time); // (its wreck; the helicopter at the camp's end; and bringing people back)
+    drawCrates(world.level, player, camX); // (the camp's crates: the shared ones as this runner sees them)
     drawFlood(world, camX, world.time);
     for (const w of world.warps) drawWarp(w, camX, world.time); // (behind the runner going in or coming out)
 
@@ -214,12 +215,14 @@ const Renderer = (() => {
       drawAuroraLights(other, camX, world.time, true, true); // (its lights behind them)
       b.globalAlpha = 0.35; // the other runners show as ghosts
       drawRunner(other, camX);
+      drawHeldGun(other, camX, 0.35);
       b.globalAlpha = 1;
     }
     if (!player.dead && !player.caught && !player.hiddenIn && !player.eatenBy && !hiddenTrip(player) && !(player.blink > 0 && Math.floor(player.blink * 12) % 2)) {
       drawDashEffects(player, camX, world.time);
       drawAuroraLights(player, camX, world.time, false, true); // (the aurora's lights passing behind you)
       drawRunner(player, camX);
+      drawHeldGun(player, camX, 1);
       if (player.frozen > 0) drawIce(player, camX);
       if (player.honey > 0) drawHoney(player, camX, world.time);
     }
@@ -241,6 +244,7 @@ const Renderer = (() => {
     drawTreeStrikes(world.level, camX, world.time);
     drawLeaveFront(world.level, camX, world.time); // (its roots' spikes, its flying leaves and seeds, whoever it's grabbed)
     if (world.level === Game.world.level) drawJets(Game.world, camX, world.time); // (coming back from the camp: the jet, its bombs, the parachute)
+    drawBullets(world, camX, world.time); // (the camp's guns: bullets and thrown guns, on the main course)
     drawStones(world.level, camX);
     drawGearLasers(world.level, camX, world.time, true);
     drawStormBalls(world, camX, world.time);
@@ -595,6 +599,68 @@ const Renderer = (() => {
         for (let i = -7; i <= 7; i++) { const top = y - 16 + Math.round((i * i) / 9); P(Math.abs(i) % 4 < 2 ? "#6e7a42" : "#e8e0c0", x + 3 + i, top, 1, 18 - 16 + 2); P("#3a4422", x + 3 + i, top - 1); }
         for (const d of [-6, 6]) for (let k = 0; k < 12; k++) P("#d8c89a", x + 3 + Math.round(d * (1 - k / 12)), y - 13 + k, 1, 1, 0.8);
       }
+    }
+  }
+
+  // The camp's crates (design B): a wooden crate every runner opens for themselves (smashed: gone, for whoever smashed it),
+  // a steel ammo can with a yellow band for whoever gets there first (smashed: its lid lying open, empty, for everyone);
+  // alone, red gas cans
+  function drawCrates(level, viewer, camX) {
+    if (!level.crates || !level.crates.length) return;
+    for (const c of level.crates) {
+      const x = Math.round(c.x - camX), y = c.gy - 10;
+      if (x < -14 || x > VIEW_W + 2) continue;
+      const open = c.kind === "shared" ? viewer.cratesOpened.has(c.id) : c.taken;
+      if (c.kind === "shared") {
+        if (open) continue; // (smashed to bits: gone, for you)
+        P("#3a2a14", x, y, 12, 10); P("#a8823e", x + 1, y + 1, 10, 8); P("#8a6a30", x + 1, y + 3, 10, 1); P("#8a6a30", x + 1, y + 6, 10, 1);
+        for (let i = 0; i < 8; i++) P("#8a6a30", x + 2 + i, y + 1 + i);
+        for (const [dx, dy] of [[1, 1], [10, 1], [1, 8], [10, 8]]) P("#2a2a2a", x + dx, y + dy);
+      } else if (c.kind === "first") {
+        if (open) { P("#1e2414", x, y + 5, 12, 5); P("#2a3020", x + 1, y + 6, 10, 3); P("#5a6a3a", x - 1, y + 2, 4, 3); P("#e8c030", x - 1, y + 3, 4, 1); continue; } // (its lid flung open: empty)
+        P("#1e2414", x, y + 1, 12, 9); P("#5a6a3a", x + 1, y + 2, 10, 7); P("#6e7e48", x + 1, y + 2, 10, 1); P("#2a2a20", x + 4, y, 4, 2);
+        P("#e8c030", x + 1, y + 5, 10, 2); for (const dx of [3, 6, 9]) P("#1a1a10", x + dx, y + 5, 1, 2);
+      } else {
+        if (open) continue;
+        P("#2a1010", x + 1, y, 10, 10); P("#c83a2a", x + 2, y + 1, 8, 8); P("#e05a44", x + 2, y + 1, 8, 1); P("#9a2a1e", x + 3, y + 3, 6, 1); P("#9a2a1e", x + 3, y + 7, 6, 1);
+        for (let i = 0; i < 3; i++) { P("#9a2a1e", x + 4 + i, y + 4 + i); P("#9a2a1e", x + 7 - i, y + 4 + i); }
+        P("#2a1010", x + 2, y - 1, 3, 2); P("#d8d8c8", x + 8, y - 2, 2, 2);
+      }
+    }
+  }
+
+  // The gun in your hands, at your chest (design G1: the M16 all black; the pistol), and its muzzle flash as it fires
+  function drawHeldGun(p, camX, alpha) {
+    const gun = p.gun;
+    if (!gun || p.dead || p.caught || p.hiddenIn || p.eatenBy || p.cockpit || p.inCabin || (p.jet && p.jet.phase === "fly")) return;
+    const f = p.facing < 0 ? -1 : 1, bx = Math.round(p.x - camX) + (f > 0 ? 4 : 1), by = Math.round(p.y) + 5;
+    const Q = (col, dx, dy, w = 1, h = 1) => P(col, f > 0 ? bx + dx : bx - dx - w + 1, by + dy, w, h, alpha);
+    if (gun.kind === "m16") { Q("#1c1c1a", -3, 0, 3, 2); Q("#2e2e2a", 0, 0, 7, 2); Q("#444440", 0, 0, 7, 1); Q("#2e2e2a", 7, 0, 4, 1); Q("#1c1c1a", 2, 2, 2, 2); Q("#1a1a18", 5, 2, 1, 3); Q("#2e2e2a", 3, -1, 2, 1); }
+    else { Q("#2a2a28", 0, 0, 5, 2); Q("#505048", 0, 0, 5, 1); Q("#1a1a18", 0, 2, 2, 2); }
+    if (gun.flash > 0) { const mx = gun.kind === "m16" ? 11 : 5; Q("#fff8c0", mx, -0.5, 2, 2); Q("#ffd040", mx + 2, -0.5, 2, 2); Q("#ff9a20", mx + 4, 0, 1, 1); Q("#ffd040", mx + 1, -1.5, 1, 1); Q("#ffd040", mx + 1, 1.5, 1, 1); }
+    if (gun.reload > 0 && alpha === 1) { const k = 1 - gun.reload / (gun.kind === "m16" ? CAMP_GUNS.m16.reload : CAMP_GUNS.pistol.reload); P("#1a1a10", Math.round(p.x - camX) - 2, Math.round(p.y) - 5, 10, 3); P("#e8c060", Math.round(p.x - camX) - 1, Math.round(p.y) - 4, Math.round(8 * k), 1); } // (a little reload bar over your head)
+  }
+
+  // Bullets (a white tip and a yellow tracer streak behind, tipping down once they drop) and thrown guns, spinning
+  function drawBullets(world, camX, time) {
+    for (const bl of world.bullets || []) {
+      const x = bl.x - camX;
+      if (x < -10 || x > VIEW_W + 10) continue;
+      const len = Math.hypot(bl.vx, bl.vy), ux = bl.vx / len, uy = bl.vy / len;
+      for (let i = 0; i < 6; i++) P(i === 0 ? "#ffffff" : "#ffd040", x - ux * i, bl.y - uy * i, 1, 1, 1 - i / 6);
+    }
+    for (const t of world.thrownGuns || []) {
+      const x = t.x - camX;
+      if (x < -16 || x > VIEW_W + 16) continue;
+      b.save();
+      b.globalAlpha = t.landed ? Math.max(0, 1 - Math.max(0, t.t - 2)) : 1;
+      b.translate(Math.round(x), Math.round(t.y));
+      b.rotate(t.landed ? 0 : t.rot);
+      b.fillStyle = "#2e2e2a";
+      if (t.kind === "m16") { b.fillRect(-7, -1, 14, 2); b.fillStyle = "#1c1c1a"; b.fillRect(-2, 1, 2, 2); b.fillRect(1, 1, 1, 3); }
+      else { b.fillRect(-3, -1, 5, 2); b.fillStyle = "#1a1a18"; b.fillRect(-3, 1, 2, 2); }
+      b.restore();
+      b.globalAlpha = 1;
     }
   }
 
@@ -4914,7 +4980,13 @@ const Renderer = (() => {
       text(ctx, `${p.name} ${meters}m`, 12, top + 16, p.palette.c, 12);
       text(ctx, `FIRE ${gap}m`, W - 12, top + 16, gapColor, 12, "right");
       if (world.wild) text(ctx, "WILD", W - 12, top + 36, "#ff6b3d", 10, "right");
-      if (p.power) {
+      if (p.realm && p.realm.biome === "camp" && p.realm.realmEnd !== undefined && !p.gun) { // in the camp: what you've collected so far
+        text(ctx, world.solo ? `GAS ${p.gas}` : `AMMO ${p.ammo}`, 12, top + 36, world.solo ? "#ff7a5a" : "#e8c060", 10);
+      } else if (p.gun) { // the camp's gun: what's in the magazine, the rest, reloading, or empty (throw it)
+        const g = p.gun, key = ["S", "DOWN", "G", "K"][i], name = g.kind === "m16" ? "M16" : "PISTOL";
+        const line = g.reload > 0 ? `${name} RELOADING...` : g.mag > 0 || g.reserve > 0 ? `${name} ${g.mag}/${g.cap} +${g.reserve}  press ${key}` : `${name} EMPTY: ${key} to throw`;
+        text(ctx, line, 12, top + 36, g.mag > 0 ? "#e8c060" : "#d8c89a", 10);
+      } else if (p.power) {
         const key = world.solo ? "S/DOWN" : ["S", "DOWN", "G", "K"][i];
         const arrow = p.facing > 0 ? ">>" : "<<"; // follows the way you're facing
         const label = { laser: "LASER GUN", mushroom: "MUSHROOM", zap: "ZAP", hand: "HAND", wind: "WIND DASH", drone: "DRONE", firehawk: "FIREHAWK", snowball: "SNOWBALL", monkey: "MONKEY", portalgun: "PORTAL GUN", grapple: "GRAPPLE", roots: "ROOTS" }[p.power] || p.power.toUpperCase();
@@ -4944,7 +5016,7 @@ const Renderer = (() => {
       for (const [k, name] of effects) {
         const left = k === "green" ? p.poison : p.spores[k];
         const label = k === "magic" || k === "roots" || k === "aurora" || k === "ice" ? name : `${name} ${Math.ceil(left)}`;
-        text(ctx, label, ex, top + (p.power ? 52 : 36), k === "magic" ? "#e2a6ff" : k === "roots" ? "#a898b8" : k === "aurora" ? "#7af0d8" : k === "ice" ? "#a8e0ff" : SPORE_COLORS[k].spore, 10);
+        text(ctx, label, ex, top + (p.power || p.gun ? 52 : 36), k === "magic" ? "#e2a6ff" : k === "roots" ? "#a898b8" : k === "aurora" ? "#7af0d8" : k === "ice" ? "#a8e0ff" : SPORE_COLORS[k].spore, 10);
         ex += (label.length + 2) * 10;
       }
       if (p.flash > 0) {
