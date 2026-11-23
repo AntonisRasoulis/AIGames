@@ -1,7 +1,7 @@
 // The game's version, shown left of the logo. The first number goes up for big updates (a new biome, a new
 // secret world...), the second for smaller additions and fixes (back to 0 with each big update): 6.16 means
 // the 6th big update (the enchanted forest), 16 small ones since. (7: the arcane ruins.)
-const GAME_VERSION = "8.13";
+const GAME_VERSION = "8.14";
 
 // Tunable numbers for the game. Change these to adjust how it feels.
 // Distances are in game pixels; one tile is 8 pixels (about "1 meter").
@@ -644,6 +644,7 @@ const CAMP_HELI = {    // the other way back out of the camp: only the first one
   door: 0.5,           // seconds its two doors in the middle take to slide open (or shut)...
   near: 140,           // ...opening when someone in the camp comes this close (pixels; they board once they're open)
   wait: 5,             // you sit in its door; it waits this long for anyone else (from the last one in), then takes off
+                       // (v8.14: if nobody else is left in the camp or on the way in, it takes off at once)
   lift: 1.4,           // seconds it climbs away (its doors sliding shut first; then you're flown back to the main course)
   again: 3,            // if anyone's still in the camp, it comes back this long after leaving...
   land: 2,             // ...and lands again (seconds), doors shut, to wait for them: just ahead of the one furthest on

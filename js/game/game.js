@@ -1964,6 +1964,10 @@ const Game = (() => {
         Sound.play("grab");
         ph.wait = H.wait; // (it waits for anyone else, from the last one in)
       }
+      // (who it could still be waiting for: anyone else in this camp, even dead and about to come back, or on their way in on
+      // the rope. With nobody, it doesn't wait: off it goes)
+      const coming = world.players.some((p) => !p.caught && !ph.riders.includes(p) && ((p.realm === f && !p.flight && !p.jet && !p.cockpit) || (p.flight && p.flight.kind === "in" && p.flight.camp === f)));
+      if (ph.riders.length && !coming) ph.wait = 0;
       if (ph.riders.length && (ph.wait -= dt) <= 0) { ph.state = "lift"; ph.t = 0; ph.group = Math.random(); Sound.play("heliDoor"); for (const p of ph.riders) p.inCabin = true; } // (they step inside, and the doors slide shut)
     } else if (ph.state === "lift" && ph.t >= H.lift) { // up and away: everyone in it is flown back
       for (const p of ph.riders) p.flight = { kind: "heli", t: 0, from: p.x, group: ph.group };
