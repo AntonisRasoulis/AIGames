@@ -32,6 +32,16 @@ const TUNING = {
   speed: 1,          // your running speed x this (1 to 2, in steps of 0.2)
   jump: 1,           // your jump's height x this (1 to 2, in steps of 0.2)
   fire: 1,           // the fire's speed x this (0.5 to 1.5, in steps of 0.1)
+  easy: false,       // Easy mode (v8.12): set by Game.start
+};
+
+// Easy mode (v8.12, picked with the Mode button): none of the special dangers (missiles, bears, vultures, jaguars and panthers,
+// flytraps and the jungle's turrets, alive trees, Leave, Mushroom Lobbers, the ruins' mortar and storm engines); just the
+// course's own obstacles and biomes' ground. And a little more wiggle room. No best distance is saved.
+const EASY = {
+  fire: 0.88,        // the fire's speed x this
+  respawnDelay: 0.8, // seconds before you come back after a danger gets you (Normal 1)
+  noSections: ["flytrap", "turret", "lobber", "aliveTree", "storm"], // the special dangers' sections, never built
 };
 
 const FIRE = {

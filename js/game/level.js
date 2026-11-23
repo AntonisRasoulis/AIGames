@@ -74,6 +74,7 @@ class Level {
     this.rng = makeRng(seed);
     this.solo = options.solo === true; // 1 player: only orbs that help you on your own
     this.wild = options.wild === true; // Wild mode: dangers from the start, faster obstacles, more big traps
+    this.easy = options.easy === true; // Easy mode: none of the special dangers (see EASY)
     this.baseAt = this.wild ? 0 : THREATS.baseAt;       // where the dangers start (meters)
     this.specialAt = this.wild ? 0 : THREATS.specialAt; // ...and the worse ones
     this.pace = this.wild ? WILD.speedUp : 1;           // obstacles' timing (smaller = faster)
@@ -907,7 +908,7 @@ class Level {
       const lastChance = this.realmEnd / TILE - (RUINS.legLength[1] + 30); // (it, its stretch and the calm after it have to fit before the exit)
       if (this.optionalAt !== undefined && this.forcedAt === undefined && (this.col >= this.optionalAt || this.col >= lastChance)) { this.optionalAt = undefined; return SECTIONS.biomeGate.call(this, false); }
     }
-    if (this.biome === "ruins" && !this.leg) { // the lightning mortar: just one at a time (one per trip into the ruins; one per stretch of a race that's all ruins)
+    if (this.biome === "ruins" && !this.leg && !this.easy) { // the lightning mortar: just one at a time (one per trip into the ruins; one per stretch of a race that's all ruins)
       if (this.mortarAt === undefined) {
         if (this.realmEnd !== undefined) this.mortarAt = this.col + this.rand(4, Math.max(5, Math.floor(this.realmEnd / TILE - this.col - 40)));
         else if (this.col >= 60) { const len = this.rand(MORTAR.stretch[0], MORTAR.stretch[1]); this.mortarStretch = [this.col * TILE, (this.col + len) * TILE]; this.mortarAt = this.col + this.rand(10, len - 40); }
@@ -989,6 +990,7 @@ class Level {
       if (this.col <= 40) for (const k of ["bouncy", "lobber", "aliveTree"]) delete weights[k];
     }
 
+    if (this.easy) for (const k of EASY.noSections) delete weights[k]; // (Easy: none of the special dangers)
     let type = this.pickWeighted(weights);
     // Snow: make sure this biome gets its thin ice before it ends
     if (this.biome === "snow" && this.col > 60) {
@@ -1034,7 +1036,7 @@ class Level {
     }
     for (let c = Math.max(this.scatterFrom, 61); c < until; c++) {
       if (this.colBiome[c] === "jungle") {
-        if (this.rng() < SCATTER.flytrap) this.tryFlytrap(c);
+        if (this.rng() < SCATTER.flytrap && !this.easy) this.tryFlytrap(c); // (Easy: none)
         if (c - this.lastPalm >= COCONUT.every[0] && this.rng() < 3 / (COCONUT.every[1] - COCONUT.every[0])) this.tryPalm(c);
         continue;
       }
@@ -1360,6 +1362,7 @@ class Level {
     // ...and the military camp's helicopter (one per race too)
     if (this.realmEnd === undefined && !SECRET_BIOMES.includes(this.biome) && this.campOn && !this.heliPlaced) this.heliAt = this.col + this.rand(30, Math.max(31, length - 60));
     // Leave, the forest's walking tree: near the start of 1 in 3 forest stretches on the main course (from 400 m)
+    if (this.easy) return; // (Easy: no Leave, missiles, jaguars or bears)
     if (this.biome === "forest" && this.realmEnd === undefined && !this.leg && this.rng() < LEAVE.chance) {
       const sign = this.signs[this.signs.length - 1], end = this.col + length;
       const from = Math.max(sign && sign.x >= (this.col - 9) * TILE ? Math.floor(sign.x / TILE) + LEAVE.startIn : this.col, this.baseAt);

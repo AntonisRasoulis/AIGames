@@ -47,7 +47,8 @@ if (!biomeList.length && !secretList.length) biomeList = BIOMES.slice();
 let secretRegular = false;
 try { secretRegular = localStorage.getItem("fire-run-secret-regular") === "1"; } catch (e) { /* storage blocked */ }
 let wild = false; // Wild mode (the hard one): off until you pick it (remembered by the browser)
-try { wild = localStorage.getItem("fire-run-mode") === "wild"; } catch (e) { /* storage blocked */ }
+let easy = false; // ...or Easy (v8.12): no special dangers, a slower fire, no best saved
+try { const m = localStorage.getItem("fire-run-mode"); wild = m === "wild"; easy = m === "easy"; } catch (e) { /* storage blocked */ }
 // The presets (v8.9): each sets the biomes (and puts the multipliers back to 1x). Standard: every biome, the secret ones found in
 // special ways. Basic: the main biomes only. Full: every biome, the secret ones coming up like any other.
 const PRESETS = {
@@ -86,14 +87,14 @@ const gameCallbacks = {
       // 1 player: how far did you get? (the best for what the race was started with: its preset and mode; not if a
       // multiplier was changed)
       const r = race || { key: bestKey(), preset: currentPreset(), tuned: false, wild };
-      const before = readBest(r.key), record = !r.tuned && winner.meters > before;
+      const before = readBest(r.key), record = !r.tuned && !r.easy && winner.meters > before;
       if (record) { try { localStorage.setItem(r.key, String(winner.meters)); } catch (e) { /* storage blocked */ } }
       loadBest();
       showPresets();
       message.textContent = record ? `New record: ${winner.meters} m!` : `You reached ${winner.meters} m`;
       message.className = "game-message red";
       const label = [r.preset ? PRESETS[r.preset].name : "Custom", r.wild ? "Wild" : ""].filter(Boolean).join(", ");
-      scoreLine.textContent = `Best (${label}): ${Math.max(before, record ? winner.meters : 0)} m` + (r.tuned ? " · multipliers changed: not saved" : "");
+      scoreLine.textContent = r.easy ? "Easy mode: no best saved" : `Best (${label}): ${Math.max(before, record ? winner.meters : 0)} m` + (r.tuned ? " · multipliers changed: not saved" : "");
       scoreLine.hidden = false;
       showOverlay();
       return;
@@ -162,8 +163,8 @@ function startGame(players) {
   if (players >= 3 && document.fullscreenEnabled && !document.fullscreenElement) gameWrapper.requestFullscreen().catch(() => {});
   canvas.scrollIntoView({ behavior: "smooth", block: "center" });
   const tuning = readTuning();
-  race = { key: bestKey(), preset: currentPreset(), wild, tuned: Object.values(tuning).some((v) => Math.abs(v - 1) > 1e-6) };
-  Game.start(players, { biomes, biomeList, secretList, secretRegular, wild, tuning });
+  race = { key: bestKey(), preset: currentPreset(), wild, easy, tuned: Object.values(tuning).some((v) => Math.abs(v - 1) > 1e-6) };
+  Game.start(players, { biomes, biomeList, secretList, secretRegular, wild, easy, tuning });
 }
 
 startButton.addEventListener("click", () => startGame(playerCount));
@@ -311,13 +312,16 @@ showBiomes();
 
 const modeButton = document.getElementById("mode-button");
 function showMode() {
-  modeButton.textContent = `Mode: ${wild ? "Wild" : "Normal"}`;
-  modeButton.setAttribute("aria-pressed", String(wild));
+  modeButton.textContent = `Mode: ${easy ? "Easy" : wild ? "Wild" : "Normal"}`;
+  modeButton.setAttribute("aria-pressed", String(wild || easy));
   modeButton.classList.toggle("wild", wild);
+  modeButton.classList.toggle("easy", easy);
 }
-modeButton.addEventListener("click", () => {
-  wild = !wild;
-  try { localStorage.setItem("fire-run-mode", wild ? "wild" : "normal"); } catch (e) { /* storage blocked */ }
+modeButton.addEventListener("click", () => { // Normal, then Wild, then Easy, then back to Normal
+  if (easy) easy = false;
+  else if (wild) { wild = false; easy = true; }
+  else wild = true;
+  try { localStorage.setItem("fire-run-mode", easy ? "easy" : wild ? "wild" : "normal"); } catch (e) { /* storage blocked */ }
   loadBest();
   showMode();
 });

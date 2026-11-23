@@ -31,12 +31,13 @@ const Game = (() => {
   let count = 2;        // how many runners (1-4; v7.61: 3 and 4 on one keyboard too)
   let biomeList = ["prairie"]; // the biomes this race goes through (biomes off: just the prairie)
   let wild = false;     // Wild mode: the hard one
+  let easy = false;     // Easy mode: no special dangers, a slower fire
   let sleepShrooms = true; // are there sleep mushrooms (the way into the enchanted forest) on the main course?
   let ruinsOn = true;      // ...and a portal to the arcane ruins?
   let campOn = true;       // ...and the military camp's helicopter?
 
   function newWorld(startBiome = "prairie") {
-    const level = new Level(Math.floor(Math.random() * 1e9), startBiome, { solo, biomes: biomeList.length > 1, biomeList, wild, sleepShrooms, ruins: ruinsOn, camp: campOn });
+    const level = new Level(Math.floor(Math.random() * 1e9), startBiome, { solo, biomes: biomeList.length > 1, biomeList, wild, easy, sleepShrooms, ruins: ruinsOn, camp: campOn });
     level.ensure(VIEW_W * 2);
     const startX = 4 * TILE;
     const startY = level.groundRow * TILE - HITBOX_H;
@@ -91,6 +92,7 @@ const Game = (() => {
       drones: [],   // rescue drones: guarding a player, or flying to grab the leader
       nextVulture: null, // the leader's distance (meters) when the next group comes
       wild,              // Wild mode (the hard one)
+      easy,              // Easy mode (no special dangers)
       nextWildMissile: null, // Wild: when (world time) the next missile comes in the prairie
       nextWildVulture: null, // Wild: when the next group of vultures comes in the desert
       nextWildBear: null,    // Wild: when the next bear charges in, in the snow
@@ -161,7 +163,7 @@ const Game = (() => {
 
     world.time += dt;
     const { fire, level, players } = world;
-    fire.speed = (FIRE.startSpeed + FIRE.speedGain * world.time) * TUNING.fire; // (the start screen's fire multiplier)
+    fire.speed = (FIRE.startSpeed + FIRE.speedGain * world.time) * TUNING.fire * (world.easy ? EASY.fire : 1); // (the start screen's fire multiplier; Easy: a little slower)
     if (!(world.rootWall && world.rootWall.t < ROOTS.wallTime)) fire.x += fire.speed * dt; // (alone: the roots can hold it back)
 
     level.ensure(Math.max(...players.map((p) => p.x)) + VIEW_W * 2);
@@ -1631,9 +1633,9 @@ const Game = (() => {
   function makeForest(g, arrive) {
     const c0 = Math.floor(g.x / TILE) + 20;
     const len = Math.round(SLEEP_SHROOM.forest[0] + Math.random() * (SLEEP_SHROOM.forest[1] - SLEEP_SHROOM.forest[0]));
-    const f = new Level(Math.floor(Math.random() * 1e9), "forest", { solo: world.solo, biomes: false, wild: world.wild, realmEnd: (c0 + len) * TILE });
+    const f = new Level(Math.floor(Math.random() * 1e9), "forest", { solo: world.solo, biomes: false, wild: world.wild, easy: world.easy, realmEnd: (c0 + len) * TILE });
     f.flat(Math.max(1, c0 - f.col), false);
-    if (Math.random() < LEAVE.dreamChance) f.addLeave(arrive - LEAVE.wakeBehind, f.realmEnd); // (1 in 5: Leave, the walking tree, just behind where you wake)
+    if (!world.easy && Math.random() < LEAVE.dreamChance) f.addLeave(arrive - LEAVE.wakeBehind, f.realmEnd); // (1 in 5: Leave, the walking tree, just behind where you wake)
     f.update(world.time);
     return f;
   }
@@ -1793,7 +1795,7 @@ const Game = (() => {
   function makeCamp(arriveX) {
     const c0 = Math.floor(arriveX / TILE) - 2;
     const len = Math.round(CAMP.length[0] + Math.random() * (CAMP.length[1] - CAMP.length[0]));
-    const f = new Level(Math.floor(Math.random() * 1e9), "camp", { solo: world.solo, biomes: false, wild: world.wild, realmEnd: (c0 + CAMP.arrive + len) * TILE });
+    const f = new Level(Math.floor(Math.random() * 1e9), "camp", { solo: world.solo, biomes: false, wild: world.wild, easy: world.easy, realmEnd: (c0 + CAMP.arrive + len) * TILE });
     f.flat(Math.max(1, c0 - f.col), false);
     f.flat(CAMP.arrive, false);
     f.update(world.time);
@@ -2044,7 +2046,7 @@ const Game = (() => {
   // arrive, then RUINS.length tiles to the exit portal
   function makeRuins(g) {
     const c0 = Math.floor(g.x / TILE) + 2 + Math.max(0, Math.round((travelGain(RUINS.pullTime + RUINS.buildTime + RUINS.outTime) - 8 * TILE) / TILE)); // (you arrive as far on as you'd have run while the portal took you: it used to be just 8 tiles on)
-    const f = new Level(Math.floor(Math.random() * 1e9), "ruins", { solo: world.solo, biomes: false, wild: world.wild, realmEnd: (c0 + RUINS.arrive + RUINS.length) * TILE });
+    const f = new Level(Math.floor(Math.random() * 1e9), "ruins", { solo: world.solo, biomes: false, wild: world.wild, easy: world.easy, realmEnd: (c0 + RUINS.arrive + RUINS.length) * TILE });
     f.flat(Math.max(1, c0 - f.col), false);
     f.flat(RUINS.arrive, false);
     f.gate = g;
@@ -2073,7 +2075,7 @@ const Game = (() => {
       // the ruins left for it, wherever that ended up)
       if (!g.forced) f.ensure(g.landCol * TILE + 40 * TILE);
       const c0 = Math.floor(g.x / TILE), endCol = g.forced || g.calmX === undefined ? c0 + 3 + g.L : Math.round(g.calmX / TILE) + 1;
-      const leg = new Level(Math.floor(Math.random() * 1e9), g.biome, { solo: world.solo, biomes: false, wild: world.wild || RUINS.legWild, leg: true, realmEnd: endCol * TILE });
+      const leg = new Level(Math.floor(Math.random() * 1e9), g.biome, { solo: world.solo, biomes: false, wild: !world.easy && (world.wild || RUINS.legWild), easy: world.easy, leg: true, realmEnd: endCol * TILE });
       leg.flat(Math.max(1, c0 - leg.col), false);
       leg.flat(3, false);
       leg.parent = f; leg.gate = f.gate; leg.biomeGate = g; leg.startX = f.startX;
@@ -4024,7 +4026,7 @@ const Game = (() => {
           world.nextWildVulture = null;
           spawnVultures(leader);
         }
-      } else if (level.biomeAt(Math.floor(meters)) === "desert" && meters >= level.baseAt) {
+      } else if (level.biomeAt(Math.floor(meters)) === "desert" && meters >= level.baseAt && !world.easy) { // (Easy: no vultures)
         if (world.nextVulture === null) world.nextVulture = meters + rand(20, VULTURE.every[1]);
         if (meters >= world.nextVulture) {
           spawnVultures(leader);
@@ -4242,7 +4244,9 @@ const Game = (() => {
         ruinsOn = false;
         campOn = false;
       }
-      wild = options.wild === true;
+      wild = options.wild === true && options.easy !== true;
+      easy = options.easy === true;
+      TUNING.easy = easy;
       const tune = options.tuning || {};
       TUNING.speed = tune.speed || 1; TUNING.jump = tune.jump || 1; TUNING.fire = tune.fire || 1;
       const L = Renderer.layout(count); // (3 and 4 players: a grid of full-size views, twice as wide)

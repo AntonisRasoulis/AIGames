@@ -720,3 +720,9 @@ kbd {
   color: #ff4d3d;
   font-weight: 700;
 }
+
+/* Easy mode on the Mode button (v8.12): a calm green */
+#mode-button.easy {
+  border-color: #5ac86a;
+  color: #8ae89a;
+}

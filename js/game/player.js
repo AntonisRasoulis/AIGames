@@ -1214,7 +1214,7 @@ class Player {
     this.windTime = 0;
     this.inQuick = false;
     this.dead = true;
-    this.deadTimer = DEATH.respawnDelay;
+    this.deadTimer = TUNING.easy ? EASY.respawnDelay : DEATH.respawnDelay;
     this.burst();
     Sound.play("die");
 

@@ -18,7 +18,7 @@ costs ground to the fire. 1 Player: one big view, race the fire for distance (be
 - Repo: `AntonisRasoulis/VibeCodingPractice`. Development branch: `claude/nice-meitner-muga6l`
   (a fresh chat may be given a different branch: use the one you're told).
 - Published as a claude.ai Artifact (a single bundled HTML file):
-  **https://claude.ai/artifact/Uh5CKSPymdWERadhojnY7P** (Version 183 at the time of writing). Always
+  **https://claude.ai/artifact/Uh5CKSPymdWERadhojnY7P** (Version 184 at the time of writing). Always
   republish to this same URL (pass it as `url`); never create a new artifact for the game.
 
 ## Style
@@ -64,7 +64,7 @@ Scripts load in this order (all globals, no modules), each with a `?v=` cache-bu
   2-player game at heart: always keep 2 players working exactly as before.
 - **main.js:** the page around the game: Start buttons, Biomes on/off and the biome picker (regular biomes, and a
   "Secret biomes" row: the forest and the ruins; all regular ones off = a race in the secret ones as plain biomes, no timer or exit (v7.5); forest off = no sleep mushrooms, ruins off = no portal, with Biomes on or off since v7.60), Mode
-  (Normal / Wild), the **multipliers** (v7.49, `TUNING`: Speed and Jump 1-2x, Fire wall 0.5-1.5x, sliders in the start
+  (Normal / Wild / Easy: v8.12 Easy, `EASY`, no special dangers, fire 0.88x, 0.8 s respawn, no best saved), the **multipliers** (v7.49, `TUNING`: Speed and Jump 1-2x, Fire wall 0.5-1.5x, sliders in the start
   screen's top right, behind a Multipliers button since v7.50, with a mark under each step), biomes **still being made are locked** (v8.10: `DEV_BIOMES` = camp; password "shaw", the owner's, kept as a hash in `DEV_LOCK`; off every time the page opens, unlocked for the visit; presets include them only once unlocked; take a biome out of `DEV_BIOMES` when it's finished), the **Presets** (v8.9: `PRESETS` Standard / Basic / Full set the biomes and reset the multipliers; 1-player bests per preset and mode, `fire-run-best-<preset>[-wild]`, Custom keeps the old key; a race with a multiplier changed saves no best), the **Secret biomes: special / regular** switch (v7.47: a squared-off sliding toggle, gold since v7.48, knob left = special, right = regular; v7.46, `secretRegular`: regular puts the secret biomes left on into
   the rotation like any biome, no sleep mushroom or portal), Sound, Pause, win counters, best distance (all remembered in `localStorage`).
 
