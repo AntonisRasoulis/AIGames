@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap">
-  <link rel="stylesheet" href="css/style.css?v=202611230200">
+  <link rel="stylesheet" href="css/style.css?v=202611230300">
 </head>
 <body>
   <header class="site-header">
@@ -40,6 +40,16 @@
             <button class="count-choice green" data-count="3" aria-pressed="false">3</button>
             <button class="count-choice yellow" data-count="4" aria-pressed="false">4</button>
           </div>
+          <div class="corner-menus">
+          <div class="presets">
+            <button id="preset-button" class="button secondary small tune-button" aria-expanded="false" aria-controls="preset-panel">Presets <span class="tune-arrow" aria-hidden="true"></span></button>
+            <div id="preset-panel" class="preset-panel" role="group" aria-label="Presets" hidden>
+              <button class="preset-choice" data-preset="standard" aria-pressed="false"><strong>Standard</strong><span>Every biome on, the secret biomes found in special ways</span><em class="preset-best"></em></button>
+              <button class="preset-choice" data-preset="basic" aria-pressed="false"><strong>Basic</strong><span>The main biomes only, no secret biomes</span><em class="preset-best"></em></button>
+              <button class="preset-choice" data-preset="full" aria-pressed="false"><strong>Full</strong><span>Every biome on, the secret biomes come up like any other</span><em class="preset-best"></em></button>
+              <p class="preset-note">A preset sets the biomes and puts the multipliers back to 1x. Each preset keeps its own 1-player best (Normal and Wild); a race with a multiplier changed doesn't save a best.</p>
+            </div>
+          </div>
           <div class="tuning">
             <button id="tune-button" class="button secondary small tune-button" aria-expanded="false" aria-controls="tune-panel">Multipliers <span class="tune-arrow" aria-hidden="true"></span></button>
             <div id="tune-panel" class="tune-panel" role="group" aria-label="Multipliers" hidden>
@@ -47,6 +57,7 @@
               <label><span>Jump</span><span class="tune-track"><input id="tune-jump" type="range" min="1" max="2" step="0.2" value="1"><span class="ticks" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></span><output id="tune-jump-out">1x</output></label>
               <label><span>Fire wall</span><span class="tune-track"><input id="tune-fire" type="range" min="0.5" max="1.5" step="0.1" value="1"><span class="ticks" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span></span><output id="tune-fire-out">1x</output></label>
             </div>
+          </div>
           </div>
           <p id="game-message" class="game-message">Outrun the fire!</p>
           <p id="score-line" class="score-line" hidden></p>
@@ -115,6 +126,7 @@
       </div>
       <p>Both runners race through the exact same course. Keep running right — a wall of fire is chasing each of you, and it gets faster and faster. <strong>If the fire catches you, the other player wins.</strong></p>
       <ul class="things">
+        <li><strong>Presets</strong> — click <strong>Presets</strong> in the top right of the start screen and pick one: <strong>Standard</strong> (every biome, with the secret biomes found in their special ways), <strong>Basic</strong> (just the main biomes, no secret ones) or <strong>Full</strong> (every biome, the secret ones coming up like any other). It turns Biomes on, sets which ones, and puts the multipliers back to 1x. Playing alone, each preset keeps its own best distance, in Normal and in Wild; your own mix of settings keeps one too ("Custom"). Race with a multiplier changed and your best isn't saved.</li>
         <li><strong>Multipliers</strong> — click <strong>Multipliers</strong> in the top right of the start screen to open them: <strong>Speed</strong> and <strong>Jump</strong> (1x to 2x, in steps of 0.2) make you run faster and jump higher, and <strong>Fire wall</strong> (0.5x to 1.5x, in steps of 0.1, starting at 1x) makes the fire slower or faster. They're remembered for next time.</li>
         <li><strong>Biomes</strong> — off at first, so the whole race stays in the prairie while you learn the game. Turn them on with the <strong>Biomes</strong> button under the start buttons, then use the little <strong>arrow</strong> next to it to choose which biomes you get (pick just one and the whole race is in it). Under them are the <strong>secret biomes</strong>, the ones you reach in special ways: the <strong>enchanted forest</strong> (turn it off and there are no sleep mushrooms, ) and the <strong>arcane ruins</strong> (turn it off and there's no portal to them). Turn every regular biome off and the whole race is in the secret biomes you've left on, just like any other biome: no timer and no exit to reach, they simply go on (the ruins still have their biome portals now and then). Or flip the switch under them from <strong>special</strong> to <strong>regular</strong>: then the secret biomes you've left on come up in the race like any other biome, at a sign, mixed in with the regular ones, and there's no sleep mushroom or portal to find. Then the course changes as you run: about every 350 m a wooden sign marks a new biome. The first race starts in the green prairie; after that a race can start anywhere.</li>
         <li><strong>Wild mode</strong> — the hard mode. Pick it with the <strong>Mode</strong> button (it switches between <strong>Normal</strong> and <strong>Wild</strong>). In Wild there's no calm start: every danger comes right away, not just after 400 m. In the prairie a <strong>missile</strong> comes for the leader as soon as the last one is gone. In the desert <strong>vultures</strong> never stop: when one group is done, the next one comes. In the taiga a <strong>bear</strong> is always chasing: escape one and the next charges straight in. In the jungle a <strong>jaguar</strong> or <strong>panther</strong> is always hunting you, flytraps snap quicker, and ancient turrets fire 3 arrows with less warning (tap jump for short hops to dodge them all). Saws, maces and spike shooters are a bit faster, big deadly traps and sinkholes are more common, and <strong>quicksand</strong> pulls you under in under 2 seconds, so you have to really mash jump to get out. Playing alone, your best Wild distance is kept separately.</li>
@@ -173,13 +185,13 @@
     <p>&copy; <span id="year"></span> Fire Run</p>
   </footer>
 
-  <script src="js/game/config.js?v=202611230200"></script>
-  <script src="js/game/sound.js?v=202611230200"></script>
-  <script src="js/game/level.js?v=202611230200"></script>
-  <script src="js/game/player.js?v=202611230200"></script>
-  <script src="js/game/sprites.js?v=202611230200"></script>
-  <script src="js/game/render.js?v=202611230200"></script>
-  <script src="js/game/game.js?v=202611230200"></script>
-  <script src="js/main.js?v=202611230200"></script>
+  <script src="js/game/config.js?v=202611230300"></script>
+  <script src="js/game/sound.js?v=202611230300"></script>
+  <script src="js/game/level.js?v=202611230300"></script>
+  <script src="js/game/player.js?v=202611230300"></script>
+  <script src="js/game/sprites.js?v=202611230300"></script>
+  <script src="js/game/render.js?v=202611230300"></script>
+  <script src="js/game/game.js?v=202611230300"></script>
+  <script src="js/main.js?v=202611230300"></script>
 </body>
 </html>

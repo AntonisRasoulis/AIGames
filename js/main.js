@@ -43,14 +43,32 @@ let secretRegular = false;
 try { secretRegular = localStorage.getItem("fire-run-secret-regular") === "1"; } catch (e) { /* storage blocked */ }
 let wild = false; // Wild mode (the hard one): off until you pick it (remembered by the browser)
 try { wild = localStorage.getItem("fire-run-mode") === "wild"; } catch (e) { /* storage blocked */ }
-// best distance in 1-player mode, one for each mode (remembered by the browser)
-const bestKey = () => (wild ? "fire-run-best-wild" : "fire-run-best");
-let best = 0;
-function loadBest() {
-  best = 0;
-  try { best = Number(localStorage.getItem(bestKey())) || 0; } catch (e) { /* storage blocked */ }
+// The presets (v8.9): each sets the biomes (and puts the multipliers back to 1x). Standard: every biome, the secret ones found in
+// special ways. Basic: the main biomes only. Full: every biome, the secret ones coming up like any other.
+const PRESETS = {
+  standard: { name: "Standard", biomeList: BIOMES, secretList: SECRET_BIOMES, secretRegular: false },
+  basic: { name: "Basic", biomeList: BIOMES, secretList: [], secretRegular: false },
+  full: { name: "Full", biomeList: BIOMES, secretList: SECRET_BIOMES, secretRegular: true },
+};
+const sameSet = (a, b) => a.length === b.length && a.every((x) => b.includes(x));
+// which preset today's settings are (null: your own mix, "Custom")
+function currentPreset() {
+  if (!biomes) return null;
+  for (const [id, pr] of Object.entries(PRESETS)) {
+    if (!sameSet(biomeList, pr.biomeList) || !sameSet(secretList, pr.secretList)) continue;
+    if (pr.secretList.length && secretRegular !== pr.secretRegular) continue;
+    return id;
+  }
+  return null;
 }
+// best distance in 1-player mode: one for each preset, and for your own mix, in each mode (remembered by the browser; your own
+// mix keeps the best from before there were presets). A race with a multiplier changed doesn't count.
+const bestKey = (preset = currentPreset(), w = wild) => (preset ? `fire-run-best-${preset}` : "fire-run-best") + (w ? "-wild" : "");
+const readBest = (key) => { try { return Number(localStorage.getItem(key)) || 0; } catch (e) { return 0; } };
+let best = 0;
+function loadBest() { best = readBest(bestKey()); }
 loadBest();
+let race = null; // (what the race was started with: { key, preset, tuned })
 
 document.getElementById("year").textContent = new Date().getFullYear();
 document.getElementById("game-version").textContent = "v" + GAME_VERSION; // (set in config.js)
@@ -58,15 +76,17 @@ document.getElementById("game-version").textContent = "v" + GAME_VERSION; // (se
 const gameCallbacks = {
   onGameOver(winner) {
     if (winner && winner.solo) {
-      // 1 player: how far did you get?
-      const record = winner.meters > best;
-      if (record) {
-        best = winner.meters;
-        try { localStorage.setItem(bestKey(), String(best)); } catch (e) { /* storage blocked */ }
-      }
+      // 1 player: how far did you get? (the best for what the race was started with: its preset and mode; not if a
+      // multiplier was changed)
+      const r = race || { key: bestKey(), preset: currentPreset(), tuned: false, wild };
+      const before = readBest(r.key), record = !r.tuned && winner.meters > before;
+      if (record) { try { localStorage.setItem(r.key, String(winner.meters)); } catch (e) { /* storage blocked */ } }
+      loadBest();
+      showPresets();
       message.textContent = record ? `New record: ${winner.meters} m!` : `You reached ${winner.meters} m`;
       message.className = "game-message red";
-      scoreLine.textContent = `Best${wild ? " (Wild)" : ""}: ${best} m`;
+      const label = [r.preset ? PRESETS[r.preset].name : "Custom", r.wild ? "Wild" : ""].filter(Boolean).join(", ");
+      scoreLine.textContent = `Best (${label}): ${Math.max(before, record ? winner.meters : 0)} m` + (r.tuned ? " · multipliers changed: not saved" : "");
       scoreLine.hidden = false;
       showOverlay();
       return;
@@ -134,7 +154,9 @@ function startGame(players) {
   gameWrapper.classList.toggle("grid", players >= 3);
   if (players >= 3 && document.fullscreenEnabled && !document.fullscreenElement) gameWrapper.requestFullscreen().catch(() => {});
   canvas.scrollIntoView({ behavior: "smooth", block: "center" });
-  Game.start(players, { biomes, biomeList, secretList, secretRegular, wild, tuning: readTuning() });
+  const tuning = readTuning();
+  race = { key: bestKey(), preset: currentPreset(), wild, tuned: Object.values(tuning).some((v) => Math.abs(v - 1) > 1e-6) };
+  Game.start(players, { biomes, biomeList, secretList, secretRegular, wild, tuning });
 }
 
 startButton.addEventListener("click", () => startGame(playerCount));
@@ -147,7 +169,16 @@ for (const k of TUNE_IDS) {
   try { const saved = localStorage.getItem("fire-run-tune-" + k); if (saved) input.value = saved; } catch (e) { /* storage blocked */ }
   const show = () => { out.textContent = Number(input.value).toFixed(1).replace(/\.0$/, "") + "x"; };
   input.addEventListener("input", () => { show(); try { localStorage.setItem("fire-run-tune-" + k, input.value); } catch (e) { /* storage blocked */ } });
+  input.showValue = show;
   show();
+}
+function resetTuning() {
+  for (const k of TUNE_IDS) {
+    const input = document.getElementById("tune-" + k);
+    input.value = "1";
+    input.showValue();
+    try { localStorage.setItem("fire-run-tune-" + k, "1"); } catch (e) { /* storage blocked */ }
+  }
 }
 
 // ...behind a button, like the biome picker: click it to open them (anywhere else, or Escape, closes them)
@@ -156,6 +187,41 @@ function openTune(open) { tunePanel.hidden = !open; tuneButton.setAttribute("ari
 tuneButton.addEventListener("click", () => openTune(tunePanel.hidden));
 document.addEventListener("click", (e) => { if (!tunePanel.hidden && !e.target.closest(".tuning")) openTune(false); });
 document.addEventListener("keydown", (e) => { if (e.code === "Escape") openTune(false); });
+
+// The presets: a button beside the multipliers, opening the three (the one matching today's settings lit up, each with its
+// best distances). Picking one sets the biomes, Biomes on, and the multipliers back to 1x (the mode stays as it is)
+const presetButton = document.getElementById("preset-button"), presetPanel = document.getElementById("preset-panel");
+function openPresets(open) { presetPanel.hidden = !open; presetButton.setAttribute("aria-expanded", String(open)); }
+function showPresets() {
+  const now = currentPreset();
+  presetButton.firstChild.textContent = `Presets: ${now ? PRESETS[now].name : "Custom"} `;
+  for (const b of presetPanel.querySelectorAll(".preset-choice")) {
+    const id = b.dataset.preset;
+    b.setAttribute("aria-pressed", String(id === now));
+    b.querySelector(".preset-best").textContent = `Best: ${readBest(bestKey(id, false))} m · Wild: ${readBest(bestKey(id, true))} m`;
+  }
+}
+function applyPreset(id) {
+  const pr = PRESETS[id];
+  biomes = true;
+  biomeList = pr.biomeList.slice();
+  secretList = pr.secretList.slice();
+  secretRegular = pr.secretRegular;
+  try {
+    localStorage.setItem("fire-run-biomes", "1");
+    localStorage.setItem("fire-run-biome-list", JSON.stringify(biomeList));
+    localStorage.setItem("fire-run-secret-list", JSON.stringify(secretList));
+    localStorage.setItem("fire-run-secret-regular", secretRegular ? "1" : "0");
+  } catch (e) { /* storage blocked */ }
+  resetTuning();
+  showBiomes();
+  loadBest();
+  scoreLine.hidden = true; // (the last race's best was for other settings)
+}
+presetButton.addEventListener("click", () => openPresets(presetPanel.hidden));
+presetPanel.addEventListener("click", (e) => { const b = e.target.closest(".preset-choice"); if (b) { applyPreset(b.dataset.preset); b.blur(); } });
+document.addEventListener("click", (e) => { if (!presetPanel.hidden && !e.target.closest(".presets")) openPresets(false); });
+document.addEventListener("keydown", (e) => { if (e.code === "Escape") openPresets(false); });
 
 const biomesButton = document.getElementById("biomes-button");
 const biomeArrow = document.getElementById("biome-arrow");
@@ -179,6 +245,7 @@ function showBiomes() {
   }
   secretModeButton.querySelector(".secret-mode-label").textContent = secretRegular ? "REGULAR" : "SPECIAL";
   secretModeButton.setAttribute("aria-pressed", String(secretRegular));
+  if (typeof showPresets === "function") { showPresets(); loadBest(); } // (which preset this is now, and its best)
 }
 function openBiomePanel(open) {
   biomePanel.hidden = !open;

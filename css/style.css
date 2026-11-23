@@ -156,12 +156,83 @@ section {
   border-radius: var(--radius);
 }
 
-/* the multipliers, in the start screen's top right corner: a button that opens them, like the biome picker */
-.tuning {
+/* the presets and the multipliers, side by side in the start screen's top right corner: each a button that opens it, like
+   the biome picker */
+.corner-menus {
   position: absolute;
   top: 0.6rem;
   right: 0.8rem;
   z-index: 4;
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.presets {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.preset-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  width: 17rem;
+  padding: 0.5rem;
+  background: var(--surface);
+  border: 1px solid var(--muted);
+  border-radius: var(--radius);
+}
+
+.preset-panel[hidden] {
+  display: none;
+}
+
+.preset-choice {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 0.4rem 0.55rem;
+  text-align: left;
+  font: inherit;
+  font-size: 0.72rem;
+  color: inherit;
+  background: transparent;
+  border: 1px solid var(--muted);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.preset-choice strong {
+  font-size: 0.85rem;
+  color: #ffd23f;
+}
+
+.preset-choice em {
+  font-style: normal;
+  color: var(--muted);
+}
+
+.preset-choice:hover {
+  border-color: #ffd23f;
+}
+
+.preset-choice[aria-pressed="true"] {
+  border-color: #ffd23f;
+  background: rgba(255, 210, 63, 0.12);
+}
+
+.preset-note {
+  margin: 0.1rem 0 0;
+  font-size: 0.65rem;
+  color: var(--muted);
+  text-align: left;
+}
+
+.tuning {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
