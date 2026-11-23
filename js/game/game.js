@@ -2210,7 +2210,9 @@ const Game = (() => {
           let x1 = miss(p.x), T = M.rise + M.fall;
           for (let i = 0; i < 8; i++) { x1 = miss(p.x + vx * T); T = Math.max(M.rise, Math.abs(x1 - x0) / M.glide) + M.fall; }
           const g = level.groundTop(x1), y1 = (g !== null ? g : m.gy + 24) - 6;
-          world.mortarBombs.push({ level, x0, y0, x1, y1, T, top: M.top, age: 0, seed: Math.floor(Math.random() * 1000), face: Math.sign(x1 - x0) || m.face });
+          // (v8.7: never at a sliding slab's pit: a ride across it is never bombed, nor is waiting at its edge for the slab)
+          const atSlab = (x) => level.platforms.some((q) => q.kind === "move" && q.elec && x > q.x0 - M.slabClear && x < q.x1 + q.w + M.slabClear);
+          if (!atSlab(p.x + HITBOX_W / 2) && !atSlab(x1)) world.mortarBombs.push({ level, x0, y0, x1, y1, T, top: M.top, age: 0, seed: Math.floor(Math.random() * 1000), face: Math.sign(x1 - x0) || m.face });
           m.firedAt = level.time;
           Sound.play("mortarFire");
         }

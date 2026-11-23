@@ -1466,7 +1466,7 @@ const SECTIONS = {
     this.addPlatform("move", start, this.groundRow, w, {
       x0: start * TILE,
       x1: (start + gap - w) * TILE,
-      period: 3.2 - d,
+      period: this.biome === "ruins" ? ELEC.movePeriod : 3.2 - d, // (the ruins': quick, so a ride across is short)
       phase: this.rng(),
     });
     this.flat(3, false); // a landing you can stop on

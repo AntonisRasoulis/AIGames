@@ -1,7 +1,7 @@
 // The game's version, shown left of the logo. The first number goes up for big updates (a new biome, a new
 // secret world...), the second for smaller additions and fixes (back to 0 with each big update): 6.16 means
 // the 6th big update (the enchanted forest), 16 small ones since. (7: the arcane ruins.)
-const GAME_VERSION = "8.6";
+const GAME_VERSION = "8.7";
 
 // Tunable numbers for the game. Change these to adjust how it feels.
 // Distances are in game pixels; one tile is 8 pixels (about "1 meter").
@@ -634,6 +634,8 @@ const ELEC = {
   period: 1.5,         // seconds each slab is live, then safe (they swap every 1.5 s)
   warn: 0.4,           // the last this many seconds before a swap: the posts of a safe slab light up, a live one's arc flickers
   // The sliding slab keeps its own time, with its slide (one there-and-back is its period, 2.2-3.2 s):
+  movePeriod: 1.6,     // the ruins' sliding slabs are quick (v8.7): there and back in this many seconds (elsewhere 2.2-3.2), so a ride
+                       // across takes 0.8 s, before it goes live or the mortar's bomb comes down
   moveLead: 0.15,      // it turns safe this much of a period before it reaches your side of the pit...
   moveSafe: 0.5,       // ...and stays safe this much of a period: all the way across; it goes live as it starts back (hop off)
 };
@@ -660,7 +662,7 @@ const RUINS = {
   stoneEvery: 0.7,     // last 4 s: a stone falls near each runner about this often (seconds)
   stoneWarn: 0.6,      // ...its shadow grows on the ground this long first
   stoneFall: 0.35,     // ...then it drops this fast (seconds from the top to the ground)
-  mix: { flat: 1, step: 3, spikes: 7, gap: 4, floating: 3, moving: 2, falling: 2, laserSword: 3, shooter: 5, gearLaser: 5, storm: 3, laserGate: 7, runeTile: 4 }, // the ruins' sections (spikes are its fire turrets, shooters its laser eye-stones, saws its laser gates: v7.51; maces its laser swords: v7.52)
+  mix: { flat: 1, step: 3, spikes: 7, gap: 4, moving: 7, laserSword: 3, shooter: 5, gearLaser: 5, storm: 3, laserGate: 7, runeTile: 4 }, // the ruins' sections (v8.7: its only platforms are the sliding slabs, owner's ask; spikes are its fire turrets, shooters its laser eye-stones, saws its laser gates: v7.51; maces its laser swords: v7.52)
   gap: 1,              // flat tiles between its sections: 0 to this
   // biome portals: each visit has two, one on the path (forced: a clean gateway you run through) and one optional
   // (a small floating ring of stones you jump into), each sending you through a short, packed stretch of a biome
@@ -796,6 +798,7 @@ const MORTAR = {
   blast: 40,           // the explosion catches anyone this close (pixels: 5 tiles)
   miss: 3,             // v7.53: it lands just behind where you'll be if you keep going, its blast's edge this far short of you
   boom: 1.6,           // the explosion (fireball, shards, smoke) lasts this long; its scorch mark a little longer
+  slabClear: 16,       // (v8.7) it holds its shot when you, or where its bomb would land, are at a sliding slab's pit (or this close)
 };
 
 // The ruins' laser gate: two chain lifts (carved posts with cogs, the emitters hanging on chains, counterweights) with a laser strung between them that
