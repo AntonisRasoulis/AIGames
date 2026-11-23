@@ -676,3 +676,47 @@ kbd {
   flex-wrap: wrap;
   justify-content: center;
 }
+
+/* a biome still being made (v8.10): greyed out with a padlock until the password's typed */
+.biome-choice.locked {
+  opacity: 0.55;
+  filter: grayscale(0.8);
+}
+
+.biome-choice.locked::after {
+  content: " \1F512";
+  font-size: 0.8em;
+}
+
+.dev-lock {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  flex-basis: 100%;
+  font-size: 0.72rem;
+}
+
+.dev-lock[hidden] {
+  display: none;
+}
+
+.dev-lock form {
+  display: flex;
+  gap: 0.3rem;
+}
+
+.dev-lock input {
+  flex: 1;
+  min-width: 0;
+  padding: 0.25rem 0.4rem;
+  font: inherit;
+  color: inherit;
+  background: #10131a;
+  border: 1px solid var(--muted);
+  border-radius: var(--radius);
+}
+
+.dev-lock-msg.wrong {
+  color: #ff4d3d;
+  font-weight: 700;
+}

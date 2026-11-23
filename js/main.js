@@ -37,6 +37,11 @@ try {
   for (const b of SECRET_BIOMES) if (!seen.includes(b) && !secretList.includes(b)) secretList.push(b);
   localStorage.setItem("fire-run-secret-known", JSON.stringify(SECRET_BIOMES));
 } catch (e) { /* storage blocked, or nothing saved */ }
+// (the biomes still being made start off every time the page opens, locked until the password's typed: see DEV_BIOMES)
+let devUnlocked = false;
+secretList = secretList.filter((b) => !DEV_BIOMES.includes(b));
+try { localStorage.setItem("fire-run-secret-list", JSON.stringify(secretList)); } catch (e) { /* storage blocked */ }
+const devCheck = (word) => { let h = 2166136261; for (const ch of word.trim().toLowerCase()) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619) >>> 0; } return h === DEV_LOCK; };
 if (!biomeList.length && !secretList.length) biomeList = BIOMES.slice();
 // ...and whether they're found in special ways (a sleep mushroom, a portal) or come up like any other biome (remembered)
 let secretRegular = false;
@@ -46,17 +51,19 @@ try { wild = localStorage.getItem("fire-run-mode") === "wild"; } catch (e) { /* 
 // The presets (v8.9): each sets the biomes (and puts the multipliers back to 1x). Standard: every biome, the secret ones found in
 // special ways. Basic: the main biomes only. Full: every biome, the secret ones coming up like any other.
 const PRESETS = {
-  standard: { name: "Standard", biomeList: BIOMES, secretList: SECRET_BIOMES, secretRegular: false },
-  basic: { name: "Basic", biomeList: BIOMES, secretList: [], secretRegular: false },
-  full: { name: "Full", biomeList: BIOMES, secretList: SECRET_BIOMES, secretRegular: true },
+  standard: { name: "Standard", biomeList: BIOMES, secrets: true, secretRegular: false },
+  basic: { name: "Basic", biomeList: BIOMES, secrets: false, secretRegular: false },
+  full: { name: "Full", biomeList: BIOMES, secrets: true, secretRegular: true },
 };
+// (the secret biomes a preset turns on: all of them, but the ones still being made only once they're unlocked)
+const presetSecrets = (pr) => (pr.secrets ? SECRET_BIOMES.filter((b) => devUnlocked || !DEV_BIOMES.includes(b)) : []);
 const sameSet = (a, b) => a.length === b.length && a.every((x) => b.includes(x));
 // which preset today's settings are (null: your own mix, "Custom")
 function currentPreset() {
   if (!biomes) return null;
   for (const [id, pr] of Object.entries(PRESETS)) {
-    if (!sameSet(biomeList, pr.biomeList) || !sameSet(secretList, pr.secretList)) continue;
-    if (pr.secretList.length && secretRegular !== pr.secretRegular) continue;
+    if (!sameSet(biomeList, pr.biomeList) || !sameSet(secretList, presetSecrets(pr))) continue;
+    if (pr.secrets && secretRegular !== pr.secretRegular) continue;
     return id;
   }
   return null;
@@ -205,7 +212,7 @@ function applyPreset(id) {
   const pr = PRESETS[id];
   biomes = true;
   biomeList = pr.biomeList.slice();
-  secretList = pr.secretList.slice();
+  secretList = presetSecrets(pr);
   secretRegular = pr.secretRegular;
   try {
     localStorage.setItem("fire-run-biomes", "1");
@@ -241,6 +248,7 @@ function showBiomes() {
   for (const chip of biomePanel.querySelectorAll(".biome-choice")) {
     const on = (chip.dataset.secret ? secretList : biomeList).includes(chip.dataset.biome);
     chip.setAttribute("aria-pressed", String(on));
+    chip.classList.toggle("locked", DEV_BIOMES.includes(chip.dataset.biome) && !devUnlocked);
     if (!chip.dataset.secret) chip.title = on && total === 1 ? "At least one biome has to be on" : "";
   }
   secretModeButton.querySelector(".secret-mode-label").textContent = secretRegular ? "REGULAR" : "SPECIAL";
@@ -249,6 +257,7 @@ function showBiomes() {
 }
 function openBiomePanel(open) {
   biomePanel.hidden = !open;
+  if (!open && typeof devBox !== "undefined") devBox.hidden = true;
   biomeArrow.setAttribute("aria-expanded", String(open));
 }
 biomesButton.addEventListener("click", () => {
@@ -261,6 +270,7 @@ biomePanel.addEventListener("click", (e) => {
   const chip = e.target.closest(".biome-choice");
   if (!chip) return;
   const biome = chip.dataset.biome, secret = !!chip.dataset.secret;
+  if (DEV_BIOMES.includes(biome) && !devUnlocked) { askPassword(biome); return; } // (still being made: locked)
   const list = secret ? secretList : biomeList, all = secret ? SECRET_BIOMES : BIOMES;
   let next;
   if (list.includes(biome)) {
@@ -272,6 +282,26 @@ biomePanel.addEventListener("click", (e) => {
     localStorage.setItem("fire-run-biome-list", JSON.stringify(biomeList));
     localStorage.setItem("fire-run-secret-list", JSON.stringify(secretList));
   } catch (e) { /* storage blocked */ }
+  showBiomes();
+});
+// A biome still being made: a little password box under the chips. Right: unlocked for this visit, and it's turned on
+const devBox = document.getElementById("dev-lock"), devInput = document.getElementById("dev-password"), devMsg = document.getElementById("dev-lock-msg");
+let devFor = null;
+function askPassword(biome) {
+  devFor = biome;
+  devBox.hidden = false;
+  const name = BIOME_NAMES[biome] || biome; devMsg.textContent = `${name[0].toUpperCase() + name.slice(1)} is still being made. Password:`;
+  devMsg.classList.remove("wrong");
+  devInput.value = "";
+  devInput.focus();
+}
+document.getElementById("dev-lock-form").addEventListener("submit", (e) => {
+  e.preventDefault();
+  if (!devCheck(devInput.value)) { devMsg.textContent = "WRONG PASSWORD"; devMsg.classList.add("wrong"); devInput.select(); return; }
+  devUnlocked = true;
+  devBox.hidden = true;
+  if (devFor && !secretList.includes(devFor)) secretList = SECRET_BIOMES.filter((b) => b === devFor || secretList.includes(b));
+  try { localStorage.setItem("fire-run-secret-list", JSON.stringify(secretList)); } catch (err) { /* storage blocked */ }
   showBiomes();
 });
 // click anywhere else (or press Escape) to close it
@@ -298,6 +328,7 @@ pauseButton.addEventListener("click", () => {
 });
 
 window.addEventListener("keydown", (e) => {
+  if (e.target.closest && e.target.closest("input")) return; // (typing in the password box: no shortcuts)
   if (gameLoaded && (e.code === "KeyP" || e.code === "Escape") && Game.isRunning()) Game.togglePause();
   if (gameLoaded && e.code === "KeyM") toggleSound();
   if (e.code === "KeyF" && document.fullscreenEnabled && !(gameLoaded && Game.isRunning() && Game.world.players.length >= 3)) toggleFullscreen(); // (F is Green's left key)
