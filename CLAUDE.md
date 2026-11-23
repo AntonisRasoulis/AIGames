@@ -18,7 +18,7 @@ costs ground to the fire. 1 Player: one big view, race the fire for distance (be
 - Repo: `AntonisRasoulis/VibeCodingPractice`. Development branch: `claude/nice-meitner-muga6l`
   (a fresh chat may be given a different branch: use the one you're told).
 - Published as a claude.ai Artifact (a single bundled HTML file):
-  **https://claude.ai/artifact/Uh5CKSPymdWERadhojnY7P** (Version 179 at the time of writing). Always
+  **https://claude.ai/artifact/Uh5CKSPymdWERadhojnY7P** (Version 180 at the time of writing). Always
   republish to this same URL (pass it as `url`); never create a new artifact for the game.
 
 ## Style
@@ -83,7 +83,10 @@ Scripts load in this order (all globals, no modules), each with a `?v=` cache-bu
   `onCourse(level, fn)` runs the main course's systems with everyone who's elsewhere temporarily
   marked `caught`, and each forest gets its own (loose saws, spores, sounds). Each view draws its
   player's course (`render`: a `view` object with `level` swapped and the main course's creatures
-  emptied). Particles that belong to a course carry `level` so they only show there. Getting in and
+  emptied). Particles that belong to a course carry `level` so they only show there. Drawing code must read the `view` object's
+  fields (`world.monsoon` etc. there), never Game's global state for main-course things: v8.8 fixed a freeze where the flood
+  was drawn in a realm view (Game.floodSurface said water, the view's monsoon was null). The loop asks for its next frame
+  first (`frame`), so a thrown error loses one frame, not the game. Getting in and
   out: `p.dream` ({ kind: "sleep" | "fireflies", t }), `moveTo`, `makeForest`, `dreamDark`.
 - **Powers:** an orb sets `p.power` (one at a time); S / Down calls `usePower`. Solo mode swaps some
   powers for helpful versions (drone and firehawk guard you, snowball gives skates, monkey ferries you

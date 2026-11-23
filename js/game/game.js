@@ -4142,12 +4142,15 @@ const Game = (() => {
   }
 
   function frame(now) {
+    // (the next frame is asked for first: if anything below ever throws, that frame is lost, not the whole game. A drawing
+    // error during a monsoon once stopped the loop for good, freezing the game until a reload)
+    requestAnimationFrame(frame);
     const dt = Math.min((now - lastTime) / 1000, 0.1);
     lastTime = now;
 
     const isActive = () => ["countdown", "playing", "ending"].includes(world.state);
     if (isActive()) {
-      accumulator += dt;
+      accumulator = Math.min(accumulator + dt, 0.25); // (never a pile of steps to catch up on, say after a frame was lost)
       // Stop as soon as the round is over, so leftover steps can't restart the ending
       while (accumulator >= STEP && isActive()) {
         step(STEP);
@@ -4157,7 +4160,6 @@ const Game = (() => {
     if (!isActive()) accumulator = 0;
     Sound.setFire(fireLoudness(), dt);
     Renderer.render(ctx, world, dt);
-    requestAnimationFrame(frame);
   }
 
   function setPaused(paused) {

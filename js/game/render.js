@@ -2349,6 +2349,7 @@ const Renderer = (() => {
 
   // The flood: deep water over everything (you can still make out what's under it), and the logs on it
   function drawFlood(world, camX, time) {
+    if (!world.monsoon) return; // (someone in the forest, the ruins or the camp: no flood there. Drawing it there once froze the game)
     const surf = Game.floodSurface();
     if (surf === null) return;
     const s = Math.round(surf);
@@ -2376,6 +2377,7 @@ const Renderer = (() => {
 
   // ...and its surface in front: waves, covering the bottom of the logs and anyone swept along in it
   function drawFloodFront(world, camX, time) {
+    if (!world.monsoon) return; // (someone in the forest, the ruins or the camp: no flood there. Drawing it there once froze the game)
     const surf = Game.floodSurface();
     if (surf === null) return;
     const s = Math.round(surf);
