@@ -2209,10 +2209,10 @@ const Game = (() => {
           const miss = (y) => (back < 0 ? y : y + HITBOX_W) + back * (M.blast + M.miss); // (the blast's edge just short of their nearer side)
           let x1 = miss(p.x), T = M.rise + M.fall;
           for (let i = 0; i < 8; i++) { x1 = miss(p.x + vx * T); T = Math.max(M.rise, Math.abs(x1 - x0) / M.glide) + M.fall; }
-          const g = level.groundTop(x1), y1 = (g !== null ? g : m.gy + 24) - 6;
+          const g = level.groundTop(x1), pit = g === null, y1 = pit ? VIEW_H + 16 : g - 6; // (over a gap: it falls straight through, off the bottom)
           // (v8.7: never at a sliding slab's pit: a ride across it is never bombed, nor is waiting at its edge for the slab)
           const atSlab = (x) => level.platforms.some((q) => q.kind === "move" && q.elec && x > q.x0 - M.slabClear && x < q.x1 + q.w + M.slabClear);
-          if (!atSlab(p.x + HITBOX_W / 2) && !atSlab(x1)) world.mortarBombs.push({ level, x0, y0, x1, y1, T, top: M.top, age: 0, seed: Math.floor(Math.random() * 1000), face: Math.sign(x1 - x0) || m.face });
+          if (!atSlab(p.x + HITBOX_W / 2) && !atSlab(x1)) world.mortarBombs.push({ level, x0, y0, x1, y1, pit, T, top: M.top, age: 0, seed: Math.floor(Math.random() * 1000), face: Math.sign(x1 - x0) || m.face });
           m.firedAt = level.time;
           Sound.play("mortarFire");
         }
@@ -2225,7 +2225,9 @@ const Game = (() => {
       b.age += dt;
       if (b.age >= b.T - M.fall && !b.whistled) { b.whistled = true; Sound.play("mortarFall"); } // (the whistle as it comes down)
       if (b.age < b.T) continue;
-      b.done = true; // it lands: boom. Anyone close is caught in it
+      b.done = true;
+      if (b.pit) continue; // (into a gap: gone down it, no blast)
+      // it lands: boom. Anyone close is caught in it
       for (const q of runners) {
         if (q.dead) continue;
         const nx = Math.max(q.x, Math.min(b.x1, q.x + HITBOX_W)), ny = Math.max(q.y, Math.min(b.y1, q.y + HITBOX_H));
