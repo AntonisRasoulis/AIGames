@@ -628,17 +628,21 @@ const Renderer = (() => {
 
   // ---- The camp's towers (v8.19; looks chosen after mockups: T1 wooden watchtower, T3 steel lattice, T4 concrete; cover C1
   // tarp, C2 concrete roof, C3 crates; the truck V2, canvas-covered). Behind the fence they're drawn muted, smaller
+  // A soldier: a runner in army clothes (helmet, olive shirt, khaki trousers), facing the way he looks, his rifle at his chest
+  // (raised just before a burst), or an arm back to throw
   function drawSoldier(x, gy, pose, face, dim, mask) {
-    const k = dim ? "#2e3424" : "#1a1c12", u = dim ? "#5a6448" : "#5a6a32", u2 = dim ? "#4a5238" : "#46522a", hel = dim ? "#4e5a38" : "#4e5e2a", skin = mask ? (dim ? "#6a6e66" : "#5a5e58") : dim ? "#a08a70" : "#d8a880";
+    const set = sprites.soldiers[(dim ? "dim" : "plain") + (mask ? "Mask" : "")];
+    const frame = pose === "run" ? (Math.floor(Game.world.time * 10) % 2 ? set.run1 : set.run2) : pose === "throw" ? set.jump : set.idle;
+    const top = gy - 12;
+    b.save();
+    if (face < 0) { b.translate(x * 2 + 8, 0); b.scale(-1, 1); }
+    b.drawImage(frame, x, top);
+    b.restore();
     const X = (dx, w = 1) => (face > 0 ? x + dx : x + 7 - dx - (w - 1));
-    const p = (c, dx, dy, w = 1, h = 1) => P(c, X(dx, w), gy - 13 + dy, w, h);
-    p(k, 1, 0, 6, 3); p(hel, 2, 0, 4, 2); p(hel, 1, 2, 6, 1);
-    p(k, 2, 3, 4, 3); p(skin, 3, 3, 3, 2); p(mask ? "#9ad0e0" : k, 5, 3); if (mask) p("#2a2c28", 4, 5, 2, 1);
-    p(k, 1, 6, 6, 5); p(u, 2, 6, 4, 4); p(u2, 2, 8, 4, 1);
-    if (pose === "run" && Math.floor(Game.world.time * 10) % 2) { p(k, 1, 11, 2, 2); p(k, 5, 11, 2, 2); } else { p(k, 2, 11, 2, 2); p(k, 4, 11, 2, 2); }
-    if (pose === "rifle" || pose === "aim") { p("#2a2a22", 4, 7, 7, 1); p("#3a3020", 3, 8, 2, 1); p(skin, 5, 8); p("#2a2a22", 10, 6); }
-    if (pose === "raise") { p("#2a2a22", 4, 6, 7, 1); p("#2a2a22", 10, 5); p(skin, 5, 7); }
-    if (pose === "throw") { p(u, 0, 3, 1, 3); p(skin, 0, 2); p(mask ? "#6a6e70" : "#3a4a2a", -1, 1, 2, 2); }
+    const gun = dim ? "#3a3a30" : "#22221c", wood = dim ? "#6a5a44" : "#5a4020";
+    if (pose === "rifle" || pose === "aim" || pose === "run") { P(gun, X(3, 8), top + 6, 8, 1); P(wood, X(2, 2), top + 7, 2, 1); P(gun, X(10), top + 5); }
+    if (pose === "raise") { P(gun, X(3, 4), top + 6, 4, 1); P(gun, X(7, 4), top + 5, 4, 1); P(wood, X(2, 2), top + 7, 2, 1); }
+    if (pose === "throw") P(mask ? "#6a6e70" : "#3a4a2a", X(6, 2), top + 3, 2, 2); // (the grenade or canister in his raised hand)
   }
   function drawGlint(x, y, r) { // the sniper's scope catching the light: a little 4-point star
     P("#fff8d0", x, y);

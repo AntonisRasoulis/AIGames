@@ -55,6 +55,27 @@ const RUNNER_FRAMES = {
   ]),
 };
 
+// The camp's soldiers (v8.20, owner: "like the players, just with army clothes on"): the runners' own frames, with a helmet
+// over the hair (its brim where the headband was), an olive shirt, khaki trousers and dark boots; a gas mask for the tear gas
+const SOLDIER_PALETTES = {
+  plain: { c: "#5a6a32", d: "#3a4420", h: "#4e5e2a", s: "#f4c08c", k: "#1e2014", p: "#7a7048", m: "#5a5e58", g: "#9ad0e0" },
+  dim: { c: "#5e6648", d: "#464c36", h: "#56603e", s: "#b8a08a", k: "#34382a", p: "#76705a", m: "#62665e", g: "#90a8b0" }, // (behind the fence)
+};
+const SOLDIER_HEAD = [
+  "..hhhh..",
+  ".hhhhhh.",
+  "dhhhhhhd",
+  "..sssks.",
+  "..sssss.",
+];
+const SOLDIER_MASK = [
+  "..hhhh..",
+  ".hhhhhh.",
+  "dhhhhhhd",
+  "..mmmgm.",
+  "..mmkmm.",
+];
+
 const SPIKE_ROWS = [
   "........",
   "........",
@@ -1908,10 +1929,16 @@ function buildSprites() {
       runners[name][frame] = spriteFromRows(rows, palette);
     }
   }
+  const soldiers = {};
+  for (const [look, pal] of Object.entries(SOLDIER_PALETTES)) for (const mask of [false, true]) {
+    const frames = soldiers[look + (mask ? "Mask" : "")] = {};
+    for (const [frame, rows] of Object.entries(RUNNER_FRAMES)) frames[frame] = spriteFromRows((mask ? SOLDIER_MASK : SOLDIER_HEAD).concat(rows.slice(HEAD.length)), pal);
+  }
   const grass = [0, 1, 2, 3].map((v) => makeGroundTile(v, true));
   const dirt = [0, 1, 2, 3].map((v) => makeGroundTile(v + 4, false));
   return {
     runners,
+    soldiers,
     grass,
     dirt,
     spike: spriteFromRows(SPIKE_ROWS, { l: "#e8e8f0", g: "#9a9ab0", o: "#5a5a70" }),

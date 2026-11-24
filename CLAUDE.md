@@ -18,7 +18,7 @@ costs ground to the fire. 1 Player: one big view, race the fire for distance (be
 - Repo: `AntonisRasoulis/AIGames` (renamed from VibeCodingPractice; the local folder may still have the old name). Development branch: `claude/nice-meitner-muga6l`
   (a fresh chat may be given a different branch: use the one you're told).
 - Published as a claude.ai Artifact (a single bundled HTML file):
-  **https://claude.ai/artifact/Uh5CKSPymdWERadhojnY7P** (Version 191 at the time of writing). Always
+  **https://claude.ai/artifact/Uh5CKSPymdWERadhojnY7P** (Version 192 at the time of writing). Always
   republish to this same URL (pass it as `url`); never create a new artifact for the game.
 
 ## Style
@@ -210,6 +210,7 @@ Scripts load in this order (all globals, no modules), each with a `?v=` cache-bu
   (Wild 17-22, Easy none), on the course or behind the fence, any look holding any threat: a soldier with terrible aim, a grenade
   that bounces and rolls at you, a sniper (glint grows 1 s, flashes 0.4 s with his aim set where you'll be: stop), a searchlight
   (1 s on you out of cover: a truck of soldiers), tear gas (slow, blurry). 1.5 s grace after respawning (`p.towerGrace`).
+  v8.20: the soldiers are the runners' own sprite frames in army clothes (helmet, olive, khaki; `sprites.soldiers`, `drawSoldier`).
   Still to come: tripwires (and anything else the owner wants in the towers).
 - **The arcane ruins** (the second secret world; **a first, playable version is built**, v7.0): a portal on the
   main course (one per race after 400 m) with a button under it; inside, a 20 s race (v7.6; it was 60 s) to an exit portal past fire
