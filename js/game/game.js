@@ -218,6 +218,7 @@ const Game = (() => {
       else onCourse(f, () => { world.players.forEach((p, i) => { if (inputs[i].firePressed && p.power === "mushroom") usePower(p, i); }); checkOrbs(); updateBridges(dt); updateLooseSaws(dt); updateLooseMaces(dt); updateSpores(); updateLobbers(dt); updateAliveTrees(dt); updateLeaves(dt); levelSounds(); });
     }
     updateNukes(dt); // (outside any one course: it reaches from the camp out to the main course)
+    campAmbience(dt);
     checkFire();
   }
 
@@ -2173,6 +2174,17 @@ const Game = (() => {
       if (was > NUKE.geiger && r.next <= NUKE.geiger) Sound.play("geiger");
       if (r.next <= 0) { r.slow = NUKE.dizzy; r.next = NUKE.dizzyEvery[0] + Math.random() * (NUKE.dizzyEvery[1] - NUKE.dizzyEvery[0]); p.showHit("DIZZY!", "#9aff7a"); }
     }
+  }
+
+  // The camp at war: faint far-off sounds while anyone's in a camp (gunfire, booms, engines, shouts, now and then a siren)
+  function campAmbience(dt) {
+    const inCamp = world.players.some((p) => !p.caught && !p.dead && (p.realm || world.level).biomeAt(Math.floor(p.x / TILE)) === "camp");
+    if (!inCamp) return;
+    world.ambT = (world.ambT || 0) - dt;
+    if (world.ambT > 0) return;
+    const [a, z] = CAMP_CHAOS.sound; world.ambT = a + Math.random() * (z - a);
+    const r = Math.random();
+    Sound.play(r < 0.45 ? "farGun" : r < 0.7 ? "farBoom" : r < 0.82 ? "farShout" : r < 0.95 ? "farEngine" : "farSiren");
   }
 
   // The camp's landmines, each runner their own: step on one, CLICK, and 0.3 s later it blows. Caught low in the blast

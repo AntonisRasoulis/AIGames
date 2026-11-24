@@ -648,6 +648,21 @@ const NUKE = {
 // stand on the course (you run between their legs), some behind the fence. Three looks (chosen T1 wooden watchtower, T3 steel
 // lattice, T4 concrete), any of them holding any threat: a soldier with terrible aim, a grenade thrower, a sniper, a
 // searchlight that calls a truck of soldiers, tear gas
+// The camp at war (v8.26, owner: "much more chaotic, like an army base going to war ... closer than usual backgrounds"): a
+// busy layer just behind the course, in front of the fence: buildings with soldiers running in and out, soldiers running,
+// carrying crates, saluting, diving into trenches; jeeps, trucks, tanks and forklifts; helicopters, jets and parachutes
+// overhead; explosions, smoke and tracers on the horizon, searchlights in the sky, sirens, flags, a spinning radar. Calm
+// where the camp begins, frantic soon after. Muted and hazy so the course and its dangers stand out. Just for show
+const CAMP_CHAOS = {
+  depth: 0.7,          // how fast it scrolls by compared to the course (the hills: 0.15-0.3, the fence 0.55)
+  slot: 110,           // one building or yard every this many pixels of it
+  ramp: 260,           // pixels into the camp until it's at full chaos (about 2.7 s of running)
+  calm: 0.3,           // ...how busy it is at the very start (0-1)
+  haze: 0.38,          // how much it's washed out with the sky's colour, so it never fights the course for attention
+  boomEvery: 0.7,      // seconds between explosions on the horizon at full chaos
+  sound: [0.25, 0.9],  // seconds between faint far-off sounds (gunfire, booms, engines, shouts) at full chaos
+};
+
 // Where a tower's soldier stands (his feet) and where its searchlight's lamp sits: the game and the drawing share these.
 // Wood: on the floor behind the rail; steel and concrete: inside the hut, seen from the waist up through its window
 function towerFeet(tw) { return tw.gy - tw.h + (tw.kind === "wood" ? 6 : tw.kind === "steel" ? 9 : 12); }

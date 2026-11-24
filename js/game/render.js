@@ -161,7 +161,7 @@ const Renderer = (() => {
       else if (biome === "jungle") drawJungleBackground(camX);
       else if (biome === "forest") drawForestBackground(camX, world.time);
       else if (biome === "ruins") drawRuinsBackground(camX, world.time, Game.ruinsLeft(world.level, player));
-      else if (biome === "camp") drawCampBackground(camX);
+      else if (biome === "camp") { drawCampBackground(camX); drawCampChaos(world.level, camX, world.time); }
       else drawBackground(camX);
     });
     b.globalAlpha = 1;
@@ -456,6 +456,146 @@ const Renderer = (() => {
     layer(L.far, 0.15);
     layer(L.mid, 0.3);
     layer(L.near, 0.55);
+  }
+
+  // ---- The camp at war (v8.26): a busy layer just behind the course, everything worked out from the clock and where you
+  // are, drawn on its own canvas, then washed with the sky's colour so it stays in the background
+  const chaosCanvas = makeCanvas(VIEW_W, VIEW_H), chaosCtx = chaosCanvas.getContext("2d");
+  function campStart(level, col) { // where this stretch of camp begins (cached), so it can start calm and get busier
+    const c = level.chaosStart;
+    if (c && col >= c.from && col <= c.to + 40) { c.to = Math.max(c.to, col); return c.from; }
+    let k = col; while (k > 0 && level.biomeAt(k - 1) === "camp" && col - k < 3000) k--;
+    level.chaosStart = { from: k, to: col };
+    return k;
+  }
+  function drawCampChaos(level, camX, time) {
+    const K = CAMP_CHAOS, main = b;
+    b = chaosCtx; b.clearRect(0, 0, VIEW_W, VIEW_H);
+    const start = campStart(level, Math.floor((camX + VIEW_W / 2) / TILE)) * TILE;
+    const busy = K.calm + (1 - K.calm) * Math.max(0, Math.min(1, (camX + VIEW_W / 2 - start) / K.ramp));
+    const on = (...k) => hash(...k) < busy; // (is this one out yet? more of everything the busier it gets)
+    const lx0 = camX * K.depth, gy = 96;
+    const sx = (lx) => Math.round(lx - lx0);
+    // the sky: searchlights sweeping, smoke plumes, tracers, helicopters, jets, parachutes
+    for (let i = 0; i < 2; i++) if (on(i, 501)) {
+      const bx = ((i * 230 - camX * 0.25) % 520 + 520) % 520 - 60, a = -Math.PI / 2 + Math.sin(time * (0.4 + i * 0.15) + i * 2) * 0.6;
+      b.fillStyle = "rgba(255,252,225,0.12)"; b.beginPath(); b.moveTo(bx - 1, 92); b.lineTo(bx + Math.cos(a - 0.06) * 160, 92 + Math.sin(a - 0.06) * 160); b.lineTo(bx + Math.cos(a + 0.06) * 160, 92 + Math.sin(a + 0.06) * 160); b.lineTo(bx + 1, 92); b.fill();
+    }
+    for (let i = 0; i < 3; i++) if (on(i, 502)) { // big smoke plumes from fires somewhere in the base, leaning in the wind
+      const bx = ((i * 170 + 60 - camX * 0.35) % 560 + 560) % 560 - 80;
+      for (let j = 0; j < 14; j++) { const u = ((time * 0.12 + j / 14) % 1), r = 3 + u * 12; drawPuffAt(bx + u * 40 + Math.sin(time + j) * 2, 90 - u * 80, r, j % 2 ? "#4a4a48" : "#5a5a56", 0.55 * (1 - u)); }
+      drawGlowAt("fire", 2, bx, 90, 0.4 + 0.2 * Math.sin(time * 9 + i));
+    }
+    for (let i = 0; i < 4; i++) if (on(i, 503)) { // tracers arcing up into the sky
+      const cyc = 1.3 + i * 0.3, u = ((time + i * 0.37) / cyc) % 1, ox = ((i * 97 + Math.floor((time + i * 0.37) / cyc) * 61) % 400), dir = i % 2 ? 1 : -1;
+      for (let d = 0; d < 5; d++) { const v = u - d * 0.04; if (v < 0) continue; P(d ? "#ffb040" : "#fff0a0", ox + dir * v * 120, 88 - v * 90 + v * v * 30, 1, 1, 1 - d * 0.2); }
+    }
+    for (let i = 0; i < 2; i++) if (on(i, 504)) { // helicopters crossing
+      const x = ((time * (28 + i * 12) + i * 300 - camX * 0.2) % 640 + 640) % 640 - 120, y = 16 + i * 14 + Math.sin(time * 1.5 + i) * 2, d = i ? -1 : 1, X = d > 0 ? x : VIEW_W - x;
+      P("#3a3e36", X - 7, y, 14, 4); P("#3a3e36", X + 6 * d, y + 1, 7 * d, 1); P("#3a3e36", X - 2, y + 4, 1, 2); P("#3a3e36", X + 2, y + 4, 1, 2); P("#3a3e36", X - 4, y + 6, 9, 1);
+      const sp = Math.floor(time * 30) % 2; P("#2a2e28", X - 10 + sp * 2, y - 2, 20 - sp * 4, 1); P("#5a6a7a", X - 4 * d - 2, y + 1, 3, 2);
+    }
+    if (on(9, 505)) { // a pair of jets streaking over, contrails behind
+      const x = ((time * 170 - camX * 0.2) % 1400 + 1400) % 1400 - 300;
+      for (const [dx, dy] of [[0, 0], [-14, 6]]) { const X = x + dx, y = 12 + dy; P("#5a6068", X - 6, y, 12, 2); P("#5a6068", X - 2, y - 2, 4, 2); P("#5a6068", X - 6, y - 2, 2, 2); for (let k = 1; k < 30; k++) P("#e8ece6", X - 6 - k * 3, y + 1, 3, 1, 0.5 - k * 0.016); }
+    }
+    for (let i = 0; i < 3; i++) if (on(i, 506)) { // parachutes drifting down behind the base
+      const cyc = 11 + i * 2, u = ((time + i * 4) / cyc) % 1, x = ((i * 140 + 40 + Math.sin(time * 0.7 + i) * 8 - camX * 0.3) % 460 + 460) % 460 - 30, y = -14 + u * 100;
+      for (let k = -6; k <= 6; k++) P(k % 3 ? "#d8d8c8" : "#8a9a6a", x + k, y - Math.round(Math.sqrt(36 - k * k) * 0.6), 1, 2, Math.min(1, (1 - u) * 6));
+      P("#5a5a50", x - 5, y, 1, 1); P("#5a5a50", x + 5, y, 1, 1); P("#46522a", x - 1, y + 4, 3, 4, Math.min(1, (1 - u) * 6));
+    }
+    // explosions on the horizon: a flash, a fireball, smoke rising and spreading
+    const every = K.boomEvery / busy;
+    for (let n = Math.floor(time / every) - 6; n <= Math.floor(time / every); n++) {
+      const age = time - n * every; if (age < 0 || age > 4) continue;
+      const x = hash(n, 507) * (VIEW_W + 100) - 50, y = 84 - hash(n, 508) * 10;
+      if (age < 0.12) drawGlowAt("white", 3, x, y, 0.5 * (1 - age / 0.12));
+      if (age < 0.6) { const r = 3 + age * 14; drawPuffAt(x, y - r * 0.4, r * 0.7, age < 0.25 ? "#ffd070" : "#e86a2a", 0.8 - age); }
+      for (let j = 0; j < 5; j++) { const v = Math.min(1, age / 4), r = 3 + v * 9 + j; drawPuffAt(x + Math.sin(j + n) * 4 * v, y - v * 40 - j * 4, r, "#6a6a64", 0.45 * (1 - v)); }
+    }
+    // the ground layer, slot by slot: buildings and yards, then vehicles, then soldiers
+    const s0 = Math.floor((lx0 - 160) / K.slot), s1 = Math.floor((lx0 + VIEW_W + 160) / K.slot);
+    for (let s = s0; s <= s1; s++) drawChaosSlot(s, sx(s * K.slot), gy, time, on);
+    for (let s = s0 - 2; s <= s1 + 2; s++) if (on(s, 520)) drawChaosVehicle(s, lx0, gy, time);
+    for (let s = s0 - 1; s <= s1 + 1; s++) for (let i = 0; i < 4; i++) if (on(s, i, 530)) drawChaosSoldier(s, i, lx0, gy, time);
+    // washed with the sky's colour, so it stays back
+    b.globalCompositeOperation = "source-atop"; b.fillStyle = `rgba(186,192,180,${K.haze})`; b.fillRect(0, 0, VIEW_W, VIEW_H); b.globalCompositeOperation = "source-over";
+    b = main;
+    b.drawImage(chaosCanvas, 0, 0);
+  }
+  // One stretch of the base: a building (barracks, garage, hangar, a radar hut, the mess tent) or a yard (sandbag wall and a
+  // trench), with flags, siren lights, a radar dish turning, doors opening and shutting as soldiers come and go
+  function drawChaosSlot(s, x, gy, time, on) {
+    const k = hash(s, 510), bx = x + 12 + Math.round(hash(s, 511) * 30);
+    const wall = "#7a7a68", dark = "#3a3a30", roof = "#55604a";
+    const door = (dx, w, h, period) => { const u = ((time + hash(s, 512) * period) / period) % 1, open = u < 0.35 ? Math.min(1, u * 8) : Math.max(0, 1 - (u - 0.35) * 8); P(dark, dx, gy - h, w, h); P("#6a5a3a", dx + Math.round(w * open), gy - h, w - Math.round(w * open), h); };
+    if (k < 0.24) { // barracks: long, windows, a door, a siren light on the roof
+      P(dark, bx - 1, gy - 27, 62, 27); P(wall, bx, gy - 26, 60, 26); P(roof, bx - 3, gy - 30, 66, 4); P("#46503c", bx - 2, gy - 31, 64, 1);
+      for (let i = 0; i < 5; i++) if (i !== 2) { P("#2a3038", bx + 4 + i * 12, gy - 20, 6, 5); P("#8aa0a8", bx + 5 + i * 12, gy - 20, 2, 2, Math.floor(time * 2 + i) % 5 ? 0.3 : 0.9); }
+      door(bx + 26, 8, 14, 3 + hash(s, 513) * 2);
+      if (on(s, 514)) { const f = Math.floor(time * 6) % 2; P(f ? "#ff3a2a" : "#7a2a22", bx + 50, gy - 34, 3, 3); if (f) drawGlowAt("red", 1, bx + 51, gy - 33, 0.7); }
+    } else if (k < 0.4) { // a garage, its roller door going up and down, a jeep's nose inside
+      P(dark, bx - 1, gy - 29, 46, 29); P("#6e6e5e", bx, gy - 28, 44, 28); P(roof, bx - 2, gy - 31, 48, 3);
+      const u = (time / (5 + hash(s, 515) * 3) + hash(s, 516)) % 1, up = u < 0.5 ? Math.min(1, u * 5) : Math.max(0, 1 - (u - 0.5) * 5);
+      P("#1a1a16", bx + 6, gy - 20, 32, 20); P("#4a5030", bx + 10, gy - 9, 18, 6); P("#e8e0a0", bx + 10, gy - 8, 2, 2, up);
+      const shut = Math.round(20 * (1 - up)); for (let i = 0; i < shut; i += 2) P("#8a8a78", bx + 6, gy - 20 + i, 32, 1); P("#5a5a4c", bx + 6, gy - 20 + shut, 32, 1);
+    } else if (k < 0.52) { // a hangar: a big curved roof, a plane's tail poking out
+      for (let i = 0; i < 74; i++) { const h = Math.round(Math.sqrt(1 - ((i - 37) / 37) ** 2) * 34); P(dark, bx + i, gy - h - 1, 1, h + 1); P(i % 6 ? "#7a7c70" : "#6a6c60", bx + i, gy - h, 1, h); }
+      P("#2a2a26", bx + 20, gy - 22, 34, 22); P("#6a7078", bx + 30, gy - 12, 18, 4); P("#6a7078", bx + 44, gy - 20, 4, 9);
+    } else if (k < 0.62) { // the radar hut: a dish on the roof, turning
+      P(dark, bx - 1, gy - 21, 32, 21); P(wall, bx, gy - 20, 30, 20); door(bx + 11, 7, 12, 4);
+      P(dark, bx + 14, gy - 27, 2, 7); const w = Math.round(Math.abs(Math.cos(time * 1.6 + s)) * 9) + 1; P("#9a9e98", bx + 15 - w, gy - 32, w * 2, 4); P(dark, bx + 15 - w, gy - 28, w * 2, 1);
+    } else if (k < 0.72) { // the mess tent: big, its flap open, soldiers in and out
+      for (let j = 0; j < 22; j++) { const half = Math.round((j + 1) / 22 * 30); P(j % 4 ? "#7e8a52" : "#6e7a46", bx + 30 - half, gy - 22 + j, half * 2, 1); }
+      door(bx + 25, 10, 12, 3.5);
+    } else { // a yard: a sandbag wall and a trench, the odd crate stack
+      for (let r = 0; r < 2; r++) for (let i = 0; i < 6 - r; i++) { P("#7a6e50", bx + i * 7 + r * 3, gy - 6 - r * 4, 7, 4); P("#a89a72", bx + 1 + i * 7 + r * 3, gy - 6 - r * 4, 5, 2); }
+      P("#2a2418", bx + 48, gy - 2, 22, 2);
+      P(dark, bx + 74, gy - 10, 10, 10); P("#8a7a4a", bx + 75, gy - 9, 8, 8);
+    }
+    if (on(s, 517)) { const fx = bx + (k < 0.24 ? 70 : -8); P(dark, fx, gy - 44, 1, 44); for (let i = 0; i < 12; i++) P(i < 6 ? "#a8a890" : "#5a6a3a", fx + 1 + i, gy - 44 + Math.round(Math.sin(time * 6 - i * 0.6) * 1.5), 1, 5); } // a flag, flapping
+  }
+  // Vehicles driving through: a jeep, a truck, a tank (turret turning), a forklift with a crate. Each drives back and forth
+  // along its own stretch, fading in and out at the ends
+  function drawChaosVehicle(s, lx0, gy, time) {
+    const kind = Math.floor(hash(s, 521) * 4), span = 220 + hash(s, 522) * 200, v = [55, 40, 18, 25][kind], per = span / v;
+    const u = ((time + hash(s, 523) * per * 2) / per) % 2, fwd = u < 1, p = fwd ? u : 2 - u, d = fwd ? 1 : -1;
+    const x = Math.round(s * CAMP_CHAOS.slot - 60 + p * span - lx0), fade = Math.min(1, Math.min(p, 1 - p) * 8);
+    if (x < -70 || x > VIEW_W + 70) return;
+    const a = fade, X = (dx, w = 1) => (d > 0 ? x + dx : x - dx - w + 1), wheel = (dx) => { P("#1a1a18", X(dx, 5), gy - 5, 5, 5, a); P("#5a5a56", X(dx + 1 + (Math.floor(time * 8) % 2), 2), gy - 3, 2, 1, a); };
+    if (kind === 0) { P("#4e5a30", X(0, 22), gy - 10, 22, 6, a); P("#4e5a30", X(6, 8), gy - 14, 8, 4, a); P("#2a3038", X(10, 4), gy - 13, 4, 2, a); wheel(2); wheel(15); P("#3a3a30", X(3, 1), gy - 16, 1, 6, a); }
+    else if (kind === 1) { P("#56603a", X(0, 14), gy - 16, 14, 11, a); P("#2a3038", X(9, 4), gy - 14, 4, 4, a); P("#6a704a", X(-30, 30), gy - 20, 30, 15, a); wheel(2); wheel(-12); wheel(-26); }
+    else if (kind === 2) { // the tank: treads, a hull, a turret turning its gun
+      P("#2a2c24", X(-14, 34), gy - 6, 34, 6, a); for (let i = 0; i < 34; i += 4) P("#4a4a40", X(-14 + i + (Math.floor(time * 6) % 4), 2), gy - 4, 2, 2, a);
+      P("#4e5a32", X(-12, 30), gy - 11, 30, 5, a); P("#5a6a3a", X(-4, 14), gy - 16, 14, 5, a);
+      const g = Math.round(Math.sin(time * 0.8 + s) * 2); P("#3a4428", X(10, 14), gy - 15 + g * 0.5, 14, 2, a);
+    } else { P("#c8a030", X(0, 12), gy - 12, 12, 8, a); P("#3a3a30", X(12, 1), gy - 20, 1, 16, a); P("#3a3a30", X(13, 5), gy - 5, 5, 1, a); P("#8a7a4a", X(13, 7), gy - 12, 7, 7, a); wheel(1); wheel(8); P("#2a3038", X(3, 5), gy - 18, 5, 6, a); }
+  }
+  // Soldiers: running back and forth, carrying crates, standing to salute, ducking in and out of doors, diving into trenches
+  function drawChaosSoldier(s, i, lx0, gy, time) {
+    const kind = Math.floor(hash(s, i, 531) * 5), base = s * CAMP_CHAOS.slot + hash(s, i, 532) * CAMP_CHAOS.slot, set = sprites.soldiers.plain;
+    const draw = (x, pose, face, extra) => {
+      if (x < -12 || x > VIEW_W + 12) return;
+      const fr = pose === "run" ? (Math.floor(time * 10 + i) % 2 ? set.run1 : set.run2) : pose === "dive" ? set.jump : set.idle;
+      b.save(); if (face < 0) { b.translate(x * 2 + 8, 0); b.scale(-1, 1); } b.drawImage(fr, x, gy - 12 - (extra || 0)); b.restore();
+    };
+    if (kind <= 1) { // running back and forth (some with a crate over their head)
+      const span = 60 + hash(s, i, 533) * 120, sp = 45 + hash(s, i, 534) * 35, per = span / sp, u = ((time + hash(s, i, 535) * 9) / per) % 2, f = u < 1 ? 1 : -1, p = u < 1 ? u : 2 - u;
+      const x = Math.round(base + p * span - lx0); draw(x, "run", f);
+      if (kind === 1 && x > -12 && x < VIEW_W + 12) { P("#3a3018", x, gy - 17, 8, 5); P("#8a7a4a", x + 1, gy - 16, 6, 3); }
+    } else if (kind === 2) { // standing to attention, saluting
+      const x = Math.round(base - lx0), f = hash(s, i, 536) < 0.5 ? 1 : -1; draw(x, "stand", f);
+      if (Math.floor(time / 2 + i) % 3) P("#f4c08c", f > 0 ? x + 6 : x + 1, gy - 10, 1, 1);
+    } else if (kind === 3) { // out of a door, off at a run, and later back in
+      const per = 4 + hash(s, i, 537) * 2, u = ((time + hash(s, i, 538) * per) / per) % 1;
+      if (u > 0.8) return;
+      const p = u < 0.4 ? u / 0.4 : (0.8 - u) / 0.4, x = Math.round(base + p * 70 - lx0); draw(x, "run", u < 0.4 ? 1 : -1);
+    } else { // a run and a dive (into a trench), gone a moment, then up and running again
+      const per = 3 + hash(s, i, 539), u = ((time + hash(s, i, 540) * per) / per) % 1;
+      if (u > 0.75) return;
+      const x = Math.round(base + Math.min(u, 0.55) * 90 - lx0), hop = u > 0.5 ? Math.sin((u - 0.5) / 0.25 * Math.PI) * 6 : 0;
+      draw(x, u > 0.5 ? "dive" : "run", 1, hop);
+    }
   }
 
   // The twin-rotor helicopter (design T2: desert camo, a refuelling probe), tipped into its motion and turning smoothly (seen
