@@ -256,6 +256,8 @@ const Sound = (() => {
     siren: () => { for (let i = 0; i < 3; i++) tone({ f: 500, to: 900, dur: 0.25, type: "sawtooth", vol: 0.05, at: i * 0.5 }), tone({ f: 900, to: 500, dur: 0.25, type: "sawtooth", vol: 0.05, at: i * 0.5 + 0.25 }); },
     nukeBoom: () => { noise({ filter: "lowpass", f: 900, to: 60, dur: 1.6, vol: 0.4 }); tone({ f: 70, to: 25, dur: 1.4, type: "sine", vol: 0.25 }); },
     geiger: () => { for (let i = 0; i < 14; i++) noise({ filter: "highpass", f: 4000, dur: 0.012, vol: 0.12, at: Math.random() * 1 }); },
+    mineClick: () => { tone({ f: 1800, to: 1500, dur: 0.03, type: "square", vol: 0.08 }); tone({ f: 900, to: 800, dur: 0.04, type: "square", vol: 0.06, at: 0.05 }); },
+    mineBoom: () => { noise({ filter: "lowpass", f: 1200, to: 100, dur: 0.6, vol: 0.35 }); tone({ f: 110, to: 35, dur: 0.5, type: "sine", vol: 0.18 }); },
     crate: () => { noise({ filter: "bandpass", f: 900, to: 400, q: 1.5, dur: 0.18, vol: 0.2 }); tone({ f: 180, to: 90, dur: 0.12, type: "square", vol: 0.06 }); },
     rifle: () => { noise({ filter: "highpass", f: 1500, to: 600, dur: 0.07, vol: 0.16 }); tone({ f: 140, to: 60, dur: 0.06, type: "square", vol: 0.06 }); },
     pistol: () => { noise({ filter: "highpass", f: 1200, to: 500, dur: 0.1, vol: 0.18 }); tone({ f: 180, to: 70, dur: 0.08, type: "square", vol: 0.07 }); },

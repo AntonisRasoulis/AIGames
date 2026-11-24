@@ -1,7 +1,7 @@
 // The game's version, shown left of the logo. The first number goes up for big updates (a new biome, a new
 // secret world...), the second for smaller additions and fixes (back to 0 with each big update): 6.16 means
 // the 6th big update (the enchanted forest), 16 small ones since. (7: the arcane ruins.)
-const GAME_VERSION = "8.17";
+const GAME_VERSION = "8.18";
 
 // Tunable numbers for the game. Change these to adjust how it feels.
 // Distances are in game pixels; one tile is 8 pixels (about "1 meter").
@@ -638,6 +638,20 @@ const NUKE = {
   shootAt: 260,        // the helicopter coming back is fired on when it's this close to where it'd drop you (pixels)
   missile: 0.9,        // seconds the missile takes to reach it
   hoverLow: 4,         // nobody pressed it: the helicopter comes down to hover this far over the ground (its wheels) while you hop out
+};
+
+// The camp's landmines (v8.18, owner's design): a small bump in the dirt, a red light blinking on it. Step on one: CLICK, and
+// 0.3 s later it blows (jump off it in time, or jump right over it). Caught in the blast, you're thrown about 20 tiles back
+// through the air, and the landing kills you. Each runner faces every mine for themselves (like the bear traps)
+const MINES = {
+  every: 12,           // at least this many tiles between mines...
+  chance: 0.12,        // ...and a mine on this many of the spots that fit (about 7 in a camp)
+  fuse: 0.3,           // seconds from the click to the blast
+  blast: 36,           // the blast catches you this close to it (pixels from its middle, sideways)...
+  high: 14,            // ...with your feet this low over the ground (a jump clears it)
+  throwBack: 20,       // you're thrown this many tiles back...
+  flight: 1.1,         // ...through the air for this long...
+  arc: 50,             // ...this high at the top of the throw (pixels)
 };
 
 const CAMP_GUNS = {

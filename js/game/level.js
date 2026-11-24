@@ -121,6 +121,8 @@ class Level {
     this.bushes = [];    // bushes you can hide in: { x0, w, h, gy, seed, berries, tops, torn }
     this.craters = [];    // where a nuke landed (the camp's red button): { x, gy, t } (a small glowing crater, fallout drifting down)
     this.nukeButton = null; // the camp's red button (in the middle of a camp you're taken to): { x, gy, state: ready | pressed, t }
+    this.mines = [];      // the military camp's landmines { id, x (its middle), gy }
+    this.lastMine = -99;
     this.crates = [];     // the military camp: crates to smash open for bullets (gas cans alone) { id, x, gy, kind: shared | first | gas, bullets, taken }
     this.lastCrate = -99;
     this.scatterFrom = 0; // traps, bushes and sinkholes have been sprinkled over the course up to here
@@ -338,6 +340,7 @@ class Level {
     if (this.maces.some((m) => m.loose && !m.gone && Math.abs(m.loose.x - (x + HITBOX_W / 2)) < MACE_RADIUS + HITBOX_W + 4)) return true; // (one lying on the ground)
     if (this.saws.some((s) => x + HITBOX_W > Math.min(s.x0, s.x1) - s.r - 10 && x < Math.max(s.x0, s.x1) + s.r + 10)) return true;
     if (!ignoreTraps && this.traps.some((t) => Math.abs(t.x - (x + HITBOX_W / 2)) < TRAP.sizes[t.size] + HITBOX_W)) return true;
+    if (this.mines && this.mines.some((m) => Math.abs(m.x - (x + HITBOX_W / 2)) < MINES.blast + HITBOX_W)) return true; // (the camp's landmines)
     if (!ignoreTraps && this.ponds.some((p) => x + HITBOX_W > p.x0 - 2 && x < p.x1 + 2)) return true;
     if (!ignoreTraps && this.flytraps.some((f) => Math.abs(f.x - (x + HITBOX_W / 2)) < this.flytrapReach(f) + HITBOX_W / 2 + 2)) return true;
     if (!ignoreTraps && this.sinkholes.some((s) => Math.abs(s.x - (x + HITBOX_W / 2)) < (s.size === 2 ? (SINK.gap + 1) * TILE : Math.max(SINK.catch[s.size], SINK.funnel[s.size][0])) + HITBOX_W)) return true;
@@ -514,6 +517,16 @@ class Level {
     // nothing else dangerous anywhere you might bait it from or be spat out onto
     for (let k = -9; k <= 9; k++) if (this.threatened(x - HITBOX_W / 2 + k * TILE, this.groundTop(x) - HITBOX_H)) return false;
     return true;
+  }
+
+  // A landmine on flat, open ground, nothing dangerous round it, away from the crates and the red button (and not at the
+  // camp's end): there's always room to see it and jump it
+  tryMine(c) {
+    const x = c * TILE + TILE / 2;
+    if (!this.spotFits(c, 2, true, "camp", 0, () => {}, () => {})) return;
+    if (this.crates.some((cr) => Math.abs(cr.x + 6 - x) < 5 * TILE) || (this.nukeButton && Math.abs(this.nukeButton.x + 10 - x) < 8 * TILE)) return;
+    this.mines.push({ id: this.nextId++, x, gy: this.groundTop(c * TILE) });
+    this.lastMine = c;
   }
 
   // A crate on flat, open ground, nothing dangerous round it (you stop and jump on it)
@@ -1055,6 +1068,7 @@ class Level {
       if (this.colBiome[c] === "camp") { // the camp's crates (only in a camp you're taken to: that's where the guns come from)
         const G = CAMP_GUNS;
         if (this.realmEnd !== undefined && c * TILE < this.realmEnd && c - this.lastCrate >= G.crateEvery && this.rng() < G.crateChance) this.tryCrate(c);
+        if (!this.easy && (this.realmEnd === undefined || c * TILE < this.realmEnd) && c - this.lastMine >= MINES.every && this.rng() < MINES.chance) this.tryMine(c); // (Easy: no mines)
         continue;
       }
       if (this.colBiome[c] === "jungle") {

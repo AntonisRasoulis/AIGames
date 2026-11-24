@@ -211,6 +211,7 @@ const Renderer = (() => {
     if (world.heli && world.heli.level === world.level) drawHeli(world.heli, camX, world.time); // (the military camp's helicopter, its rope behind whoever's on it)
     drawCampHelis(world, camX, world.time); // (its wreck; the helicopter at the camp's end; and bringing people back)
     drawCrates(world.level, player, camX); // (the camp's crates: the shared ones as this runner sees them)
+    drawMines(world.level, player, camX, world.time); // (the camp's landmines, as this runner sees them)
     drawNukeButton(world.level, player, camX, world.time); // (the camp's red button)
     drawCraters(world.level, camX, world.time); // (where a nuke landed: a small glowing crater, fallout drifting down)
     drawFlood(world, camX, world.time);
@@ -616,6 +617,21 @@ const Renderer = (() => {
         for (let i = -7; i <= 7; i++) { const top = y - 16 + Math.round((i * i) / 9); P(Math.abs(i) % 4 < 2 ? "#6e7a42" : "#e8e0c0", x + 3 + i, top, 1, 18 - 16 + 2); P("#3a4422", x + 3 + i, top - 1); }
         for (const d of [-6, 6]) for (let k = 0; k < 12; k++) P("#d8c89a", x + 3 + Math.round(d * (1 - k / 12)), y - 13 + k, 1, 1, 0.8);
       }
+    }
+  }
+
+  // The camp's landmines: a small olive disc half-sunk in the dirt, a red light blinking on top (armed: lit, flashing fast);
+  // blown: a little scorched dent. Each runner sees their own
+  function drawMines(level, viewer, camX, time) {
+    for (const m of level.mines || []) {
+      const x = Math.round(m.x - camX), gy = m.gy;
+      if (x < -10 || x > VIEW_W + 10) continue;
+      const st = viewer.mineState.get(m.id);
+      if (st && st.state === "blown") { P("#2a2014", x - 4, gy, 9, 1); P("#1a140c", x - 2, gy + 1, 5, 1); continue; }
+      P("#1a1c12", x - 4, gy - 3, 9, 3); P("#4a5030", x - 3, gy - 3, 7, 2); P("#6a7044", x - 2, gy - 3, 5, 1); P("#6a5a3a", x - 5, gy - 1, 11, 1); // (the disc, dirt heaped round it)
+      const armed = st && st.state === "armed", on = armed ? Math.floor(time * 16) % 2 : Math.floor(time * 2) % 2;
+      P(on ? "#ff3a2a" : "#5a1a1a", x, gy - 4, 1, 1);
+      if (on) drawGlowAt("red", 0, x + 0.5, gy - 4, armed ? 0.9 : 0.5);
     }
   }
 
@@ -5007,6 +5023,10 @@ const Renderer = (() => {
     const shake = p.dashHold > 0 ? Math.round(Math.sin(p.dashHold * 90)) : 0; // trembling before a dash
     const x = Math.round(p.x - camX) - 1 + shake;
     const y = Math.round(p.y) - 1;
+    if (p.mineFly) { // thrown back by a landmine: tumbling head over heels through the air
+      b.save(); b.translate(x + 4, y + 6); b.rotate(-p.mineFly.t * 14); b.drawImage(frames.jump, -4, -6); b.restore();
+      return;
+    }
     if (p.lying || (p.dream && p.dream.kind === "sleep")) { // asleep, or just woken up: lying on your back
       // dozing off you tip over backwards (over 0.25 s); waking up, the same in reverse at the very end: you sit back up
       const d = p.dream, S = SLEEP_SHROOM;

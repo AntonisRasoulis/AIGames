@@ -53,6 +53,8 @@ class Player {
     this.ammo = 0;                // the military camp: bullets collected from its crates...
     this.gas = 0;                 // ...(alone: gas cans)...
     this.cratesOpened = new Set(); // ...the shared crates you've smashed (everyone opens their own)...
+    this.mineState = new Map();   // the camp's landmines *this* player has set off { state: armed | blown, t }
+    this.mineFly = null;          // thrown back through the air by one { x0, y0, x1, y1, t }
     this.rad = null;              // nuked: radiated for the rest of the race { next (s to the next dizzy spell), slow (s of it left) }
     this.gun = null;              // ...and the gun you came out with { kind: m16 | pistol, cap, mag, reserve, reload, cool, flash }
     this.trapState = new Set();   // bear traps that have snapped on *this* player
@@ -1194,7 +1196,7 @@ class Player {
       Sound.play("auroraBlock");
       return;
     }
-    if (word) this.showHit(word, word === "SCORCHED!" ? "#8af7df" : word === "CRUSHED!" ? "#b8c4c4" : "#7af0d8");
+    if (word) this.showHit(word, word === "SPLAT!" ? "#ff7a3a" : word === "SCORCHED!" ? "#8af7df" : word === "CRUSHED!" ? "#b8c4c4" : "#7af0d8");
     this.onPond = null;
     this.trapped = 0;
     this.inSink = null;

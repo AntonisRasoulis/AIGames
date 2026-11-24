@@ -207,7 +207,7 @@ const Game = (() => {
     // The main course's dangers only see who's on it: anyone off in a forest (or on their way) counts as out of the race
     onCourse(level, () => mainCourse(dt, inputs));
     for (const f of forests()) {
-      if (f.biome === "camp") onCourse(f, () => { checkOrbs(); updateBridges(dt); updateCrates(f); updateNukeButton(f, inputs); updateParkedJet(f, dt); updateParkedHeli(f, dt); levelSounds(); });
+      if (f.biome === "camp") onCourse(f, () => { checkOrbs(); updateBridges(dt); updateCrates(f); updateMines(dt); updateNukeButton(f, inputs); updateParkedJet(f, dt); updateParkedHeli(f, dt); levelSounds(); });
       else if (f.biome === "ruins") onCourse(f, () => { world.players.forEach((p, i) => { if (inputs[i].firePressed && p.power === "laser") usePower(p, i); }); checkOrbs(); updateBridges(dt); updateRuins(f, dt); updateBiomeGates(f); updateStorms(dt); updateMortars(dt); updateRuneTiles(dt); levelSounds(); });
       else if (f.leg) onCourse(f, () => { updateBridges(dt); updateFlytraps(dt); checkThinIce(); levelSounds(); updateLeg(f); });
       else onCourse(f, () => { world.players.forEach((p, i) => { if (inputs[i].firePressed && p.power === "mushroom") usePower(p, i); }); checkOrbs(); updateBridges(dt); updateLooseSaws(dt); updateLooseMaces(dt); updateSpores(); updateLobbers(dt); updateAliveTrees(dt); updateLeaves(dt); levelSounds(); });
@@ -247,6 +247,7 @@ const Game = (() => {
     }
     updateMonkeys(dt);
     updateGuns(dt, inputs);
+    updateMines(dt); // (a race with the camp as a regular biome has them on the main course)
     updateHeli(dt);
     updateWarps(dt);
     updateGrapples(dt);
@@ -1668,7 +1669,8 @@ const Game = (() => {
     Object.assign(p, { x: spot.x, y: spot.y, vx: 0, vy: 0, onGround: true, standingOn: null, inQuick: false, inRiver: null, inSink: null, inPond: null, onPond: null, hiddenIn: null, eatenBy: null, trapped: 0 });
     p.safeSpots = [{ x: spot.x, y: spot.y }];
     // (the things each player keeps track of on a course belong to the one they've left)
-    for (const m of [p.fallState, p.icicleState, p.coconutState, p.trapState, p.tumbleStarted, p.snowballStarted, p.rotState]) m.clear();
+    for (const m of [p.fallState, p.icicleState, p.coconutState, p.trapState, p.tumbleStarted, p.snowballStarted, p.rotState, p.mineState]) m.clear();
+    p.mineFly = null;
     p.spinning = false;
     p.spin = 0;
     p.tumbleweeds = [];
@@ -2151,6 +2153,45 @@ const Game = (() => {
       r.next -= dt;
       if (was > NUKE.geiger && r.next <= NUKE.geiger) Sound.play("geiger");
       if (r.next <= 0) { r.slow = NUKE.dizzy; r.next = NUKE.dizzyEvery[0] + Math.random() * (NUKE.dizzyEvery[1] - NUKE.dizzyEvery[0]); p.showHit("DIZZY!", "#9aff7a"); }
+    }
+  }
+
+  // The camp's landmines, each runner their own: step on one, CLICK, and 0.3 s later it blows. Caught low in the blast
+  // (jump off in time and you're clear), you're thrown about 20 tiles back through the air, and the landing kills you
+  function updateMines(dt) {
+    const level = world.level, M = MINES;
+    if (!level.mines || !level.mines.length) return;
+    for (const p of world.players) {
+      if (p.caught || (p.realm || world.mainCourse || world.level) !== level) continue;
+      if (p.mineFly) { // flying back through the air, spinning, then the landing
+        const f = p.mineFly, k = Math.min(1, (f.t += dt) / M.flight);
+        p.x = f.x0 + (f.x1 - f.x0) * k;
+        p.y = f.y0 + (f.y1 - f.y0) * k - Math.sin(k * Math.PI) * M.arc;
+        if (k >= 1) { p.mineFly = null; p.held = false; Object.assign(p, { x: f.x1, y: f.y1, vx: 0, vy: 0 }); world.quakes.push({ x: p.x, t: 0.2, level }); Sound.play("land"); p.die("SPLAT!"); }
+        continue;
+      }
+      for (const m of level.mines) {
+        const st = p.mineState.get(m.id);
+        if (!st) { // stepping on it
+          if (p.dead || p.held || !p.onGround || p.standingOn || Math.abs(p.x + HITBOX_W / 2 - m.x) > 4) continue;
+          p.mineState.set(m.id, { state: "armed", t: 0 });
+          p.showHit("CLICK!", "#ff4a3a");
+          Sound.play("mineClick");
+          continue;
+        }
+        if (st.state !== "armed") continue;
+        if ((st.t += dt) < M.fuse) continue;
+        st.state = "blown"; st.t = 0;
+        world.booms.push({ level, x: m.x, y: m.gy - 3, gy: m.gy, t: 0, seed: m.id }); // (the mortar's fireball and scorch mark)
+        world.quakes.push({ x: m.x, t: 0.35, level });
+        for (let i = 0; i < 14; i++) world.sawBits.push({ x: m.x, y: m.gy - 2, vx: (Math.random() - 0.5) * 160, vy: -60 - Math.random() * 140, t: 0.8, c: ["#6a5a3a", "#4a3c26", "#ffd040", "#ff7a1a"][i % 4], big: i % 3 === 0, level });
+        Sound.play("mineBoom");
+        if (p.dead || p.held || Math.abs(p.x + HITBOX_W / 2 - m.x) > M.blast || p.y + HITBOX_H < m.gy - M.high) continue; // (jumped clear)
+        const back = Math.max(0, p.x - M.throwBack * TILE), spot = level.safeSpotBefore(back + 1, 600) || level.safeSpotAfter(back, 600) || { x: back, y: p.y };
+        p.mineFly = { x0: p.x, y0: p.y, x1: spot.x, y1: spot.y, t: 0 };
+        Object.assign(p, { held: true, vx: 0, vy: 0, onGround: false, standingOn: null });
+        p.showHit("BOOM!", "#ff7a3a");
+      }
     }
   }
 
