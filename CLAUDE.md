@@ -18,7 +18,7 @@ costs ground to the fire. 1 Player: one big view, race the fire for distance (be
 - Repo: `AntonisRasoulis/AIGames` (renamed from VibeCodingPractice; the local folder may still have the old name). Development branch: `claude/nice-meitner-muga6l`
   (a fresh chat may be given a different branch: use the one you're told).
 - Published as a claude.ai Artifact (a single bundled HTML file):
-  **https://claude.ai/artifact/Uh5CKSPymdWERadhojnY7P** (Version 188 at the time of writing). Always
+  **https://claude.ai/artifact/Uh5CKSPymdWERadhojnY7P** (Version 189 at the time of writing). Always
   republish to this same URL (pass it as `url`); never create a new artifact for the game.
 
 ## Style
@@ -200,7 +200,8 @@ Scripts load in this order (all globals, no modules), each with a `?v=` cache-bu
   nukes the main course's leader (nobody there: the camp, everyone thrown out), 1.5 s warning, can't be dodged, out 3 s, crater +
   fallout, radiated (dizzy: blurry, doubled vision + half speed 2 s, every 15-25 s; v8.16: a real-looking warhead plunging in fast, a massive
   billowing blast that fills the screen, shakes and flashes screens 2.5 screens round); pressed: the helicopter back is shot down, riders die by the wreck;
-  not pressed: it hovers low and they hop out. Alone: the fire 30 m back.
+  not pressed: it hovers low and they hop out. Alone: the fire 30 m back. v8.17: all the helicopters' moves eased (`CAMP_HELI.accel`,
+  `brake`, `leave`, `climb`; rotor spin and tilt lerp instead of snapping).
   Still to come: the camp's own dangers (owner picked landmines, gun turrets, grenades, tripwires; their details still to settle).
 - **The arcane ruins** (the second secret world; **a first, playable version is built**, v7.0): a portal on the
   main course (one per race after 400 m) with a button under it; inside, a 20 s race (v7.6; it was 60 s) to an exit portal past fire

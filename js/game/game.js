@@ -1718,7 +1718,7 @@ const Game = (() => {
     // up and down: climbing away, falling when it's hit, or else keeping its rope's loop a jump's height over the ground below
     const g = level.groundTop(h.x);
     if (g !== null) h.ground = g;
-    if (h.state === "away" || (h.state === "rise" && h.t > Hc.reel)) h.y -= 50 * dt;
+    if (h.state === "away" || (h.state === "rise" && h.t > Hc.reel)) { h.climb = Math.min(50, (h.climb || 0) + 70 * dt); h.y -= h.climb * dt; } // (climbing away: easing up to speed)
     else if (h.state === "hit") { h.vy += 320 * dt; h.y += h.vy * dt; h.pitch += dt * 1.5; }
     else { const wantY = h.ground - Hc.ropeLow - h.rope.L - 7.5; h.y += Math.sign(wantY - h.y) * Math.min(Math.abs(wantY - h.y), 40 * dt); }
     // tipped into its motion: nose down speeding along, nose up as it brakes
@@ -1891,14 +1891,20 @@ const Game = (() => {
     for (const dh of world.dropHelis) {
       dh.t += dt;
       dh.riders = dh.riders.filter((p) => !p.caught);
-      if (dh.state === "fly") {
+      dh.spin = dh.spin ?? 26;
+      if (dh.state === "fly") { // (easing in: slowing as it nears where it'll drop you, tipped nose-down while fast, nose-up as it brakes)
+        const left = dh.to.x - 3 - dh.x, was = dh.vx;
+        const want = dh.doomed ? CAMP_HELI.speed : Math.min(CAMP_HELI.speed, Math.max(0, left) * CAMP_HELI.brake);
+        dh.vx += Math.sign(want - dh.vx) * Math.min(Math.abs(want - dh.vx), CAMP_HELI.accel * dt);
         dh.x = Math.min(dh.to.x - 3, dh.x + dh.vx * dt);
+        const ax = (dh.vx - was) / dt;
+        dh.pitch += (Math.max(-0.16, Math.min(0.18, (dh.vx / CAMP_HELI.speed) * 0.14 + ax * 0.0005)) - dh.pitch) * Math.min(1, dt * 4);
         if (!dh.doomed) { // (coming down to hover just over the ground where you'll hop out)
           const g = world.level.groundTop(dh.to.x + HITBOX_W / 2), low = (g ?? dh.to.y + HITBOX_H) - 14 - NUKE.hoverLow, left = dh.to.x - 3 - dh.x;
           if (left < 160) dh.y += (low - dh.y) * Math.min(1, dt * 5);
         }
         if (dh.doomed && !dh.missile && dh.x > dh.to.x - NUKE.shootAt) { dh.missile = { x: dh.x - 220, y: -16, trail: [], t: 0 }; Sound.play("launch"); } // (the red button was pressed: here comes a missile)
-        if (dh.x >= dh.to.x - 3 && !dh.doomed) { dh.state = "drop"; dh.t = 0; dh.pitch = -0.08; }
+        if (!dh.doomed && dh.to.x - 3 - dh.x < 1.5 && dh.vx < 12) { dh.state = "drop"; dh.t = 0; dh.vx = 0; }
       } else if (dh.state === "hit") { // shot down: falling, burning, then the crash (its wreck stays; everyone in it dies)
         dh.vy += 320 * dt; dh.y += dh.vy * dt; dh.x += 60 * dt; dh.pitch += dt * 1.5;
         const g = world.level.groundTop(dh.x);
@@ -1918,10 +1924,17 @@ const Game = (() => {
           }
           dh.riders = []; dh.done = true;
         }
-      } else if (dh.state === "drop") { // out you jump
+      } else if (dh.state === "drop") { // out you jump (it hovers, bobbing a little)
         dh.pitch += (0 - dh.pitch) * Math.min(1, dt * 4);
+        dh.y += Math.sin(dh.t * 5) * 6 * dt;
         if (dh.t > 0.4) { for (const p of dh.riders) { p.held = false; p.drop = null; p.vy = -70; p.vx = 0; p.onGround = false; p.safeSpots = [{ x: dh.to.x, y: dh.to.y }]; Sound.play("land"); } dh.riders = []; dh.state = "leave"; dh.t = 0; }
-      } else { dh.x += 200 * dt; dh.y -= 30 * dt; dh.pitch = 0.12; if (dh.t > 0.3) dh.door = Math.max(0, dh.door - dt / CAMP_HELI.door); }
+      } else { // off it goes: speeding up and climbing gently, tipping forward bit by bit, its doors sliding shut
+        dh.vx = Math.min(CAMP_HELI.leave, dh.vx + CAMP_HELI.accel * 0.6 * dt);
+        dh.vy = Math.max(-40, (dh.vy || 0) - 60 * dt);
+        dh.x += dh.vx * dt; dh.y += dh.vy * dt;
+        dh.pitch += (0.15 - dh.pitch) * Math.min(1, dt * 2);
+        if (dh.t > 0.3) dh.door = Math.max(0, dh.door - dt / CAMP_HELI.door);
+      }
       if (dh.missile) { // the prairie's missile, homing in on it
         const m = dh.missile;
         m.t += dt;
@@ -2022,9 +2035,12 @@ const Game = (() => {
     ph.door = Math.max(0, Math.min(1, ph.door + (open ? 1 : -1) * dt / H.door));
     if (was === 0 && ph.door > 0) Sound.play("heliDoor");
     ph.y = ph.gy - 14; // (its middle, standing on its wheels)
-    if (ph.state === "lift") ph.y -= Math.max(0, ph.t - H.door) * 45; // (doors shut, then it climbs)
-    else if (ph.state === "gone") ph.y -= 200;
-    else if (ph.state === "land") ph.y -= 160 * (1 - Math.min(1, ph.t / H.land)) ** 2;
+    ph.climbT = ph.state === "lift" ? Math.max(0, ph.t - H.door) : ph.state === "gone" ? (ph.climbT || 0) + dt : 0; // (doors shut, then it climbs, on up off the screen)
+    const c = ph.climbT;
+    if (ph.state === "lift" || ph.state === "gone") ph.y -= 0.5 * H.climb * c * c + Math.sin(c * 4) * Math.min(1, c) * 1.2; // (slowly at first, then faster, swaying a little)
+    else if (ph.state === "land") { const k = Math.min(1, ph.t / H.land), e = 1 - (1 - k) * (1 - k) * (1 - k); ph.y -= 160 * (1 - e); } // (coming down, slowing to a gentle touchdown)
+    ph.spin = (ph.spin ?? 9) + (((ph.state === "wait" && ph.riders.length === 0) ? 9 : ph.state === "wait" ? 16 : 26) - (ph.spin ?? 9)) * Math.min(1, (1 / 120) * 2.5); // (rotors spinning up and down, never jumping)
+    ph.pitch = ph.state === "lift" ? Math.sin(c * 3) * 0.03 * Math.min(1, c) : ph.state === "land" ? -0.06 * (1 - Math.min(1, ph.t / H.land)) : 0;
     ph.riders.forEach((p, i) => { // sitting in its doorway (after a hop up into it)
       const sx = ph.x - 10 + i * 2.5, sy = ph.y - 6, hp = p.hop;
       if (hp && hp.t < 0.25) { hp.t += dt; const k = Math.min(1, hp.t / 0.25); p.x = hp.x + (sx - hp.x) * k; p.y = hp.y + (sy - hp.y) * k - Math.sin(k * Math.PI) * 8; }

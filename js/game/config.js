@@ -1,7 +1,7 @@
 // The game's version, shown left of the logo. The first number goes up for big updates (a new biome, a new
 // secret world...), the second for smaller additions and fixes (back to 0 with each big update): 6.16 means
 // the 6th big update (the enchanted forest), 16 small ones since. (7: the arcane ruins.)
-const GAME_VERSION = "8.16";
+const GAME_VERSION = "8.17";
 
 // Tunable numbers for the game. Change these to adjust how it feels.
 // Distances are in game pixels; one tile is 8 pixels (about "1 meter").
@@ -682,6 +682,10 @@ const CAMP_HELI = {    // the other way back out of the camp: only the first one
   landAhead: 80,       // (where they'll be when it touches down, if they keep running, and this many pixels more)
   back: 560,           // back on the main course it flies in from this far behind where you'll come out (pixels)...
   speed: 240,          // ...this fast, then hovers while you jump out of the door
+  accel: 320,          // (v8.17, smoother) how quickly it speeds up and slows down (pixels a second, each second)...
+  brake: 2.2,          // ...slowing as it nears where it drops you (its speed: at most this x the pixels left to go)...
+  leave: 220,          // ...and the speed it flies off at, afterwards
+  climb: 70,           // at the camp's end: how quickly it speeds up climbing away (pixels a second, each second)
 };
 const JET = {          // the way back out of the camp
   back: 640,           // it comes in from this far behind where you'll come out (pixels)...

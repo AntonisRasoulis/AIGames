@@ -546,12 +546,12 @@ const Renderer = (() => {
   // them sitting in its doorway
   function drawCampHelis(world, camX, time) {
     const ph = world.level.parkedHeli;
-    if (ph && ph.state !== "gone") drawHeliBody(ph.x - camX, ph.y, 0, 1, time, ph.state === "wait" ? 9 : 26, ph.door);
+    if (ph && ph.y > -40) drawHeliBody(ph.x - camX, ph.y, ph.pitch || 0, 1, time, ph.spin || 9, ph.door);
     if (world.level.parkedJet) drawParkedJet(world.level.parkedJet, camX, time);
     if (world.level !== Game.world.level) return;
     for (const w of world.wrecks) if (w.level === world.level) drawWreck(w, camX, time);
     for (const dh of world.dropHelis) {
-      drawHeliBody(dh.x - camX, dh.y, dh.pitch, -1, time, dh.state === "hit" ? 6 : 26, dh.door);
+      drawHeliBody(dh.x - camX, dh.y, dh.pitch, -1, time, dh.state === "hit" ? 6 : dh.spin || 26, dh.door);
       if (dh.state === "hit") { drawGlowAt("fire", 3, dh.x - camX, dh.y, 0.8); for (let i = 0; i < 6; i++) P(i % 2 ? "#ffb040" : "#e84a2a", dh.x - camX - 8 + hash(i, Math.floor(time * 20)) * 16, dh.y - 6 + hash(Math.floor(time * 20), i) * 10, 2, 2); }
       if (dh.missile) { // (the prairie's missile: the red button was pressed)
         const m = dh.missile;
