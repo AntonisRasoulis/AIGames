@@ -2095,16 +2095,24 @@ const Game = (() => {
     const nb = f.nukeButton;
     if (!nb) return;
     nb.t += 1 / 120;
+    if (nb.state === "pressed") { // the fist comes down and the glass shatters; the silo opens, the missile goes up, and only then is it on its way
+      if (!nb.smashed && nb.t >= NUKE.slam) {
+        nb.smashed = true;
+        for (let k = 0; k < 26; k++) world.sawBits.push({ x: nb.x + 10 + (Math.random() - 0.5) * 8, y: nb.gy - 19, vx: (Math.random() - 0.5) * 220, vy: -30 - Math.random() * 150, t: 0.8, c: k % 3 ? "#c8e8ff" : "#ffffff", big: k % 4 === 0, level: f }); // (glass flying)
+        world.quakes.push({ x: nb.x + 10, t: 0.12, level: f });
+        Sound.play("glassSmash");
+      }
+      if (!nb.roared && nb.t >= 0.35) { nb.roared = true; Sound.play("silo"); world.quakes.push({ x: nb.x + NUKE.hatch, t: 1.2, level: f }); }
+      if (!nb.sent && nb.t >= NUKE.launch) { nb.sent = true; world.nukeOrders.push({ presser: nb.by, camp: f }); } // (launched from outside the camp's own update: see updateNukes)
+      return;
+    }
     if (nb.state !== "ready") return;
     world.players.forEach((p, i) => {
       if (nb.state !== "ready" || p.realm !== f || !freeRunner(p) || !inputs[i] || !inputs[i].firePressed) return;
       if (Math.abs(p.x + HITBOX_W / 2 - (nb.x + 10)) > NUKE.near) return;
       nb.state = "pressed"; nb.t = 0; nb.by = p;
       f.nukeFired = true;
-      p.showHit("NUKE INCOMING!", "#ff3a2a");
-      for (let k = 0; k < 16; k++) world.sawBits.push({ x: nb.x + 10, y: nb.gy - 18, vx: (Math.random() - 0.5) * 160, vy: -40 - Math.random() * 120, t: 0.7, c: k % 3 ? "#c8e8ff" : "#ffffff", big: k % 4 === 0, level: f }); // (glass flying)
-      Sound.play("glassSmash");
-      world.nukeOrders.push({ presser: p, camp: f }); // (launched from outside the camp's own update: see updateNukes)
+      p.showHit("LAUNCH!", "#ff3a2a");
     });
   }
 

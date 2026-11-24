@@ -839,20 +839,70 @@ const Renderer = (() => {
     P("#1a1e12", x, gy - 13, 20, 9); P("#7a7e72", x + 1, gy - 12, 18, 8); P("#9a9e90", x + 1, gy - 12, 18, 1);
     for (let i = 0; i < 18; i++) P((i + 1) % 4 < 2 ? "#e8c030" : "#1a1a10", x + 1 + i, gy - 6, 1, 1);
     P("#1a1e12", x + 6, gy - 16, 8, 3); for (let i = 0; i < 8; i++) P(i % 4 < 2 ? "#e8c030" : "#1a1a10", x + 6 + i, gy - 16, 1, 1);
-    const by = gy - 19 + (on ? 1 : 0);
-    P("#2a0606", x + 7, by, 6, 3); P(on ? "#ff6a4a" : "#d02a1a", x + 8, by, 4, 2); P("#ffc0b0", x + 8, by);
+    const sunk = on && nb.t >= NUKE.slam; // (pressed: the button's pushed right down into its collar)
+    P("#1a1a10", x + 6, gy - 17, 8, 2); // (its collar)
+    if (sunk) { P("#2a0606", x + 7, gy - 18, 6, 2); P("#ff6a4a", x + 8, gy - 18, 4, 1); }
+    else { P("#2a0606", x + 7, gy - 20, 6, 4); P("#d02a1a", x + 8, gy - 20, 4, 3); P("#ffc0b0", x + 8, gy - 20); }
     for (const dx of [2, 16]) { P("#1a1e12", x + dx - 1, gy - 11, 3, 3); P("#e8e8d8", x + dx, gy - 10); P("#1a1e12", x + dx, gy - 11 + (on ? 2 : 0)); }
     for (let i = 0; i < 4; i++) P(on ? (Math.floor(time * 6 + i) % 2 ? "#ff3a2a" : "#ffd040") : "#2a3a2a", x + 6 + i * 2, gy - 9);
     if (!on) { // the glass cover, catching the light
       P("#c8e8ff", x + 6, gy - 21, 8, 1, 0.6); P("#c8e8ff", x + 6, gy - 20, 1, 3, 0.4); P("#c8e8ff", x + 13, gy - 20, 1, 3, 0.4); P("#ffffff", x + 8, gy - 21, 2, 1, 0.7);
       const near = viewer.realm === level && !viewer.dead && Math.abs(viewer.x + HITBOX_W / 2 - (nb.x + 10)) <= NUKE.near;
       if (near) { const k = ["S", "DOWN", "G", "K"][Game.world.players.indexOf(viewer)] || "S", w = k.length * 4 + 4, bob = Math.round(Math.sin(time * 6)); P("#1a1a10", x + 10 - w / 2, gy - 31 + bob, w, 7); P("#ff3a2a", x + 11 - w / 2, gy - 30 + bob, w - 2, 5); drawTinyText(k, x + 12 - w / 2, gy - 29 + bob); }
+    } else if (nb.t < NUKE.slam) { // the glass cracking under the fist, a moment before it bursts
+      P("#c8e8ff", x + 6, gy - 21, 8, 1, 0.7); P("#ffffff", x + 9, gy - 21, 1, 1); P("#ffffff", x + 8, gy - 22, 1, 1); P("#ffffff", x + 11, gy - 22, 1, 1); P("#ffffff", x + 7, gy - 20, 1, 2, 0.8); P("#ffffff", x + 12, gy - 20, 1, 2, 0.8);
     } else { // smashed: jagged shards left round the rim, a crack or two
       P("#c8e8ff", x + 6, gy - 20, 1, 2, 0.5); P("#c8e8ff", x + 7, gy - 21, 1, 1, 0.5); P("#c8e8ff", x + 13, gy - 20, 1, 2, 0.5); P("#c8e8ff", x + 12, gy - 21, 1, 1, 0.4);
       P("#e8f4ff", x + 3, gy - 13, 1, 1, 0.7); P("#e8f4ff", x + 17, gy - 13, 1, 1, 0.7); P("#e8f4ff", x - 2, gy - 4, 1, 1, 0.6); P("#e8f4ff", x + 22, gy - 4, 1, 1, 0.6); // (bits of glass on the desk and the sandbags)
       if (Math.floor(time * 3) % 2) drawGlowAt("red", 0, x + 10, gy - 18, 0.6);
     }
+    if (on && nb.t < 0.5) { // the fist: slams down onto the glass, stays a moment, lifts away
+      const k = nb.t < NUKE.slam ? nb.t / NUKE.slam : nb.t < 0.3 ? 1 : 1 - (nb.t - 0.3) / 0.2, fy = Math.round(gy - 34 + 13 * k * k), fx = x + 7;
+      const col = (nb.by && nb.by.palette && nb.by.palette.c) || "#e43b44";
+      P(col, fx + 1, fy - 12, 4, 6); P("#2a1d1a", fx, fy - 6, 7, 1); // (a sleeve in the presser's colour)
+      P("#2a1d1a", fx - 1, fy - 5, 8, 6); P("#f4c08c", fx, fy - 5, 6, 5); P("#d8a070", fx, fy - 2, 6, 1); P("#d8a070", fx + 2, fy - 5, 1, 3); P("#d8a070", fx + 4, fy - 5, 1, 3); // (the fist, knuckles down)
+      if (nb.t >= NUKE.slam && nb.t < NUKE.slam + 0.1) for (const [dx, dy] of [[-4, 0], [11, 0], [-2, -4], [9, -4]]) P("#ffffff", fx + dx, gy - 19 + dy, 2, 1, 0.9); // (impact lines)
+    }
+    drawNukeLaunch(nb, x, gy, time);
   }
+
+  // The silo beside the red button: a steel hatch flush with the ground. Pressed: its doors slide apart, smoke billows out
+  // and the missile roars up out of it on a column of flame, tipping a little as it climbs off the top of the screen; its
+  // smoke trail hangs in the sky and spreads out
+  function drawNukeLaunch(nb, x, gy, time) {
+    const hx = x + NUKE.hatch, t = nb.state === "pressed" ? nb.t : 0;
+    const open = Math.max(0, Math.min(1, (t - 0.12) / 0.25)), half = Math.round(9 * (1 - open));
+    P("#1a1c1c", hx - 11, gy - 1, 22, 2); P("#0a0a0a", hx - 9, gy, 18, 3); // (the rim and the dark shaft)
+    for (const side of [-1, 1]) { // the doors
+      const dx = side < 0 ? hx - 9 - (9 - half) : hx + (9 - half);
+      P("#5a5e62", dx, gy - 1, half, 2); for (let i = 0; i < half; i++) if ((i + (side < 0 ? 0 : 1)) % 4 < 2) P("#e8c030", dx + i, gy - 1, 1, 1);
+    }
+    if (!t) return;
+    const L0 = 0.35, A = 380, rise = (s) => (s < L0 ? 0 : 0.5 * A * (s - L0) * (s - L0)); // (how far up it is at time s)
+    const at = (s) => ({ x: hx + 0.5 + 0.12 * rise(s) * rise(s) / 60, y: gy + 18 - rise(s) });
+    for (let s = L0; s < Math.min(t, L0 + 1.4); s += 0.04) { // the smoke: puffs left along the way, swelling and thinning as they hang there
+      const p = at(s), age = t - s, r = 2 + age * 5, a = Math.max(0, 0.55 - age * 0.14);
+      if (p.y > gy || a <= 0) continue;
+      drawPuffAt(p.x + Math.sin(s * 40) * age * 3, p.y + age * 2, Math.min(9, r), age < 0.15 ? "#ffd8a0" : "#d8d8d0", a);
+    }
+    if (t > 0.15 && t < 3) for (let i = 0; i < 6; i++) { // smoke boiling out of the hatch along the ground
+      const age = (t - 0.15) % 1.2, side = i % 2 ? 1 : -1;
+      drawPuffAt(hx + side * (6 + age * 20 + i * 3), gy - 3 - age * 4, 3 + age * 4, "#c8c8c0", Math.max(0, 0.5 - age * 0.4) * Math.min(1, 3 - t));
+    }
+    if (t < L0 || t > L0 + 1.4) return;
+    const m = at(t), tilt = Math.min(0.25, rise(t) / 600);
+    if (m.y < -40) return;
+    b.save(); b.beginPath(); b.rect(-50, -100, VIEW_W + 100, gy + 100); b.clip(); // (it comes up out of the ground)
+    b.translate(Math.round(m.x), Math.round(m.y)); b.rotate(tilt);
+    const fl = 6 + Math.round(Math.random() * 4); // the flame under its tail
+    P("#ff7a1a", -2, 10, 5, fl); P("#ffd040", -1, 10, 3, fl - 3); P("#ffffff", 0, 10, 1, 3);
+    const W = [1, 2, 3, 4, 5, 6, 6, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 6, 6]; // (nose up: its width row by row from the nose down)
+    W.forEach((w, j) => { const yy = -10 + j, x0 = -Math.floor(w / 2); P("#16181c", x0 - 1, yy, w + 2, 1); P(j >= 11 && j <= 12 ? "#e8c030" : j < 4 ? "#3a3e44" : "#5a626a", x0, yy, w, 1); if (w > 2) P("#9aa2aa", x0 + 1, yy, 1, 1); });
+    P("#16181c", -6, 6, 13, 1); P("#16181c", -6, 4, 1, 6); P("#16181c", 6, 4, 1, 6); P("#4a5258", -5, 5, 2, 4); P("#4a5258", 4, 5, 2, 4); // (the fins)
+    b.restore();
+    if (m.y < gy) drawGlowAt("fire", 2, m.x, Math.min(gy, m.y + 14), 0.8);
+  }
+  function drawPuffAt(x, y, r, c, a) { r = Math.max(1, Math.round(r)); for (let dy = -r; dy <= r; dy++) { const w = Math.round(Math.sqrt(r * r - dy * dy)); P(c, x - w, y + dy, w * 2, 1, a); } }
 
   // A few tiny letters (the red button's key hint): 3 x 5 pixel letters, white
   function drawTinyText(s, x, y) {

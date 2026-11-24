@@ -1,7 +1,7 @@
 // The game's version, shown left of the logo. The first number goes up for big updates (a new biome, a new
 // secret world...), the second for smaller additions and fixes (back to 0 with each big update): 6.16 means
 // the 6th big update (the enchanted forest), 16 small ones since. (7: the arcane ruins.)
-const GAME_VERSION = "8.22";
+const GAME_VERSION = "8.23";
 
 // Tunable numbers for the game. Change these to adjust how it feels.
 // Distances are in game pixels; one tile is 8 pixels (about "1 meter").
@@ -620,6 +620,9 @@ const HELI = {
 const NUKE = {
   near: 14,            // stand this close to the desk to press it (pixels from its middle)
   warn: 1.5,           // seconds of siren and red target before the nuke lands (it follows you: no getting away)
+  slam: 0.08,          // pressing it: a fist slams down on the glass this long after the press, smashing it
+  hatch: 44,           // the silo's hatch, in the ground this far right of the desk: it slides open and the missile launches
+  launch: 1.3,         // seconds from the press until the missile's up out of the camp's sky (then the target's warning starts)
   out: 3,              // seconds before whoever it hit comes back
   plunge: 0.35,        // the warhead plunges in for the last this many seconds of the warning (very fast)
   cloud: 6,            // seconds the blast lasts: fireball, shockwave, the mushroom cloud towering up, fading

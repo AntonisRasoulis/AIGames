@@ -257,6 +257,7 @@ const Sound = (() => {
     nukeBoom: () => { noise({ filter: "lowpass", f: 900, to: 60, dur: 1.6, vol: 0.4 }); tone({ f: 70, to: 25, dur: 1.4, type: "sine", vol: 0.25 }); },
     geiger: () => { for (let i = 0; i < 14; i++) noise({ filter: "highpass", f: 4000, dur: 0.012, vol: 0.12, at: Math.random() * 1 }); },
     glint: () => { tone({ f: 2600, to: 3200, dur: 0.12, type: "sine", vol: 0.05 }); tone({ f: 3900, dur: 0.2, type: "sine", vol: 0.03, at: 0.08 }); },
+    silo: () => { noise({ filter: "lowpass", f: 900, to: 300, dur: 1.6, vol: 0.32, attack: 0.15 }); tone({ f: 70, to: 40, dur: 1.5, type: "sawtooth", vol: 0.07, attack: 0.1 }); noise({ filter: "highpass", f: 2500, to: 1200, dur: 1.2, vol: 0.06, at: 0.1 }); },
     sniper: () => { noise({ filter: "highpass", f: 2500, to: 400, dur: 0.18, vol: 0.3 }); tone({ f: 220, to: 50, dur: 0.15, type: "square", vol: 0.08 }); },
     tink: () => tone({ f: 1400, to: 1100, dur: 0.05, type: "triangle", vol: 0.08 }),
     gasHiss: () => noise({ filter: "highpass", f: 3000, to: 2000, dur: 0.8, vol: 0.12 }),
