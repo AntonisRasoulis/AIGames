@@ -655,49 +655,75 @@ const Renderer = (() => {
       if (tw.front !== front) continue;
       const x = Math.round(tw.x - camX), gy = tw.gy, h = tw.h, top = gy - h, dim = !front;
       if (x < -40 || x > VIEW_W + 40) continue;
-      if (tw.kind === "wood") {
+      if (tw.kind === "wood") { // legs, cross braces, a ladder; he stands on the floor behind the rail, under a tin roof
         const w = dim ? "#6e6248" : "#8a6a42", d = dim ? "#4a4434" : "#4a3a24";
         for (const lx of [x, x + 22]) P(d, lx, top + 8, 2, h - 8);
         for (let y = top + 14; y < gy - 4; y += 12) for (let i = 0; i < 22; i++) { P(w, x + 1 + i, y + Math.round(i * 10 / 22)); P(w, x + 1 + i, y + 10 - Math.round(i * 10 / 22)); }
         for (let y = top + 10; y < gy; y += 4) P(w, x + 17, y, 4, 1); P(d, x + 16, top + 8, 1, h - 8); P(d, x + 21, top + 8, 1, h - 8);
-        P(d, x - 3, top + 6, 30, 3); P(w, x - 2, top + 7, 28, 1);
-        drawTowerMan(tw, x, top + 6, dim, time);
-        P(d, x - 2, top - 2, 2, 8); P(d, x + 24, top - 2, 2, 8); P(w, x - 2, top + 1, 28, 2); P(d, x - 2, top + 3, 28, 1);
-        P("#2a2c22", x - 6, top - 14, 36, 2); P(dim ? "#6a705e" : "#7a8268", x - 5, top - 15, 34, 1); P(d, x - 1, top - 12, 1, 10); P(d, x + 25, top - 12, 1, 10);
-      } else if (tw.kind === "steel") {
-        const s = dim ? "#6a7074" : "#4a5258", l = dim ? "#8a9094" : "#8a9298";
-        for (let y = top + 8; y < gy; y++) { const k = (y - top) / h, sp = Math.round(4 + k * 6); P(s, x + 10 - sp, y); P(s, x + 12 + sp, y); }
-        for (let y = top + 10; y < gy - 6; y += 10) { const k = (y - top) / h, sp = Math.round(4 + k * 6), n = 2 * sp + 2; for (let i = 0; i <= n; i++) { P(l, x + 10 - sp + i, y + Math.round(i * 9 / n)); P(l, x + 10 - sp + i, y + 9 - Math.round(i * 9 / n)); } }
-        P(s, x + 1, top - 1, 22, 9); P(l, x + 2, top, 20, 7); P("#20282e", x + 4, top + 2, 16, 3);
-        drawTowerMan(tw, x, top + 6, dim, time);
-        P(s, x - 1, top + 6, 26, 2); P(s, x - 1, top - 3, 26, 2); P(s, x + 11, top - 7, 1, 4); P(Math.floor(time * 1.5) % 2 ? "#ff4a3a" : "#7a2a22", x + 11, top - 8);
-      } else {
-        const c = dim ? "#8a8a84" : "#8e8e86", d = dim ? "#6a6a66" : "#5e5e58";
-        P(d, x + 7, top + 12, 12, h - 12); P(c, x + 8, top + 12, 10, h - 12); for (let y = top + 18; y < gy; y += 6) P(d, x + 8, y, 10, 1);
-        P(d, x - 1, top, 28, 14); P(c, x, top + 1, 26, 12); P("#1a1c1c", x + 3, top + 4, 20, 3); P(d, x - 2, top - 2, 30, 2);
-        for (let i = 0; i < 4; i++) P(d, x + 3 + i * 6, top + 10, 1, 2);
-        drawTowerMan(tw, x, top + 6, dim, time);
+        P(d, x - 1, top - 13, 1, 19); P(d, x + 25, top - 13, 1, 19); // (corner posts up to the roof)
+        drawTowerMan(tw, x, dim, time);
+        P(d, x - 3, top + 6, 30, 3); P(w, x - 2, top + 7, 28, 1); // (the floor)
+        P(d, x - 2, top + 1, 28, 1); P(w, x - 2, top + 2, 28, 2); P(d, x - 2, top + 4, 28, 2); for (let i = 0; i < 28; i += 5) P(d, x - 2 + i, top + 1, 1, 5); // (the rail, planks)
+        P("#2a2c22", x - 6, top - 15, 36, 2); P(dim ? "#6a705e" : "#7a8268", x - 5, top - 16, 34, 1); P(dim ? "#5a604e" : "#626a52", x - 6, top - 13, 36, 1);
+      } else if (tw.kind === "steel") { // a lattice mast, a little cabin on top: he's inside, seen through its window
+        const s = dim ? "#6a7074" : "#4a5258", l = dim ? "#8a9094" : "#8a9298", inside = dim ? "#3a4044" : "#1e2428";
+        for (let y = top + 10; y < gy; y++) { const k = (y - top) / h, sp = Math.round(4 + k * 6); P(s, x + 10 - sp, y); P(s, x + 12 + sp, y); }
+        for (let y = top + 12; y < gy - 6; y += 10) { const k = (y - top) / h, sp = Math.round(4 + k * 6), n = 2 * sp + 2; for (let i = 0; i <= n; i++) { P(l, x + 10 - sp + i, y + Math.round(i * 9 / n)); P(l, x + 10 - sp + i, y + 9 - Math.round(i * 9 / n)); } }
+        P(inside, x + 2, top - 6, 20, 15);
+        drawTowerMan(tw, x, dim, time);
+        P(s, x, top - 8, 24, 2); P(s, x, top - 6, 3, 16); P(s, x + 21, top - 6, 3, 16); P(s, x, top + 5, 24, 5); // (roof, sides, the wall under the window)
+        P(l, x + 1, top - 7, 22, 1); P(l, x + 1, top + 5, 22, 1); for (let i = 3; i < 22; i += 6) P(s, x + i, top + 7, 1, 2);
+        P(s, x - 2, top + 10, 28, 2); P(s, x + 11, top - 12, 1, 4); if (tw.threat !== "light") P(Math.floor(time * 1.5) % 2 ? "#ff4a3a" : "#7a2a22", x + 11, top - 13);
+      } else { // concrete: a thick block on a pillar, a wide firing slit he looks out of
+        const c = dim ? "#8a8a84" : "#8e8e86", d = dim ? "#6a6a66" : "#5e5e58", inside = dim ? "#3a3c3c" : "#1a1c1c";
+        P(d, x + 7, top + 14, 12, h - 14); P(c, x + 8, top + 14, 10, h - 14); for (let y = top + 20; y < gy; y += 6) P(d, x + 8, y, 10, 1);
+        P(inside, x + 2, top - 2, 22, 11);
+        drawTowerMan(tw, x, dim, time);
+        P(d, x - 1, top - 6, 28, 4); P(c, x, top - 5, 26, 2); // (the roof slab)
+        P(d, x - 1, top - 2, 3, 16); P(c, x, top - 2, 2, 15); P(d, x + 24, top - 2, 3, 16); P(c, x + 24, top - 2, 2, 15); // (the side walls)
+        P(d, x - 1, top + 8, 28, 6); P(c, x, top + 9, 26, 4); P(d, x + 1, top + 8, 24, 1); // (the wall under the slit)
+        for (let i = 0; i < 4; i++) P(d, x + 3 + i * 6, top + 11, 1, 2);
       }
-      if (tw.threat === "light") { // the lamp on its roof
-        const ly = top - (tw.kind === "wood" ? 18 : tw.kind === "steel" ? 6 : 6);
-        P("#2a2a2a", x + 9, ly, 7, 4); P("#fffae0", x + 9 + (tw.face > 0 ? 6 : 0), ly + 1, 1, 2); P("#4a4a4a", x + 11, ly + 4, 3, 2);
+      if (tw.threat === "light") { // the searchlight on its roof, turned to where it's looking
+        const ly = towerLamp(tw), on = tw.locked ? 1 : 0.7;
+        P("#2a2a2a", x + 8, ly, 9, 5); P("#4a4a4a", x + 9, ly + 1, 7, 3); P("#3a3a3a", x + 11, ly + 5, 3, 3);
+        const lx = x + (tw.face > 0 ? 16 : 7);
+        P("#fffae0", lx, ly + 1, 2, 3); drawGlowAt("white", 1, lx + 1, ly + 2.5, on * 0.7);
       }
     }
   }
-  // Who's up in a tower: a soldier (rifle up just before a burst), the grenade or gas thrower (arm back), the sniper (in the
-  // back, just his scope's glint; in front you see him), the searchlight (just its lamp)
-  function drawTowerMan(tw, x, feet, dim, time) {
-    const face = tw.face || -1, sx = x + 8;
+  // Who's up in a tower (drawn before its front walls, so he's inside it): a soldier (rifle up just before a burst, a muzzle
+  // flash as he fires), the grenade or gas thrower (arm back), the sniper (in the back just his scope's glint; in front you see
+  // him too), the searchlight (nobody to see)
+  function drawTowerMan(tw, x, dim, time) {
+    const face = tw.face || -1, sx = x + 8, feet = towerFeet(tw), chest = feet - 6;
     if (tw.threat === "light") return;
     if (tw.threat === "sniper") {
-      const r = tw.state === "hold" ? (Math.floor(time * 16) % 2 ? 6 : 5) : tw.state === "glint" ? 1 + Math.round(tw.aim * 4) : Math.floor(time * 0.7 + tw.id) % 3 === 0 ? 1 : 0;
       if (!dim) drawSoldier(sx, feet, "aim", face, false, false);
-      if (r > 0) drawGlint(sx + 3 + face * 5, feet - 7, r);
+      const r = tw.state === "hold" ? (Math.floor(time * 16) % 2 ? 6 : 5) : tw.state === "glint" ? 1 + Math.round(tw.aim * 4) : Math.floor(time * 0.7 + tw.id) % 3 === 0 ? 1 : 0;
+      tw.glintAt = { x: sx + 4 + face * 7, y: feet - 9, r }; // (drawn after the walls, over everything)
       return;
     }
     const pose = tw.threat === "soldier" ? (tw.state === "idle" ? "rifle" : "raise") : tw.state === "wind" || tw.thrown > 0 ? "throw" : "stand";
     drawSoldier(sx, feet, pose, face, dim, tw.threat === "gas");
-    if (tw.flash > 0) { P("#fff2a0", sx + 3 + face * 8, feet - 7, 2, 2); drawGlowAt("firefly", 0, sx + 4 + face * 8, feet - 6, 0.4); }
+  }
+  // On top of the towers' walls: muzzle flashes and the sniper's glint
+  function drawTowerFlashes(level, camX, time) {
+    for (const tw of level.towers || []) {
+      const x = Math.round(tw.x - camX); if (x < -40 || x > VIEW_W + 40) continue;
+      const face = tw.face || -1, mx = x + 12 + face * 8, my = towerFeet(tw) - 6;
+      if (tw.flash > 0) { // a muzzle flash: a white-hot star with a yellow glow
+        P("#fff8d0", mx - 1, my - 1, 3, 3); P("#ffd040", mx + face * 2, my, 2, 1); P("#ffd040", mx, my - 2, 1, 1); P("#ffd040", mx, my + 2, 1, 1);
+        drawGlowAt("fire", 1, mx + 0.5, my + 0.5, 0.8);
+      }
+      if (tw.threat === "soldier" && tw.state === "raise" && Math.floor(time * 12) % 2) P("#ff5a3a", mx, my - 1); // (a glint on the raised barrel: a burst is coming)
+      if (tw.threat === "sniper" && tw.glintAt && tw.glintAt.r > 0) drawGlint(tw.glintAt.x, tw.glintAt.y, tw.glintAt.r);
+      if (tw.threat === "sniper" && tw.state === "hold" && tw.mark) { // his aim, set: a faint red laser to where you'd be
+        const g = tw.glintAt || { x: mx, y: my }, ex = tw.mark.x - camX, ey = tw.mark.y, n = Math.max(1, Math.round(Math.hypot(ex - g.x, ey - g.y) / 3));
+        for (let i = 1; i < n; i++) if (i % 2) P("#ff3a2a", g.x + (ex - g.x) * i / n, g.y + (ey - g.y) * i / n, 1, 1, 0.55);
+        P("#ff3a2a", ex - 1, ey, 3, 1, 0.8); P("#ff3a2a", ex, ey - 1, 1, 3, 0.8); drawGlowAt("red", 0, ex + 0.5, ey + 0.5, 0.6);
+      }
+    }
   }
   function drawCovers(level, camX) {
     for (const cv of level.covers || []) {
@@ -707,61 +733,83 @@ const Renderer = (() => {
         P("#2a2a1a", x + 1, gy - 18, 2, 18); P("#2a2a1a", x + 25, gy - 12, 2, 12);
         for (let i = 0; i < 30; i++) { const y = gy - 20 + Math.round(i * 7 / 30); P("#2a2a1a", x + i - 1, y, 1, 4); P(i % 5 ? "#b8a874" : "#9a8a5a", x + i - 1, y + 1, 1, 2); }
         P("#2a2a1a", x - 2, gy - 20, 1, 3); P("#2a2a1a", x + 29, gy - 13, 1, 3); }
-      else if (cv.kind === "roof") { P("#6a6a64", x, gy - 16, 30, 4); P("#8e8e86", x, gy - 16, 30, 2); P("#5e5e58", x + 2, gy - 12, 3, 12); P("#5e5e58", x + 25, gy - 12, 3, 12); }
-      else for (const [cx, cy] of [[0, -10], [13, -10], [6, -20]]) { P("#4a4026", x + cx, gy + cy, 12, 10); P("#8a7a4a", x + cx + 1, gy + cy + 1, 10, 8); P("#4a4026", x + cx + 5, gy + cy + 1, 1, 8); }
+      else if (cv.kind === "roof") { P("#4a4a44", x - 1, gy - 17, 32, 6); P("#8e8e86", x, gy - 16, 30, 2); P("#6a6a64", x, gy - 14, 30, 2); P("#4a4a44", x + 2, gy - 11, 3, 11); P("#4a4a44", x + 25, gy - 11, 3, 11); }
+      else for (const [cx, cy] of [[0, -10], [13, -10], [6, -20]]) { P("#3a3018", cx + x, gy + cy, 12, 10); P("#8a7a4a", x + cx + 1, gy + cy + 1, 10, 8); P("#3a3018", x + cx + 5, gy + cy + 1, 1, 8); }
     }
   }
-  const coverTop = (cv) => cv.gy - (cv.kind === "tarp" ? 19 : cv.kind === "roof" ? 16 : 20);
+  const coverTop = (cv) => cv.gy - (cv.kind === "tarp" ? 19 : cv.kind === "roof" ? 17 : 20);
   function drawTowerShots(world, camX, time) {
     const level = world.level;
-    for (const tw of level.towers || []) { // the searchlights' beams: a pale cone to a pool of light on the ground (or on the cover's roof)
-      if (tw.threat !== "light" || tw.spotX === undefined || tw.state === "idle" && !tw.locked && tw.spotX === undefined) continue;
-      const lx = tw.x + 12 + (tw.face > 0 ? 3 : -2) - camX, ly = tw.gy - tw.h - (tw.kind === "wood" ? 17 : 5), sx = tw.spotX - camX;
+    drawTowerFlashes(level, camX, time);
+    for (const tw of level.towers || []) { // the searchlights' beams: a soft cone to a bright pool of light on the ground (or on the cover's roof)
+      if (tw.threat !== "light" || tw.spotX === undefined) continue;
+      const lx = tw.x + 12 + (tw.face > 0 ? 5 : -4) - camX, ly = towerLamp(tw) + 2.5, sx = tw.spotX - camX;
       if (Math.max(lx, sx) < -30 || Math.min(lx, sx) > VIEW_W + 30) continue;
       const cv = level.covers.find((c) => tw.spotX >= c.x - 4 && tw.spotX <= c.x + c.w + 4), gy = cv ? coverTop(cv) : (level.groundTop(tw.spotX) ?? tw.gy);
-      const hot = tw.locked ? 0.36 : 0.22;
-      b.fillStyle = tw.locked ? `rgba(255,240,200,${hot})` : `rgba(255,250,210,${hot})`;
-      b.beginPath(); b.moveTo(lx, ly); b.lineTo(sx - 14, gy); b.lineTo(sx + 14, gy); b.closePath(); b.fill();
-      b.fillStyle = `rgba(255,255,230,${hot + 0.1})`; b.beginPath(); b.ellipse(sx, gy, 15, 3, 0, 0, 7); b.fill();
-      if (tw.locked) P("#ff4a3a", sx - 1, gy - 1, 3, 1);
+      const pulse = tw.locked ? 0.5 + 0.5 * Math.sin(time * 18) : 0, col = tw.locked ? "255,225,190" : "255,250,215";
+      for (const [wd, a] of [[16, 0.1], [11, 0.12], [6, 0.14]]) { // (layers: soft at the edge, brighter in the middle)
+        b.fillStyle = `rgba(${col},${a + pulse * 0.05})`; b.beginPath(); b.moveTo(lx, ly - 1); b.lineTo(lx, ly + 2); b.lineTo(sx + wd, gy); b.lineTo(sx - wd, gy); b.closePath(); b.fill();
+      }
+      for (const [rx, ry, a] of [[17, 3.5, 0.18], [11, 2.5, 0.25], [5, 1.5, 0.35]]) { b.fillStyle = `rgba(255,255,235,${a + pulse * 0.1})`; b.beginPath(); b.ellipse(sx, gy, rx, ry, 0, 0, 7); b.fill(); }
+      if (tw.locked) { P("#ff4a3a", sx - 2, gy - 1, 5, 1); drawGlowAt("red", 1, sx, gy - 1, 0.5 + pulse * 0.4); }
     }
-    for (const s of world.towerShots || []) {
+    for (const s of world.towerShots || []) { // tracers: a bright head, a glowing trail
       const x = s.x - camX; if (x < -10 || x > VIEW_W + 10) continue;
-      const len = Math.hypot(s.vx, s.vy), ux = s.vx / len, uy = s.vy / len, n = s.sniper ? 14 : 5;
-      for (let i = 0; i < n; i++) P(i === 0 ? "#ffffff" : s.sniper ? "#fff2c0" : "#ffd040", x - ux * i, s.y - uy * i, 1, 1, 1 - i / n);
+      const len = Math.hypot(s.vx, s.vy), ux = s.vx / len, uy = s.vy / len, n = s.sniper ? 18 : 7;
+      for (let i = n - 1; i >= 0; i--) P(i === 0 ? "#ffffff" : i < 3 ? (s.sniper ? "#ffffff" : "#fff2a0") : s.sniper ? "#ffe8c0" : "#ff9a3a", x - ux * i, s.y - uy * i, 1, 1, 1 - i / n);
+      drawGlowAt(s.sniper ? "white" : "fire", 0, x, s.y, s.sniper ? 0.7 : 0.5);
     }
     for (const g of world.grenades || []) {
-      const x = Math.round(g.x - camX), y = Math.round(g.y); if (x < -10 || x > VIEW_W + 10) continue;
-      if (g.gas) { P("#1e2226", x - 2, y - 3, 4, 5); P("#5a6068", x - 1, y - 3, 2, 5); P("#d8d8c8", x - 2, y - 2, 4, 1); P("#c8d0a0", x - 1, y - 5, 1, 1, 0.7); continue; }
-      P("#1a1c12", x - 2, y - 3, 5, 4); P("#4a5a2a", x - 1, y - 2, 3, 2); P("#8a8a7a", x, y - 4, 2, 1);
-      const left = TOWERS.grenade.fuse - g.t, on = Math.floor(time * (left < 0.7 ? 14 : 5)) % 2;
-      if (on) { P("#ff3a2a", x + 1, y - 4); drawGlowAt("red", 0, x + 1.5, y - 3.5, 0.5); }
+      const x = Math.round(g.x - camX), y = Math.round(g.y); if (x < -30 || x > VIEW_W + 30) continue;
+      if (g.gas) { // a canister, tumbling, puffing a trail of gas
+        const k = Math.floor(g.t * 12) % 2;
+        P("#1e2226", x - 2, y - 3 + k, 4, 5 - k); P("#6a7078", x - 1, y - 3 + k, 2, 4 - k); P("#e0e0d0", x - 2, y - 1, 4, 1);
+        for (let i = 1; i < 5; i++) P("#d8dcc0", x - Math.sign(g.vx || -1) * i * 3, y - 3 - i, 2, 2, 0.5 - i * 0.1);
+        continue;
+      }
+      const left = TOWERS.grenade.fuse - g.t, on = Math.floor(time * (left < 0.7 ? 16 : 6)) % 2;
+      if ((g.rolling || g.bounced) && left < 1.2) { // where it'll blow: a red ring on the ground, tightening as the fuse runs out
+        const gy = level.groundTop(g.x) ?? y + 2, R = TOWERS.grenade.blast;
+        for (let dx = -R; dx <= R; dx += 3) P("#ff3a2a", x + dx, gy, 2, 1, (on ? 0.8 : 0.4) * (0.4 + 0.6 * (1 - left / 1.2)));
+        P("#ff3a2a", x - R, gy - 2, 1, 2, 0.7); P("#ff3a2a", x + R, gy - 2, 1, 2, 0.7);
+      }
+      P("#1a1c12", x - 2, y - 3, 5, 4); P("#4a5a2a", x - 1, y - 3, 3, 3); P("#6a7a3a", x - 1, y - 3, 1, 1); P("#8a8a7a", x, y - 4, 2, 1);
+      if (on) { P("#ff3a2a", x + 1, y - 5); drawGlowAt("red", 0, x + 1.5, y - 4.5, 0.8); }
+      if (!g.rolling) P("#ffb040", x + 2, y - 5, 1, 1, 0.8); // (the fuse fizzing as it flies)
     }
   }
   function drawTrucks(world, camX, time) {
     for (const k of world.trucks || []) {
       const x = Math.round(k.x - camX), gy = k.gy; if (x < -80 || x > VIEW_W + 80) continue;
       const bob = k.state === "in" || k.state === "off" ? Math.round(Math.sin(time * 30)) * 0.5 : 0, y = Math.round(gy + bob);
-      P("#1a1c12", x, y - 22, 18, 16); P("#6a6a3a", x + 1, y - 21, 16, 14); P("#8ab4c4", x + 2, y - 19, 8, 5); P("#1a1c12", x - 2, y - 10, 4, 4);
+      P("#1a1c12", x, y - 22, 18, 16); P("#6a6a3a", x + 1, y - 21, 16, 14); P("#8ab4c4", x + 2, y - 19, 8, 5); P("#c8e0e8", x + 3, y - 19, 2, 2); P("#1a1c12", x - 2, y - 10, 4, 4);
       P("#1a1c12", x + 18, y - 30, 42, 24); P("#7a7a4a", x + 19, y - 29, 40, 22); for (let i = 1; i < 4; i++) P("#6a6a3a", x + 19 + i * 10, y - 29, 1, 22); P("#2a2a1a", x + 54, y - 26, 5, 18);
+      P("#e8e8d8", x + 34, y - 21, 8, 5); P("#7a7a4a", x + 35, y - 20, 6, 3); P("#e8e8d8", x + 37, y - 20, 2, 3); // (a white star on its side)
       const spin = Math.floor(k.x / 3) % 2;
       for (const wx of [x + 6, x + 36, x + 50]) { P("#1a1a1a", wx, gy - 7, 8, 7); P("#5a5a5a", wx + 2, gy - 5, 4, 3); P("#3a3a3a", wx + 3 + spin, gy - 4, 1, 1); }
-      P("#e8e0a0", x - 1, y - 15, 2, 2);
+      P("#fff2b0", x - 1, y - 15, 2, 2); if (k.state === "in" || k.state === "off") drawGlowAt("white", 1, x - 1, y - 14, 0.5);
+      if (k.state === "in" || k.state === "off") for (let i = 0; i < 3; i++) P("#b8a880", x + 62 + i * 4 + (Math.floor(time * 20) % 3), gy - 2 - i, 3, 2, 0.4 - i * 0.1); // (dust behind it)
       for (const m of k.men) if (!m.gone) {
-        drawSoldier(Math.round(m.x - camX), gy, m.run ? "run" : "rifle", m.face, false, false);
-        if (m.flash > 0) P("#fff2a0", Math.round(m.x - camX) + 3 + m.face * 8, gy - 7, 2, 2);
+        const mx = Math.round(m.x - camX);
+        drawSoldier(mx, gy, m.run ? "run" : m.aiming > 0 ? "raise" : "rifle", m.face, false, false);
+        if (m.flash > 0) { const fx = mx + 4 + m.face * 8; P("#fff8d0", fx - 1, gy - 7, 3, 3); drawGlowAt("fire", 1, fx, gy - 6, 0.8); }
       }
     }
   }
-  function drawGas(world, camX, time) {
+  function drawGas(world, camX, time) { // soft rolling puffs, pale yellow-green, thick in the middle and wispy at the edges
     for (const c of world.gasClouds || []) {
-      const x = c.x - camX; if (x < -40 || x > VIEW_W + 40) continue;
+      const x = c.x - camX; if (x < -50 || x > VIEW_W + 50) continue;
       const grow = Math.min(1, c.t / 0.5), fade = Math.min(1, (TOWERS.gas.life - c.t) / 0.6), W = TOWERS.gas.width / 2 * grow;
-      for (let i = 0; i < 26; i++) {
-        const a = hash(i, c.seed) * Math.PI * 2, r = (0.3 + hash(c.seed, i) * 0.7), wob = Math.sin(time * 2 + i) * 2;
-        P(["#c8ccb0", "#b0b896", "#dcdcc8", "#a4ac88"][i % 4], x + Math.cos(a) * W * r - 3 + wob, c.gy - 10 - Math.abs(Math.sin(a)) * 12 * r * grow - (c.t * 2 % 4), 7, 5, 0.55 * fade);
+      for (let i = 0; i < 18; i++) {
+        const a = hash(i, c.seed) * Math.PI * 2, r = 0.25 + hash(c.seed, i) * 0.75, roll = time * (0.6 + hash(i, 7)) + i;
+        const px = x + Math.cos(a + roll * 0.3) * W * r, py = c.gy - 6 - (0.5 + 0.5 * Math.sin(a)) * 14 * grow * (1 - r * 0.3) - Math.sin(roll) * 1.5;
+        const size = Math.round((9 - r * 4) * (0.6 + 0.4 * grow));
+        drawPuff(px, py, size, ["#d8dcb0", "#c4cc94", "#e4e6c8", "#b4bc84"][i % 4], 0.5 * fade * (1.1 - r * 0.5));
       }
     }
+  }
+  function drawPuff(x, y, r, c, a) { // a round-ish blob of pixels
+    for (let dy = -r; dy <= r; dy++) { const w = Math.round(Math.sqrt(r * r - dy * dy)); P(c, x - w, y + dy * 0.6, w * 2, 1, a); }
   }
 
   // The camp's landmines: a small olive disc half-sunk in the dirt, a red light blinking on top (armed: lit, flashing fast);
@@ -1415,7 +1463,7 @@ const Renderer = (() => {
       drawBomb(sx, Math.round(y), bm.face * bm.age * Math.PI * 1.4, time, bm.seed, fallK); // (tumbling end over end)
     }
     for (const bm of world.booms) { // the explosion
-      const x = bm.x - camX, y = bm.y, t = bm.t, R = MORTAR.blast, gy = bm.gy, seed = bm.seed;
+      const x = bm.x - camX, y = bm.y, t = bm.t, R = bm.R || MORTAR.blast, gy = bm.gy, seed = bm.seed;
       if (x < -R * 2 || x > VIEW_W + R * 2) continue;
       const end = MORTAR.boom + 0.8;
       if (gy !== null) { // the scorch mark, lingering

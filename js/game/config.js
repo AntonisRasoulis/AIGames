@@ -1,7 +1,7 @@
 // The game's version, shown left of the logo. The first number goes up for big updates (a new biome, a new
 // secret world...), the second for smaller additions and fixes (back to 0 with each big update): 6.16 means
 // the 6th big update (the enchanted forest), 16 small ones since. (7: the arcane ruins.)
-const GAME_VERSION = "8.20";
+const GAME_VERSION = "8.21";
 
 // Tunable numbers for the game. Change these to adjust how it feels.
 // Distances are in game pixels; one tile is 8 pixels (about "1 meter").
@@ -644,6 +644,10 @@ const NUKE = {
 // stand on the course (you run between their legs), some behind the fence. Three looks (chosen T1 wooden watchtower, T3 steel
 // lattice, T4 concrete), any of them holding any threat: a soldier with terrible aim, a grenade thrower, a sniper, a
 // searchlight that calls a truck of soldiers, tear gas
+// Where a tower's soldier stands (his feet) and where its searchlight's lamp sits: the game and the drawing share these.
+// Wood: on the floor behind the rail; steel and concrete: inside the hut, seen from the waist up through its window
+function towerFeet(tw) { return tw.gy - tw.h + (tw.kind === "wood" ? 6 : tw.kind === "steel" ? 9 : 12); }
+function towerLamp(tw) { return tw.gy - tw.h - (tw.kind === "wood" ? 19 : tw.kind === "steel" ? 13 : 11); }
 const TOWERS_THREATS = ["soldier", "grenade", "sniper", "light", "gas"]; // what a tower can hold (picked at random)
 const TOWERS = {
   every: [34, 44],     // tiles from one tower to the next (a screen is 50: always one in sight, never two crowded)

@@ -2187,7 +2187,7 @@ const Game = (() => {
         if (st.state !== "armed") continue;
         if ((st.t += dt) < M.fuse) continue;
         st.state = "blown"; st.t = 0;
-        world.booms.push({ level, x: m.x, y: m.gy - 3, gy: m.gy, t: 0, seed: m.id }); // (the mortar's fireball and scorch mark)
+        world.booms.push({ level, x: m.x, y: m.gy - 3, gy: m.gy, t: 0, seed: m.id, R: MINES.blast }); // (the mortar's fireball and scorch mark)
         world.quakes.push({ x: m.x, t: 0.35, level });
         for (let i = 0; i < 14; i++) world.sawBits.push({ x: m.x, y: m.gy - 2, vx: (Math.random() - 0.5) * 160, vy: -60 - Math.random() * 140, t: 0.8, c: ["#6a5a3a", "#4a3c26", "#ffd040", "#ff7a1a"][i % 4], big: i % 3 === 0, level });
         Sound.play("mineBoom");
@@ -2218,7 +2218,7 @@ const Game = (() => {
       world.grenades.push({ level, x, y, vx: (tx - x) / ft, vy: (gy - 2 - y - 0.5 * G.gravity * ft * ft) / ft, t: 0, gas, bounced: false, dir: Math.sign(tx - x) || -1 });
     };
     if (level.towers && level.towers.length && here.length) for (const tw of level.towers) {
-      const ox = tw.x + 12, oy = tw.gy - tw.h - 1; // (its soldier's chest)
+      const ox = tw.x + 12, oy = towerFeet(tw) - 6; // (its soldier's chest, where his rifle is)
       const near = here.filter((p) => Math.abs(mid(p).x - ox) < T.wake);
       if (!near.length) { tw.state = "idle"; tw.aim = 0; continue; }
       const tgt = near.reduce((a, q) => (Math.abs(mid(q).x - ox) < Math.abs(mid(a).x - ox) ? q : a));
@@ -2229,7 +2229,8 @@ const Game = (() => {
         if (tw.state === "idle" && tw.t >= S.every) { tw.state = "raise"; tw.t = 0; }
         else if (tw.state === "raise" && tw.t >= S.raise) { tw.state = "fire"; tw.t = 0; tw.shots = 0; tw.err = badAim(); } // (the whole burst aimed that far off)
         if (tw.state === "fire" && tw.t >= tw.shots * S.gap) {
-          const m = mid(tgt); shoot(ox + tw.face * 6, oy, m.x + tw.err, m.y, S.spread); tw.flash = 0.05; Sound.play("rifle");
+          const m = mid(tgt); shoot(ox + tw.face * 8, oy, m.x + tw.err, m.y, S.spread); tw.flash = 0.06; Sound.play("rifle");
+          world.sawBits.push({ x: ox - tw.face * 1, y: oy, vx: -tw.face * (30 + Math.random() * 30), vy: -50 - Math.random() * 30, t: 0.5, c: "#e8c050", level }); // (a brass casing flicked out)
           if (++tw.shots >= S.burst) { tw.state = "idle"; tw.t = 0; }
         }
       } else if (tw.threat === "grenade" || tw.threat === "gas") {
@@ -2242,7 +2243,7 @@ const Game = (() => {
         if (tw.state === "glint") {
           tw.aim = Math.min(1, tw.t / N.glint);
           if (tw.t >= N.glint) { // the glint at full: his aim is set on where they'll be when the bullet gets there, if they keep going
-            const m = mid(tgt), sx = ox + tw.face * 4, sy = oy - 2;
+            const m = mid(tgt), sx = ox + tw.face * 8, sy = oy - 1;
             let tx = m.x, ty = m.y;
             for (let k = 0; k < 3; k++) { const ft = N.hold + Math.hypot(tx - sx, ty - sy) / N.speed; tx = m.x + tgt.vx * ft; ty = m.y; }
             tw.state = "hold"; tw.t = 0; tw.mark = { x: tx, y: ty, sx, sy }; Sound.play("glint");
@@ -2251,7 +2252,7 @@ const Game = (() => {
           const k = tw.mark; shoot(k.sx, k.sy, k.x, k.y, 0, N.speed, true); Sound.play("sniper"); tw.state = "idle"; tw.t = 0; tw.aim = 0; tw.flash = 0.06;
         }
       } else if (tw.threat === "light") {
-        const L = T.light, u = (Math.sin(((world.time / L.sweep) + (tw.phase || 0)) * Math.PI * 2) + 1) / 2; // (0..1, there and back)
+        const L = T.light, lampY = towerLamp(tw), u = (Math.sin(((world.time / L.sweep) + (tw.phase || 0)) * Math.PI * 2) + 1) / 2; // (0..1, there and back)
         const lampX = ox, sweepX = ox - L.near - u * (L.far - L.near);
         if (tw.rest > 0) tw.rest -= dt;
         const hidden = (p) => level.covers.some((cv) => mid(p).x >= cv.x && mid(p).x <= cv.x + cv.w);
@@ -2298,7 +2299,7 @@ const Game = (() => {
       if (!n.gas && n.t >= G.fuse) {
         n.done = true;
         const gy = level.groundTop(n.x);
-        world.booms.push({ level, x: n.x, y: n.y - 2, gy, t: 0, seed: (n.x | 0) % 97 });
+        world.booms.push({ level, x: n.x, y: n.y - 2, gy, t: 0, seed: (n.x | 0) % 97, R: TOWERS.grenade.blast + 2 }); // (sized to its blast, smaller than the mortar's)
         world.quakes.push({ x: n.x, t: 0.25, level });
         Sound.play("mineBoom");
         for (const q of here) if (Math.abs(mid(q).x - n.x) < G.blast && q.y + HITBOX_H > n.y - G.high && q.y < n.y + 6) q.die("BLOWN UP!");
@@ -2355,9 +2356,10 @@ const Game = (() => {
         if (!near.length) continue;
         const q = near.reduce((a, b) => (Math.abs(b.x - m.x) < Math.abs(a.x - m.x) ? b : a)), c = mid(q);
         m.face = Math.sign(c.x - m.x) || -1;
-        if ((m.cool -= dt) <= 0) { m.cool = K.every; m.burst = 3; m.next = 0; m.err = badAim(); }
+        if ((m.cool -= dt) <= 0) { m.cool = K.every; m.burst = 3; m.next = 0.3; m.aiming = 0.3; m.err = badAim(); }
         if (m.burst > 0 && (m.next -= dt) <= 0) { shoot(m.x + 3 + m.face * 6, k.gy - 7, c.x + m.err, c.y, TOWERS.soldier.spread); m.burst--; m.next = TOWERS.soldier.gap; m.flash = 0.05; Sound.play("rifle"); }
         if (m.flash > 0) m.flash -= dt;
+        if (m.aiming > 0) m.aiming -= dt;
       }
     }
     world.trucks = world.trucks.filter((k) => !k.done);
