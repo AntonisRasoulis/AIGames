@@ -61,6 +61,7 @@ const Game = (() => {
       nukeOrders: [],  // the camp's red button: pressed, a nuke to launch { presser, camp } ...
       nukes: [],       // ...nukes falling { level, target, x, t } ...
       nukeBooms: [],   // ...and their blasts { level, x, gy, t }
+      campNuked: [],   // ...the camp itself nuked: those in it, watching it go up before they're thrown out { q, t }
       bears: [],    // bears chasing a player (snow only)
       jaguars: [],  // jaguars and black panthers hunting the leader (jungle only)
       decoys: [],   // harmless eyes blinking in the jungle's bushes
@@ -2148,14 +2149,19 @@ const Game = (() => {
       const hit = n.camp ? world.players.filter((q) => q.realm === n.camp && !q.caught && !q.flight && !q.cockpit) : [t];
       for (const q of hit) {
         if (q.caught) continue;
-        if (n.camp) { moveTo(q, null, q.x); Object.assign(q, { held: false, hop: null, inCabin: false }); } // (thrown back out to the main course)
         q.showHit("NUKED!", "#6aff5a");
         q.die(undefined, true);
         q.deadTimer = NUKE.out;
+        if (n.camp) { q.deadTimer += NUKE.campShow; world.campNuked.push({ q, t: 0 }); } // (they watch the camp go up first, then they're thrown back out to the main course)
         if (!q.rad) q.rad = { next: NUKE.dizzyEvery[0] + Math.random() * (NUKE.dizzyEvery[1] - NUKE.dizzyEvery[0]), slow: 0 };
       }
     }
     world.nukes = world.nukes.filter((n) => !n.done);
+    for (const e of world.campNuked) if ((e.t += dt) >= NUKE.campShow && !e.done) { // the camp's gone up: out to the main course, still knocked out
+      e.done = true;
+      if (e.q.realm && !e.q.caught) { moveTo(e.q, null, e.q.x); Object.assign(e.q, { held: false, hop: null, inCabin: false }); }
+    }
+    world.campNuked = world.campNuked.filter((e) => !e.done);
     for (const b of world.nukeBooms) b.t += dt;
     world.nukeBooms = world.nukeBooms.filter((b) => b.t < NUKE.cloud);
     for (const p of world.players) { // radiation
