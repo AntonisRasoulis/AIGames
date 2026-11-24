@@ -1,7 +1,7 @@
 // The game's version, shown left of the logo. The first number goes up for big updates (a new biome, a new
 // secret world...), the second for smaller additions and fixes (back to 0 with each big update): 6.16 means
 // the 6th big update (the enchanted forest), 16 small ones since. (7: the arcane ruins.)
-const GAME_VERSION = "8.24";
+const GAME_VERSION = "8.25";
 
 // Tunable numbers for the game. Change these to adjust how it feels.
 // Distances are in game pixels; one tile is 8 pixels (about "1 meter").
@@ -657,7 +657,8 @@ const TOWERS = {
   every: [34, 44],     // tiles from one tower to the next (a screen is 50: always one in sight, never two crowded)
   wildEvery: [17, 22], // ...in Wild mode (twice as many). Easy: none
   calm: 14,            // none in the first tiles of a camp
-  front: 0.5,          // the chance a tower stands on the course (where the ground under it is flat), not behind the fence
+  front: 0.5,          // the chance a tower stands on the course (where the ground under it is flat), not behind the fence (snipers: always behind)
+  backBase: 96,        // towers behind the fence stand on this line, the same as the camp's tents (the background's ground, behind the course)
   wake: 230,           // a tower acts while a runner is this close to it (pixels, either side)
   grace: 1.5,          // just back to life, the towers and the truck's soldiers leave you be this long (no aiming at you, their shots pass through)
   shot: 210,           // the soldiers' bullets fly this fast (px/s)...

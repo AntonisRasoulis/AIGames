@@ -530,8 +530,8 @@ class Level {
     const flat = (c0, n) => { const g = this.groundTop(c0 * TILE + 1); if (g === null) return null; for (let i = 0; i < n; i++) if (this.groundTop((c0 + i) * TILE + 4) !== g || (this.tile(c0 + i, Math.round(g / TILE) - 1) || T_EMPTY) !== T_EMPTY) return null; return g; };
     const kinds = ["wood", "steel", "concrete"], kind = kinds[Math.floor(this.rng() * 3)];
     let threat = TOWERS_THREATS[Math.floor(this.rng() * TOWERS_THREATS.length)];
-    const g = flat(c, 4), front = g !== null && this.rng() < TOWERS.front;
-    const gy = front ? g : (this.groundTop(c * TILE + 12) ?? this.groundRow * TILE) - 12;
+    const g = flat(c, 4), front = g !== null && threat !== "sniper" && this.rng() < TOWERS.front; // (snipers only ever in the background: just their glint)
+    const gy = front ? g : TOWERS.backBase; // (behind the fence: all on the same line, like the camp's tents, whatever the course does in front)
     const h = (front ? { wood: 52, steel: 62, concrete: 52 } : { wood: 44, steel: 56, concrete: 46 })[kind];
     const x = c * TILE, t = { id: this.nextId++, x, w: 24, gy, h, front, kind, threat, t: this.rng() * 2, state: "idle", aim: 0, lit: 0 };
     if (threat === "light") {

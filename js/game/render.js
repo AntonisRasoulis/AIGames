@@ -699,7 +699,6 @@ const Renderer = (() => {
     const face = tw.face || -1, sx = x + 8, feet = towerFeet(tw), chest = feet - 6;
     if (tw.threat === "light") return;
     if (tw.threat === "sniper") {
-      if (!dim) drawSoldier(sx, feet, "aim", face, false, false);
       const r = tw.state === "hold" ? (Math.floor(time * 16) % 2 ? 6 : 5) : tw.state === "glint" ? 1 + Math.round(tw.aim * 4) : Math.floor(time * 0.7 + tw.id) % 3 === 0 ? 1 : 0;
       tw.glintAt = { x: sx + 4 + face * 7, y: feet - 9, r }; // (drawn after the walls, over everything)
       return;
@@ -718,11 +717,6 @@ const Renderer = (() => {
       }
       if (tw.threat === "soldier" && tw.state === "raise" && Math.floor(time * 12) % 2) P("#ff5a3a", mx, my - 1); // (a glint on the raised barrel: a burst is coming)
       if (tw.threat === "sniper" && tw.glintAt && tw.glintAt.r > 0) drawGlint(tw.glintAt.x, tw.glintAt.y, tw.glintAt.r);
-      if (tw.threat === "sniper" && tw.state === "hold" && tw.mark) { // his aim, set: a faint red laser to where you'd be
-        const g = tw.glintAt || { x: mx, y: my }, ex = tw.mark.x - camX, ey = tw.mark.y, n = Math.max(1, Math.round(Math.hypot(ex - g.x, ey - g.y) / 3));
-        for (let i = 1; i < n; i++) if (i % 2) P("#ff3a2a", g.x + (ex - g.x) * i / n, g.y + (ey - g.y) * i / n, 1, 1, 0.55);
-        P("#ff3a2a", ex - 1, ey, 3, 1, 0.8); P("#ff3a2a", ex, ey - 1, 1, 3, 0.8); drawGlowAt("red", 0, ex + 0.5, ey + 0.5, 0.6);
-      }
     }
   }
   function drawCovers(level, camX) {
@@ -768,11 +762,6 @@ const Renderer = (() => {
         continue;
       }
       const left = TOWERS.grenade.fuse - g.t, on = Math.floor(time * (left < 0.7 ? 16 : 6)) % 2;
-      if ((g.rolling || g.bounced) && left < 1.2) { // where it'll blow: a red ring on the ground, tightening as the fuse runs out
-        const gy = level.groundTop(g.x) ?? y + 2, R = TOWERS.grenade.blast;
-        for (let dx = -R; dx <= R; dx += 3) P("#ff3a2a", x + dx, gy, 2, 1, (on ? 0.8 : 0.4) * (0.4 + 0.6 * (1 - left / 1.2)));
-        P("#ff3a2a", x - R, gy - 2, 1, 2, 0.7); P("#ff3a2a", x + R, gy - 2, 1, 2, 0.7);
-      }
       P("#1a1c12", x - 2, y - 3, 5, 4); P("#4a5a2a", x - 1, y - 3, 3, 3); P("#6a7a3a", x - 1, y - 3, 1, 1); P("#8a8a7a", x, y - 4, 2, 1);
       if (on) { P("#ff3a2a", x + 1, y - 5); drawGlowAt("red", 0, x + 1.5, y - 4.5, 0.8); }
       if (!g.rolling) P("#ffb040", x + 2, y - 5, 1, 1, 0.8); // (the fuse fizzing as it flies)
