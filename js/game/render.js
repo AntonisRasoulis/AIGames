@@ -67,7 +67,7 @@ const Renderer = (() => {
       // Each player sees their own course: the main one, or the enchanted forest they're in
       const course = p.realm || world.level;
       const mine = (list) => list.filter((e) => (e.level || world.level) === course);
-      const view = Object.assign(Object.create(world), { level: course, sawBits: mine(world.sawBits), wisps: mine(world.wisps), quakes: mine(world.quakes), builtPortals: mine(world.builtPortals), stormBalls: mine(world.stormBalls), blasts: mine(world.blasts), mortarBombs: mine(world.mortarBombs), booms: mine(world.booms), mushroomThrows: world.mushroomThrows.filter((m) => (m.p.realm || world.level) === course), laserShots: mine(world.laserShots), nukes: mine(world.nukes), nukeBooms: mine(world.nukeBooms) });
+      const view = Object.assign(Object.create(world), { level: course, sawBits: mine(world.sawBits), wisps: mine(world.wisps), quakes: mine(world.quakes), builtPortals: mine(world.builtPortals), stormBalls: mine(world.stormBalls), blasts: mine(world.blasts), mortarBombs: mine(world.mortarBombs), booms: mine(world.booms), mushroomThrows: world.mushroomThrows.filter((m) => (m.p.realm || world.level) === course), laserShots: mine(world.laserShots), nukes: mine(world.nukes), nukeBooms: mine(world.nukeBooms), towerShots: mine(world.towerShots), grenades: mine(world.grenades), gasClouds: mine(world.gasClouds), trucks: mine(world.trucks) });
       if (p.realm) Object.assign(view, { inForest: true, monsoon: null, bullets: [], thrownGuns: [], missiles: [], bears: [], jaguars: [], decoys: [], arrows: [], vultures: [], hawks: [], sticks: [], burns: [], drones: [], hands: [], roots: [], bolts: [], monkeys: [], thrownSnowballs: [], grapples: [], vines: [], warps: [] });
       drawView(view, p, world.players.filter((q) => q !== p && q.realm === p.realm && !q.dream), camX); // (everyone else on this course shows as a ghost)
       drawDream(p, camX, world.time);
@@ -165,6 +165,7 @@ const Renderer = (() => {
       else drawBackground(camX);
     });
     b.globalAlpha = 1;
+    drawTowers(world.level, camX, world.time, false); // (the camp's towers behind the fence)
     for (const m of world.missiles) if (m.state === "approach") drawMissile(m, world, camX); // still far away, behind the course
     drawBackBushes(world.level, camX);
     for (const d of world.decoys) drawEyes(d.kind, d.ex, d.ey, camX, decoyOpacity(d), d.t > d.blink && d.t < d.blink + 0.12 ? "shut" : "open");
@@ -212,6 +213,10 @@ const Renderer = (() => {
     drawCampHelis(world, camX, world.time); // (its wreck; the helicopter at the camp's end; and bringing people back)
     drawCrates(world.level, player, camX); // (the camp's crates: the shared ones as this runner sees them)
     drawMines(world.level, player, camX, world.time); // (the camp's landmines, as this runner sees them)
+    drawCovers(world.level, camX);
+    drawTowers(world.level, camX, world.time, true); // (the camp's towers on the course: you run between their legs)
+    drawTrucks(world, camX, world.time);
+    drawTowerShots(world, camX, world.time); // (bullets, grenades, gas canisters, searchlight beams)
     drawNukeButton(world.level, player, camX, world.time); // (the camp's red button)
     drawCraters(world.level, camX, world.time); // (where a nuke landed: a small glowing crater, fallout drifting down)
     drawFlood(world, camX, world.time);
@@ -252,6 +257,7 @@ const Renderer = (() => {
     drawTreeStrikes(world.level, camX, world.time);
     drawLeaveFront(world.level, camX, world.time); // (its roots' spikes, its flying leaves and seeds, whoever it's grabbed)
     if (world.level === Game.world.level) drawJets(Game.world, camX, world.time); // (coming back from the camp: the jet, its bombs, the parachute)
+    drawGas(world, camX, world.time); // (the camp's tear gas, over the runners)
     drawBullets(world, camX, world.time); // (the camp's guns: bullets and thrown guns, on the main course)
     drawNukes(world, camX, world.time); // (the camp's red button: nukes falling onto their red target, mushroom clouds)
     drawStones(world.level, camX);
@@ -620,6 +626,140 @@ const Renderer = (() => {
     }
   }
 
+  // ---- The camp's towers (v8.19; looks chosen after mockups: T1 wooden watchtower, T3 steel lattice, T4 concrete; cover C1
+  // tarp, C2 concrete roof, C3 crates; the truck V2, canvas-covered). Behind the fence they're drawn muted, smaller
+  function drawSoldier(x, gy, pose, face, dim, mask) {
+    const k = dim ? "#2e3424" : "#1a1c12", u = dim ? "#5a6448" : "#5a6a32", u2 = dim ? "#4a5238" : "#46522a", hel = dim ? "#4e5a38" : "#4e5e2a", skin = mask ? (dim ? "#6a6e66" : "#5a5e58") : dim ? "#a08a70" : "#d8a880";
+    const X = (dx, w = 1) => (face > 0 ? x + dx : x + 7 - dx - (w - 1));
+    const p = (c, dx, dy, w = 1, h = 1) => P(c, X(dx, w), gy - 13 + dy, w, h);
+    p(k, 1, 0, 6, 3); p(hel, 2, 0, 4, 2); p(hel, 1, 2, 6, 1);
+    p(k, 2, 3, 4, 3); p(skin, 3, 3, 3, 2); p(mask ? "#9ad0e0" : k, 5, 3); if (mask) p("#2a2c28", 4, 5, 2, 1);
+    p(k, 1, 6, 6, 5); p(u, 2, 6, 4, 4); p(u2, 2, 8, 4, 1);
+    if (pose === "run" && Math.floor(Game.world.time * 10) % 2) { p(k, 1, 11, 2, 2); p(k, 5, 11, 2, 2); } else { p(k, 2, 11, 2, 2); p(k, 4, 11, 2, 2); }
+    if (pose === "rifle" || pose === "aim") { p("#2a2a22", 4, 7, 7, 1); p("#3a3020", 3, 8, 2, 1); p(skin, 5, 8); p("#2a2a22", 10, 6); }
+    if (pose === "raise") { p("#2a2a22", 4, 6, 7, 1); p("#2a2a22", 10, 5); p(skin, 5, 7); }
+    if (pose === "throw") { p(u, 0, 3, 1, 3); p(skin, 0, 2); p(mask ? "#6a6e70" : "#3a4a2a", -1, 1, 2, 2); }
+  }
+  function drawGlint(x, y, r) { // the sniper's scope catching the light: a little 4-point star
+    P("#fff8d0", x, y);
+    for (let i = 1; i <= r; i++) { const c = i === 1 ? "#fff8d0" : i < r ? "#ffe88a" : "#d8b04a"; P(c, x - i, y); P(c, x + i, y); P(c, x, y - i); P(c, x, y + i); }
+    if (r > 2) for (const [dx, dy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) P("#ffe88a", x + dx, y + dy);
+    if (r > 0) drawGlowAt("firefly", 0, x + 0.5, y + 0.5, 0.25 + r * 0.12);
+  }
+  function drawTowers(level, camX, time, front) {
+    for (const tw of level.towers || []) {
+      if (tw.front !== front) continue;
+      const x = Math.round(tw.x - camX), gy = tw.gy, h = tw.h, top = gy - h, dim = !front;
+      if (x < -40 || x > VIEW_W + 40) continue;
+      if (tw.kind === "wood") {
+        const w = dim ? "#6e6248" : "#8a6a42", d = dim ? "#4a4434" : "#4a3a24";
+        for (const lx of [x, x + 22]) P(d, lx, top + 8, 2, h - 8);
+        for (let y = top + 14; y < gy - 4; y += 12) for (let i = 0; i < 22; i++) { P(w, x + 1 + i, y + Math.round(i * 10 / 22)); P(w, x + 1 + i, y + 10 - Math.round(i * 10 / 22)); }
+        for (let y = top + 10; y < gy; y += 4) P(w, x + 17, y, 4, 1); P(d, x + 16, top + 8, 1, h - 8); P(d, x + 21, top + 8, 1, h - 8);
+        P(d, x - 3, top + 6, 30, 3); P(w, x - 2, top + 7, 28, 1);
+        drawTowerMan(tw, x, top + 6, dim, time);
+        P(d, x - 2, top - 2, 2, 8); P(d, x + 24, top - 2, 2, 8); P(w, x - 2, top + 1, 28, 2); P(d, x - 2, top + 3, 28, 1);
+        P("#2a2c22", x - 6, top - 14, 36, 2); P(dim ? "#6a705e" : "#7a8268", x - 5, top - 15, 34, 1); P(d, x - 1, top - 12, 1, 10); P(d, x + 25, top - 12, 1, 10);
+      } else if (tw.kind === "steel") {
+        const s = dim ? "#6a7074" : "#4a5258", l = dim ? "#8a9094" : "#8a9298";
+        for (let y = top + 8; y < gy; y++) { const k = (y - top) / h, sp = Math.round(4 + k * 6); P(s, x + 10 - sp, y); P(s, x + 12 + sp, y); }
+        for (let y = top + 10; y < gy - 6; y += 10) { const k = (y - top) / h, sp = Math.round(4 + k * 6), n = 2 * sp + 2; for (let i = 0; i <= n; i++) { P(l, x + 10 - sp + i, y + Math.round(i * 9 / n)); P(l, x + 10 - sp + i, y + 9 - Math.round(i * 9 / n)); } }
+        P(s, x + 1, top - 1, 22, 9); P(l, x + 2, top, 20, 7); P("#20282e", x + 4, top + 2, 16, 3);
+        drawTowerMan(tw, x, top + 6, dim, time);
+        P(s, x - 1, top + 6, 26, 2); P(s, x - 1, top - 3, 26, 2); P(s, x + 11, top - 7, 1, 4); P(Math.floor(time * 1.5) % 2 ? "#ff4a3a" : "#7a2a22", x + 11, top - 8);
+      } else {
+        const c = dim ? "#8a8a84" : "#8e8e86", d = dim ? "#6a6a66" : "#5e5e58";
+        P(d, x + 7, top + 12, 12, h - 12); P(c, x + 8, top + 12, 10, h - 12); for (let y = top + 18; y < gy; y += 6) P(d, x + 8, y, 10, 1);
+        P(d, x - 1, top, 28, 14); P(c, x, top + 1, 26, 12); P("#1a1c1c", x + 3, top + 4, 20, 3); P(d, x - 2, top - 2, 30, 2);
+        for (let i = 0; i < 4; i++) P(d, x + 3 + i * 6, top + 10, 1, 2);
+        drawTowerMan(tw, x, top + 6, dim, time);
+      }
+      if (tw.threat === "light") { // the lamp on its roof
+        const ly = top - (tw.kind === "wood" ? 18 : tw.kind === "steel" ? 6 : 6);
+        P("#2a2a2a", x + 9, ly, 7, 4); P("#fffae0", x + 9 + (tw.face > 0 ? 6 : 0), ly + 1, 1, 2); P("#4a4a4a", x + 11, ly + 4, 3, 2);
+      }
+    }
+  }
+  // Who's up in a tower: a soldier (rifle up just before a burst), the grenade or gas thrower (arm back), the sniper (in the
+  // back, just his scope's glint; in front you see him), the searchlight (just its lamp)
+  function drawTowerMan(tw, x, feet, dim, time) {
+    const face = tw.face || -1, sx = x + 8;
+    if (tw.threat === "light") return;
+    if (tw.threat === "sniper") {
+      const r = tw.state === "hold" ? (Math.floor(time * 16) % 2 ? 6 : 5) : tw.state === "glint" ? 1 + Math.round(tw.aim * 4) : Math.floor(time * 0.7 + tw.id) % 3 === 0 ? 1 : 0;
+      if (!dim) drawSoldier(sx, feet, "aim", face, false, false);
+      if (r > 0) drawGlint(sx + 3 + face * 5, feet - 7, r);
+      return;
+    }
+    const pose = tw.threat === "soldier" ? (tw.state === "idle" ? "rifle" : "raise") : tw.state === "wind" || tw.thrown > 0 ? "throw" : "stand";
+    drawSoldier(sx, feet, pose, face, dim, tw.threat === "gas");
+    if (tw.flash > 0) { P("#fff2a0", sx + 3 + face * 8, feet - 7, 2, 2); drawGlowAt("firefly", 0, sx + 4 + face * 8, feet - 6, 0.4); }
+  }
+  function drawCovers(level, camX) {
+    for (const cv of level.covers || []) {
+      const x = Math.round(cv.x - camX), gy = cv.gy;
+      if (x < -40 || x > VIEW_W + 10) continue;
+      if (cv.kind === "tarp") { // (a light canvas with a dark edge: it has to stand out against the green hills)
+        P("#2a2a1a", x + 1, gy - 18, 2, 18); P("#2a2a1a", x + 25, gy - 12, 2, 12);
+        for (let i = 0; i < 30; i++) { const y = gy - 20 + Math.round(i * 7 / 30); P("#2a2a1a", x + i - 1, y, 1, 4); P(i % 5 ? "#b8a874" : "#9a8a5a", x + i - 1, y + 1, 1, 2); }
+        P("#2a2a1a", x - 2, gy - 20, 1, 3); P("#2a2a1a", x + 29, gy - 13, 1, 3); }
+      else if (cv.kind === "roof") { P("#6a6a64", x, gy - 16, 30, 4); P("#8e8e86", x, gy - 16, 30, 2); P("#5e5e58", x + 2, gy - 12, 3, 12); P("#5e5e58", x + 25, gy - 12, 3, 12); }
+      else for (const [cx, cy] of [[0, -10], [13, -10], [6, -20]]) { P("#4a4026", x + cx, gy + cy, 12, 10); P("#8a7a4a", x + cx + 1, gy + cy + 1, 10, 8); P("#4a4026", x + cx + 5, gy + cy + 1, 1, 8); }
+    }
+  }
+  const coverTop = (cv) => cv.gy - (cv.kind === "tarp" ? 19 : cv.kind === "roof" ? 16 : 20);
+  function drawTowerShots(world, camX, time) {
+    const level = world.level;
+    for (const tw of level.towers || []) { // the searchlights' beams: a pale cone to a pool of light on the ground (or on the cover's roof)
+      if (tw.threat !== "light" || tw.spotX === undefined || tw.state === "idle" && !tw.locked && tw.spotX === undefined) continue;
+      const lx = tw.x + 12 + (tw.face > 0 ? 3 : -2) - camX, ly = tw.gy - tw.h - (tw.kind === "wood" ? 17 : 5), sx = tw.spotX - camX;
+      if (Math.max(lx, sx) < -30 || Math.min(lx, sx) > VIEW_W + 30) continue;
+      const cv = level.covers.find((c) => tw.spotX >= c.x - 4 && tw.spotX <= c.x + c.w + 4), gy = cv ? coverTop(cv) : (level.groundTop(tw.spotX) ?? tw.gy);
+      const hot = tw.locked ? 0.36 : 0.22;
+      b.fillStyle = tw.locked ? `rgba(255,240,200,${hot})` : `rgba(255,250,210,${hot})`;
+      b.beginPath(); b.moveTo(lx, ly); b.lineTo(sx - 14, gy); b.lineTo(sx + 14, gy); b.closePath(); b.fill();
+      b.fillStyle = `rgba(255,255,230,${hot + 0.1})`; b.beginPath(); b.ellipse(sx, gy, 15, 3, 0, 0, 7); b.fill();
+      if (tw.locked) P("#ff4a3a", sx - 1, gy - 1, 3, 1);
+    }
+    for (const s of world.towerShots || []) {
+      const x = s.x - camX; if (x < -10 || x > VIEW_W + 10) continue;
+      const len = Math.hypot(s.vx, s.vy), ux = s.vx / len, uy = s.vy / len, n = s.sniper ? 14 : 5;
+      for (let i = 0; i < n; i++) P(i === 0 ? "#ffffff" : s.sniper ? "#fff2c0" : "#ffd040", x - ux * i, s.y - uy * i, 1, 1, 1 - i / n);
+    }
+    for (const g of world.grenades || []) {
+      const x = Math.round(g.x - camX), y = Math.round(g.y); if (x < -10 || x > VIEW_W + 10) continue;
+      if (g.gas) { P("#1e2226", x - 2, y - 3, 4, 5); P("#5a6068", x - 1, y - 3, 2, 5); P("#d8d8c8", x - 2, y - 2, 4, 1); P("#c8d0a0", x - 1, y - 5, 1, 1, 0.7); continue; }
+      P("#1a1c12", x - 2, y - 3, 5, 4); P("#4a5a2a", x - 1, y - 2, 3, 2); P("#8a8a7a", x, y - 4, 2, 1);
+      const left = TOWERS.grenade.fuse - g.t, on = Math.floor(time * (left < 0.7 ? 14 : 5)) % 2;
+      if (on) { P("#ff3a2a", x + 1, y - 4); drawGlowAt("red", 0, x + 1.5, y - 3.5, 0.5); }
+    }
+  }
+  function drawTrucks(world, camX, time) {
+    for (const k of world.trucks || []) {
+      const x = Math.round(k.x - camX), gy = k.gy; if (x < -80 || x > VIEW_W + 80) continue;
+      const bob = k.state === "in" || k.state === "off" ? Math.round(Math.sin(time * 30)) * 0.5 : 0, y = Math.round(gy + bob);
+      P("#1a1c12", x, y - 22, 18, 16); P("#6a6a3a", x + 1, y - 21, 16, 14); P("#8ab4c4", x + 2, y - 19, 8, 5); P("#1a1c12", x - 2, y - 10, 4, 4);
+      P("#1a1c12", x + 18, y - 30, 42, 24); P("#7a7a4a", x + 19, y - 29, 40, 22); for (let i = 1; i < 4; i++) P("#6a6a3a", x + 19 + i * 10, y - 29, 1, 22); P("#2a2a1a", x + 54, y - 26, 5, 18);
+      const spin = Math.floor(k.x / 3) % 2;
+      for (const wx of [x + 6, x + 36, x + 50]) { P("#1a1a1a", wx, gy - 7, 8, 7); P("#5a5a5a", wx + 2, gy - 5, 4, 3); P("#3a3a3a", wx + 3 + spin, gy - 4, 1, 1); }
+      P("#e8e0a0", x - 1, y - 15, 2, 2);
+      for (const m of k.men) if (!m.gone) {
+        drawSoldier(Math.round(m.x - camX), gy, m.run ? "run" : "rifle", m.face, false, false);
+        if (m.flash > 0) P("#fff2a0", Math.round(m.x - camX) + 3 + m.face * 8, gy - 7, 2, 2);
+      }
+    }
+  }
+  function drawGas(world, camX, time) {
+    for (const c of world.gasClouds || []) {
+      const x = c.x - camX; if (x < -40 || x > VIEW_W + 40) continue;
+      const grow = Math.min(1, c.t / 0.5), fade = Math.min(1, (TOWERS.gas.life - c.t) / 0.6), W = TOWERS.gas.width / 2 * grow;
+      for (let i = 0; i < 26; i++) {
+        const a = hash(i, c.seed) * Math.PI * 2, r = (0.3 + hash(c.seed, i) * 0.7), wob = Math.sin(time * 2 + i) * 2;
+        P(["#c8ccb0", "#b0b896", "#dcdcc8", "#a4ac88"][i % 4], x + Math.cos(a) * W * r - 3 + wob, c.gy - 10 - Math.abs(Math.sin(a)) * 12 * r * grow - (c.t * 2 % 4), 7, 5, 0.55 * fade);
+      }
+    }
+  }
+
   // The camp's landmines: a small olive disc half-sunk in the dirt, a red light blinking on top (armed: lit, flashing fast);
   // blown: a little scorched dent. Each runner sees their own
   function drawMines(level, viewer, camX, time) {
@@ -753,9 +893,9 @@ const Renderer = (() => {
       const a = bm.t < NUKE.flash * 0.35 ? 1 : 1 - (bm.t - NUKE.flash * 0.35) / (NUKE.flash * 0.65);
       b.fillStyle = `rgba(255, 255, 250, ${a * (1 - d / (VIEW_W * NUKE.reach) * 0.4)})`; b.fillRect(0, 0, VIEW_W, VIEW_H);
     }
-    const rad = p.rad;
-    if (!rad || p.caught || rad.slow <= 0) return;
-    const k = Math.min(1, rad.slow / 0.3, (NUKE.dizzy - rad.slow) / 0.3), t = Game.world.time;
+    const rad = p.rad, gas = p.gassed > 0 && !p.caught ? Math.min(1, p.gassed / 0.3) * TOWERS.gas.blur / NUKE.blur : 0; // (tear gas blurs your eyes too)
+    if ((!rad || p.caught || rad.slow <= 0) && !gas) return;
+    const k = Math.max(gas, rad && rad.slow > 0 && !p.caught ? Math.min(1, rad.slow / 0.3, (NUKE.dizzy - rad.slow) / 0.3) : 0), t = Game.world.time;
     blurCtx.clearRect(0, 0, VIEW_W, VIEW_H);
     blurCtx.drawImage(buffer, r.x, r.y, VIEW_W, VIEW_H, 0, 0, VIEW_W, VIEW_H);
     b.filter = `blur(${(NUKE.blur * k).toFixed(2)}px)`;

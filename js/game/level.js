@@ -121,6 +121,9 @@ class Level {
     this.bushes = [];    // bushes you can hide in: { x0, w, h, gy, seed, berries, tops, torn }
     this.craters = [];    // where a nuke landed (the camp's red button): { x, gy, t } (a small glowing crater, fallout drifting down)
     this.nukeButton = null; // the camp's red button (in the middle of a camp you're taken to): { x, gy, state: ready | pressed, t }
+    this.towers = [];     // the military camp's towers { id, x (left leg), w, gy, h, front, kind, threat, ... }
+    this.covers = [];     // ...and cover from their searchlights { x, w, gy, kind }
+    this.lastTower = null;
     this.mines = [];      // the military camp's landmines { id, x (its middle), gy }
     this.lastMine = -99;
     this.crates = [];     // the military camp: crates to smash open for bullets (gas cans alone) { id, x, gy, kind: shared | first | gas, bullets, taken }
@@ -517,6 +520,35 @@ class Level {
     // nothing else dangerous anywhere you might bait it from or be spat out onto
     for (let k = -9; k <= 9; k++) if (this.threatened(x - HITBOX_W / 2 + k * TILE, this.groundTop(x) - HITBOX_H)) return false;
     return true;
+  }
+
+  towerGap() { const [a, b] = this.wild ? TOWERS.wildEvery : TOWERS.every; this.nextTowerGap = a + Math.floor(this.rng() * (b - a + 1)); return this.nextTowerGap; }
+
+  // A tower: on the course where the ground under it is flat (you run between its legs), otherwise behind the fence. A
+  // searchlight only goes where there's cover from it on the way in
+  tryTower(c) {
+    const flat = (c0, n) => { const g = this.groundTop(c0 * TILE + 1); if (g === null) return null; for (let i = 0; i < n; i++) if (this.groundTop((c0 + i) * TILE + 4) !== g || (this.tile(c0 + i, Math.round(g / TILE) - 1) || T_EMPTY) !== T_EMPTY) return null; return g; };
+    const kinds = ["wood", "steel", "concrete"], kind = kinds[Math.floor(this.rng() * 3)];
+    let threat = TOWERS_THREATS[Math.floor(this.rng() * TOWERS_THREATS.length)];
+    const g = flat(c, 4), front = g !== null && this.rng() < TOWERS.front;
+    const gy = front ? g : (this.groundTop(c * TILE + 12) ?? this.groundRow * TILE) - 12;
+    const h = (front ? { wood: 52, steel: 62, concrete: 52 } : { wood: 44, steel: 56, concrete: 46 })[kind];
+    const x = c * TILE, t = { id: this.nextId++, x, w: 24, gy, h, front, kind, threat, t: this.rng() * 2, state: "idle", aim: 0, lit: 0 };
+    if (threat === "light") {
+      const L = TOWERS.light, made = [];
+      for (const d of L.covers) {
+        const ck = ["tarp", "roof", "crates"][Math.floor(this.rng() * 3)], cw = { tarp: 28, roof: 30, crates: 26 }[ck], c0 = Math.round((x + 12 - d - cw / 2) / TILE);
+        for (const shift of [0, -1, 1, -2, 2, -3, 3, -4]) { // (somewhere near there with flat ground)
+          const cc = c0 + shift, cg = flat(cc, Math.ceil(cw / TILE));
+          if (cg === null || made.some((m) => Math.abs(m.x - cc * TILE) < 36)) continue;
+          made.push({ x: cc * TILE, w: cw, gy: cg, kind: ck }); break;
+        }
+      }
+      if (made.length) this.covers.push(...made); else threat = "soldier";
+      t.threat = threat; t.phase = this.rng();
+    }
+    this.towers.push(t);
+    this.lastTower = c; this.towerGap();
   }
 
   // A landmine on flat, open ground, nothing dangerous round it, away from the crates and the red button (and not at the
@@ -1068,6 +1100,10 @@ class Level {
       if (this.colBiome[c] === "camp") { // the camp's crates (only in a camp you're taken to: that's where the guns come from)
         const G = CAMP_GUNS;
         if (this.realmEnd !== undefined && c * TILE < this.realmEnd && c - this.lastCrate >= G.crateEvery && this.rng() < G.crateChance) this.tryCrate(c);
+        if (!this.easy && (this.realmEnd === undefined || c * TILE < this.realmEnd)) { // (Easy: no towers)
+          if (this.lastTower === null) this.lastTower = c + TOWERS.calm - this.towerGap();
+          if (c >= this.lastTower + this.nextTowerGap) this.tryTower(c);
+        }
         if (!this.easy && (this.realmEnd === undefined || c * TILE < this.realmEnd) && c - this.lastMine >= MINES.every && this.rng() < MINES.chance) this.tryMine(c); // (Easy: no mines)
         continue;
       }

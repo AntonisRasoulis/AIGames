@@ -53,6 +53,7 @@ class Player {
     this.ammo = 0;                // the military camp: bullets collected from its crates...
     this.gas = 0;                 // ...(alone: gas cans)...
     this.cratesOpened = new Set(); // ...the shared crates you've smashed (everyone opens their own)...
+    this.gassed = 0;              // the camp's tear gas: in a cloud (it lingers 0.3 s after you're out): slow, blurry
     this.mineState = new Map();   // the camp's landmines *this* player has set off { state: armed | blown, t }
     this.mineFly = null;          // thrown back through the air by one { x0, y0, x1, y1, t }
     this.rad = null;              // nuked: radiated for the rest of the race { next (s to the next dizzy spell), slow (s of it left) }
@@ -145,6 +146,7 @@ class Player {
     this.updateSnow(dt, level);
     this.updateCoconuts(dt, level);
     if (this.dizzy > 0) this.dizzy -= dt;
+    if (this.gassed > 0) this.gassed -= dt;
     if (this.biomeBanner > 0) this.biomeBanner -= dt;
     if (this.rescueBlock > 0) this.rescueBlock -= dt;
     if (this.honey > 0) this.honey -= dt;
@@ -322,7 +324,7 @@ class Player {
       if (Math.sign(this.vx) === -dir && !(this.onGround && this.onIce)) accel *= 2; // turn around quickly (not on ice)
       const fast = this.spores.red > 0 ? SPORES.speed : 1; // a red spore makes you faster
       accel *= fast * TUNING.speed;
-      const top = PHYSICS.runSpeed * fast * TUNING.speed * (this.honey > 0 ? BEAR.honeySpeed : 1) * (skating ? SNOWBALL.skateSpeed : 1) * (this.rad && this.rad.slow > 0 ? NUKE.slow : 1); // sticky honey slows you down; skates speed you up on ice
+      const top = PHYSICS.runSpeed * fast * TUNING.speed * (this.honey > 0 ? BEAR.honeySpeed : 1) * (skating ? SNOWBALL.skateSpeed : 1) * (this.rad && this.rad.slow > 0 ? NUKE.slow : 1) * (this.gassed > 0.3 ? TOWERS.gas.slow : 1); // sticky honey slows you down; skates speed you up on ice
       this.vx = clamp(this.vx + dir * accel * dt, -top, top);
       this.facing = dir;
     } else if (this.onGround) {
@@ -1196,7 +1198,7 @@ class Player {
       Sound.play("auroraBlock");
       return;
     }
-    if (word) this.showHit(word, word === "SPLAT!" ? "#ff7a3a" : word === "SCORCHED!" ? "#8af7df" : word === "CRUSHED!" ? "#b8c4c4" : "#7af0d8");
+    if (word) this.showHit(word, word === "SPLAT!" || word === "SHOT!" || word === "BLOWN UP!" ? "#ff5a3a" : word === "SCORCHED!" ? "#8af7df" : word === "CRUSHED!" ? "#b8c4c4" : "#7af0d8");
     this.onPond = null;
     this.trapped = 0;
     this.inSink = null;

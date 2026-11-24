@@ -84,6 +84,10 @@ const Game = (() => {
       mushroomThrows: [], // the forest's mushroom orb: a mushroom thrown up, coming back down on its thrower { p, kind, t }
       mortarBombs: [],  // the ruins' mortar bombs in flight { level, x0, y0, x1, y1, top, age, seed }
       booms: [],        // ...and their explosions { level, x, y, gy, t, seed }
+      towerShots: [],   // the camp's towers: soldiers' and snipers' bullets { level, x, y, vx, vy, t, sniper }
+      grenades: [],     // ...grenades and tear gas canisters { level, x, y, vx, vy, t, gas, bounced }
+      gasClouds: [],    // ...tear gas clouds { level, x, gy, t }
+      trucks: [],       // ...and the searchlight's truck { level, x, gy, state, t, target, men }
       blasts: [],       // ...and their explosions { level, x, y, t }
       nextCatchup: null, // when (world time) the next purple orb comes for whoever's fallen behind
       warps: [],       // portal gun: someone going into a portal and out of another one far ahead
@@ -207,7 +211,7 @@ const Game = (() => {
     // The main course's dangers only see who's on it: anyone off in a forest (or on their way) counts as out of the race
     onCourse(level, () => mainCourse(dt, inputs));
     for (const f of forests()) {
-      if (f.biome === "camp") onCourse(f, () => { checkOrbs(); updateBridges(dt); updateCrates(f); updateMines(dt); updateNukeButton(f, inputs); updateParkedJet(f, dt); updateParkedHeli(f, dt); levelSounds(); });
+      if (f.biome === "camp") onCourse(f, () => { checkOrbs(); updateBridges(dt); updateCrates(f); updateMines(dt); updateTowers(dt); updateNukeButton(f, inputs); updateParkedJet(f, dt); updateParkedHeli(f, dt); levelSounds(); });
       else if (f.biome === "ruins") onCourse(f, () => { world.players.forEach((p, i) => { if (inputs[i].firePressed && p.power === "laser") usePower(p, i); }); checkOrbs(); updateBridges(dt); updateRuins(f, dt); updateBiomeGates(f); updateStorms(dt); updateMortars(dt); updateRuneTiles(dt); levelSounds(); });
       else if (f.leg) onCourse(f, () => { updateBridges(dt); updateFlytraps(dt); checkThinIce(); levelSounds(); updateLeg(f); });
       else onCourse(f, () => { world.players.forEach((p, i) => { if (inputs[i].firePressed && p.power === "mushroom") usePower(p, i); }); checkOrbs(); updateBridges(dt); updateLooseSaws(dt); updateLooseMaces(dt); updateSpores(); updateLobbers(dt); updateAliveTrees(dt); updateLeaves(dt); levelSounds(); });
@@ -248,6 +252,7 @@ const Game = (() => {
     updateMonkeys(dt);
     updateGuns(dt, inputs);
     updateMines(dt); // (a race with the camp as a regular biome has them on the main course)
+    updateTowers(dt);
     updateHeli(dt);
     updateWarps(dt);
     updateGrapples(dt);
@@ -2193,6 +2198,169 @@ const Game = (() => {
         p.showHit("BOOM!", "#ff7a3a");
       }
     }
+  }
+
+  // The camp's towers. Each acts while a runner is near: a soldier with terrible aim (bursts of 3, wide), a grenade thrower
+  // (it bounces and rolls at you, then blows), a sniper (his scope's glint grows for 1 s, then a shot at where you'll be: stop
+  // at the right moment), a searchlight sweeping the ground before it (on you for a second, out of cover, and a truck of
+  // soldiers comes), tear gas (a drifting cloud: slow and blurry). The towers live on the course, so everyone there shares them
+  function updateTowers(dt) {
+    const level = world.level, T = TOWERS;
+    for (const p of world.players) { if (p.dead) p.towerGrace = T.grace; else if (p.towerGrace > 0) p.towerGrace -= dt; } // (just back to life: the soldiers leave you be a moment)
+    const here = world.players.filter((p) => !p.caught && !p.dead && !p.held && !p.flight && !(p.towerGrace > 0) && (p.realm || world.mainCourse || world.level) === level);
+    const mid = (p) => ({ x: p.x + HITBOX_W / 2, y: p.y + HITBOX_H / 2 });
+    const shoot = (x, y, tx, ty, spread, speed = T.shot, sniper = false) => {
+      const a = Math.atan2(ty - y, tx - x) + (Math.random() * 2 - 1) * spread;
+      world.towerShots.push({ level, x, y, vx: Math.cos(a) * speed, vy: Math.sin(a) * speed, t: 0, sniper });
+    };
+    const lob = (x, y, tx, gas) => { // thrown in an arc to land at tx in the given time
+      const G = T.grenade, ft = gas ? T.gas.flight : G.flight, gy = level.groundTop(tx) ?? y + 40;
+      world.grenades.push({ level, x, y, vx: (tx - x) / ft, vy: (gy - 2 - y - 0.5 * G.gravity * ft * ft) / ft, t: 0, gas, bounced: false, dir: Math.sign(tx - x) || -1 });
+    };
+    if (level.towers && level.towers.length && here.length) for (const tw of level.towers) {
+      const ox = tw.x + 12, oy = tw.gy - tw.h - 1; // (its soldier's chest)
+      const near = here.filter((p) => Math.abs(mid(p).x - ox) < T.wake);
+      if (!near.length) { tw.state = "idle"; tw.aim = 0; continue; }
+      const tgt = near.reduce((a, q) => (Math.abs(mid(q).x - ox) < Math.abs(mid(a).x - ox) ? q : a));
+      tw.face = Math.sign(mid(tgt).x - ox) || -1;
+      tw.t += dt;
+      if (tw.threat === "soldier") {
+        const S = T.soldier;
+        if (tw.state === "idle" && tw.t >= S.every) { tw.state = "raise"; tw.t = 0; }
+        else if (tw.state === "raise" && tw.t >= S.raise) { tw.state = "fire"; tw.t = 0; tw.shots = 0; tw.err = badAim(); } // (the whole burst aimed that far off)
+        if (tw.state === "fire" && tw.t >= tw.shots * S.gap) {
+          const m = mid(tgt); shoot(ox + tw.face * 6, oy, m.x + tw.err, m.y, S.spread); tw.flash = 0.05; Sound.play("rifle");
+          if (++tw.shots >= S.burst) { tw.state = "idle"; tw.t = 0; }
+        }
+      } else if (tw.threat === "grenade" || tw.threat === "gas") {
+        const every = tw.threat === "gas" ? T.gas.every : T.grenade.every;
+        if (tw.state === "idle" && tw.t >= every - 0.35) { tw.state = "wind"; } // (arm back, just before)
+        if (tw.t >= every) { const m = mid(tgt); const gas = tw.threat === "gas", ft = gas ? T.gas.flight : T.grenade.flight; lob(ox + tw.face * 4, oy - 4, m.x + tgt.vx * ft + (tgt.vx >= 0 ? 1 : -1) * (gas ? T.gas.ahead : T.grenade.ahead), gas); tw.state = "idle"; tw.t = 0; tw.thrown = 0.25; Sound.play("gunThrow"); }
+      } else if (tw.threat === "sniper") {
+        const N = T.sniper;
+        if (tw.state === "idle" && tw.t >= N.cool) { tw.state = "glint"; tw.t = 0; }
+        if (tw.state === "glint") {
+          tw.aim = Math.min(1, tw.t / N.glint);
+          if (tw.t >= N.glint) { // the glint at full: his aim is set on where they'll be when the bullet gets there, if they keep going
+            const m = mid(tgt), sx = ox + tw.face * 4, sy = oy - 2;
+            let tx = m.x, ty = m.y;
+            for (let k = 0; k < 3; k++) { const ft = N.hold + Math.hypot(tx - sx, ty - sy) / N.speed; tx = m.x + tgt.vx * ft; ty = m.y; }
+            tw.state = "hold"; tw.t = 0; tw.mark = { x: tx, y: ty, sx, sy }; Sound.play("glint");
+          }
+        } else if (tw.state === "hold" && tw.t >= N.hold) { // (stop now and it goes where you would have been)
+          const k = tw.mark; shoot(k.sx, k.sy, k.x, k.y, 0, N.speed, true); Sound.play("sniper"); tw.state = "idle"; tw.t = 0; tw.aim = 0; tw.flash = 0.06;
+        }
+      } else if (tw.threat === "light") {
+        const L = T.light, u = (Math.sin(((world.time / L.sweep) + (tw.phase || 0)) * Math.PI * 2) + 1) / 2; // (0..1, there and back)
+        const lampX = ox, sweepX = ox - L.near - u * (L.far - L.near);
+        if (tw.rest > 0) tw.rest -= dt;
+        const hidden = (p) => level.covers.some((cv) => mid(p).x >= cv.x && mid(p).x <= cv.x + cv.w);
+        if (tw.locked && (tw.locked.dead || tw.locked.caught || !here.includes(tw.locked) || hidden(tw.locked))) { tw.locked = null; tw.lit = 0; } // (lost them: under cover)
+        if (tw.locked) {
+          tw.spotX = mid(tw.locked).x; tw.lit += dt;
+          if (tw.lit >= L.lock) {
+            if (!world.trucks.some((k) => k.level === level)) callTruck(tw.locked);
+            tw.locked.showHit("SPOTTED!", "#fff2a0");
+            tw.locked = null; tw.lit = 0; tw.rest = L.rest;
+          }
+        } else {
+          tw.spotX = sweepX;
+          if (!(tw.rest > 0)) for (const p of here) if (Math.abs(mid(p).x - sweepX) < L.spot && Math.abs(mid(p).x - lampX) < L.far + 20 && !hidden(p)) { tw.locked = p; tw.lit = 0; p.showHit("!", "#ff5a3a"); Sound.play("siren"); break; }
+        }
+      }
+      if (tw.flash > 0) tw.flash -= dt;
+      if (tw.thrown > 0) tw.thrown -= dt;
+    }
+    // the bullets: they kill whoever they hit, and stop at the ground
+    for (const s of world.towerShots) {
+      if (s.level !== level) continue;
+      s.t += dt; s.x += s.vx * dt; s.y += s.vy * dt;
+      const g = level.groundTop(s.x);
+      if ((g !== null && s.y >= g) || s.y > VIEW_H + 8 || s.y < -40 || s.t > 2.5) { s.done = true; if (g !== null && s.y >= g - 2 && s.y < g + 4) world.sawBits.push({ x: s.x, y: g - 1, vx: -Math.sign(s.vx) * 30, vy: -50, t: 0.2, c: "#d8c89a", level }); continue; }
+      for (const q of here) if (overlaps(q.x, q.y, HITBOX_W, HITBOX_H, s.x - 1, s.y - 1, 2, 2)) { s.done = true; q.die("SHOT!"); break; }
+    }
+    // grenades and gas canisters: fly, bounce once, roll (a grenade), then blow up / burst into a cloud
+    const G = T.grenade;
+    for (const n of world.grenades) {
+      if (n.level !== level) continue;
+      n.t += dt;
+      const g = level.groundTop(n.x);
+      if (!n.rolling) { n.x += n.vx * dt; n.vy += G.gravity * dt; n.y += n.vy * dt; }
+      else if (g !== null) { n.x += n.dir * G.roll * dt; n.y = g - 2; }
+      else { n.vy += G.gravity * dt; n.y += n.vy * dt; } // (rolled off into a pit)
+      if (!n.rolling && g !== null && n.y >= g - 2 && n.vy > 0) {
+        n.y = g - 2;
+        if (n.gas) { n.done = true; world.gasClouds.push({ level, x: n.x, gy: g, t: 0, seed: Math.random() * 99 }); Sound.play("gasHiss"); continue; }
+        if (!n.bounced) { n.bounced = true; n.vy = -n.vy * 0.35; n.vx *= 0.5; Sound.play("tink"); }
+        else { n.rolling = true; const q = here.length ? here.reduce((a, b) => (Math.abs(b.x - n.x) < Math.abs(a.x - n.x) ? b : a)) : null; if (q) n.dir = Math.sign(q.x + 3 - n.x) || n.dir; }
+      }
+      if (n.y > VIEW_H + 20) { n.done = true; continue; }
+      if (!n.gas && n.t >= G.fuse) {
+        n.done = true;
+        const gy = level.groundTop(n.x);
+        world.booms.push({ level, x: n.x, y: n.y - 2, gy, t: 0, seed: (n.x | 0) % 97 });
+        world.quakes.push({ x: n.x, t: 0.25, level });
+        Sound.play("mineBoom");
+        for (const q of here) if (Math.abs(mid(q).x - n.x) < G.blast && q.y + HITBOX_H > n.y - G.high && q.y < n.y + 6) q.die("BLOWN UP!");
+      }
+    }
+    // tear gas: slow and blurry while you're in it
+    for (const c of world.gasClouds) {
+      if (c.level !== level) continue;
+      c.t += dt; c.x -= T.gas.drift * dt;
+      if (c.t > T.gas.life) { c.done = true; continue; }
+      const grow = Math.min(1, c.t / 0.5), fade = Math.min(1, (T.gas.life - c.t) / 0.6);
+      for (const q of world.players) if (!q.caught && !q.dead && (q.realm || world.mainCourse || world.level) === level && Math.abs(mid(q).x - c.x) < T.gas.width / 2 * grow && q.y + HITBOX_H > c.gy - 26 && fade > 0.3) {
+        if (q.gassed <= 0.3) { q.showHit("GASSED!", "#c8d090"); Sound.play("cough"); }
+        q.gassed = 0.6;
+      }
+    }
+    updateTrucks(dt, here, shoot, mid);
+    for (const k of ["towerShots", "grenades", "gasClouds"]) world[k] = world[k].filter((o) => !o.done);
+  }
+
+  // The searchlight's truck (design V2, canvas-covered): drives in from the right, stops ahead of whoever was seen, three
+  // soldiers pile out the back and shoot (as badly as the towers) for 4 s, climb back in, and it drives off
+  function badAim() { const S = TOWERS.soldier; return (Math.random() < 0.5 ? -1 : 1) * (S.miss[0] + Math.random() * (S.miss[1] - S.miss[0])); } // (never quite on you)
+
+  function callTruck(p) {
+    const level = world.level, x = p.x + VIEW_W;
+    world.trucks.push({ level, x, gy: level.groundTop(x) ?? p.y + HITBOX_H, state: "in", t: 0, target: p, vx: -TOWERS.truck.speed, men: [] });
+    Sound.play("truck");
+  }
+  function updateTrucks(dt, here, shoot, mid) {
+    const level = world.level, K = TOWERS.truck;
+    for (const k of world.trucks) {
+      if (k.level !== level) continue;
+      k.t += dt;
+      const g = level.groundTop(k.x + 30); if (g !== null) k.gy = g;
+      if (k.state === "in") {
+        const stopAt = k.target.x + K.stop;
+        k.x += k.vx * dt;
+        if (k.x <= stopAt + 40) k.vx = Math.min(-20, k.vx + 300 * dt); // (braking)
+        if (k.x <= stopAt) { k.state = "out"; k.t = 0; k.vx = 0; }
+      } else if (k.state === "out") { // soldiers jumping out the back, one after another, running to their spots
+        if (k.men.length < K.men && k.t >= k.men.length * 0.3) k.men.push({ x: k.x + 56, to: k.x + [-14, -28, 66][k.men.length], t: 0, cool: 0.5 + k.men.length * 0.4, face: -1 });
+        if (k.t >= K.stay) { k.state = "back"; k.t = 0; }
+      } else if (k.state === "back") {
+        if (k.men.every((m) => m.gone)) { k.state = "off"; k.t = 0; }
+      } else if (k.state === "off") { k.vx -= 160 * dt; k.x += k.vx * dt; if (k.x < (k.target.x || 0) - VIEW_W * 1.5 || k.t > 8) k.done = true; }
+      for (const m of k.men) {
+        m.t += dt;
+        const dest = k.state === "back" ? k.x + 56 : m.to;
+        if (Math.abs(m.x - dest) > 1) { m.x += Math.sign(dest - m.x) * Math.min(70 * dt, Math.abs(dest - m.x)); m.face = Math.sign(dest - m.x); m.run = true; continue; }
+        m.run = false;
+        if (k.state === "back") { m.gone = true; continue; }
+        const near = here.filter((q) => Math.abs(q.x - m.x) < TOWERS.wake);
+        if (!near.length) continue;
+        const q = near.reduce((a, b) => (Math.abs(b.x - m.x) < Math.abs(a.x - m.x) ? b : a)), c = mid(q);
+        m.face = Math.sign(c.x - m.x) || -1;
+        if ((m.cool -= dt) <= 0) { m.cool = K.every; m.burst = 3; m.next = 0; m.err = badAim(); }
+        if (m.burst > 0 && (m.next -= dt) <= 0) { shoot(m.x + 3 + m.face * 6, k.gy - 7, c.x + m.err, c.y, TOWERS.soldier.spread); m.burst--; m.next = TOWERS.soldier.gap; m.flash = 0.05; Sound.play("rifle"); }
+        if (m.flash > 0) m.flash -= dt;
+      }
+    }
+    world.trucks = world.trucks.filter((k) => !k.done);
   }
 
   function makeGun(kind, bullets) {

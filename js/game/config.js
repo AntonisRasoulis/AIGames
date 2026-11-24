@@ -1,7 +1,7 @@
 // The game's version, shown left of the logo. The first number goes up for big updates (a new biome, a new
 // secret world...), the second for smaller additions and fixes (back to 0 with each big update): 6.16 means
 // the 6th big update (the enchanted forest), 16 small ones since. (7: the arcane ruins.)
-const GAME_VERSION = "8.18";
+const GAME_VERSION = "8.19";
 
 // Tunable numbers for the game. Change these to adjust how it feels.
 // Distances are in game pixels; one tile is 8 pixels (about "1 meter").
@@ -638,6 +638,27 @@ const NUKE = {
   shootAt: 260,        // the helicopter coming back is fired on when it's this close to where it'd drop you (pixels)
   missile: 0.9,        // seconds the missile takes to reach it
   hoverLow: 4,         // nobody pressed it: the helicopter comes down to hover this far over the ground (its wheels) while you hop out
+};
+
+// The camp's towers (v8.19, owner's design: "a lot of towers", each holding a threat). Always one in sight, spread out; some
+// stand on the course (you run between their legs), some behind the fence. Three looks (chosen T1 wooden watchtower, T3 steel
+// lattice, T4 concrete), any of them holding any threat: a soldier with terrible aim, a grenade thrower, a sniper, a
+// searchlight that calls a truck of soldiers, tear gas
+const TOWERS_THREATS = ["soldier", "grenade", "sniper", "light", "gas"]; // what a tower can hold (picked at random)
+const TOWERS = {
+  every: [34, 44],     // tiles from one tower to the next (a screen is 50: always one in sight, never two crowded)
+  wildEvery: [17, 22], // ...in Wild mode (twice as many). Easy: none
+  calm: 14,            // none in the first tiles of a camp
+  front: 0.5,          // the chance a tower stands on the course (where the ground under it is flat), not behind the fence
+  wake: 230,           // a tower acts while a runner is this close to it (pixels, either side)
+  grace: 1.5,          // just back to life, the towers and the truck's soldiers leave you be this long (no aiming at you, their shots pass through)
+  shot: 210,           // the soldiers' bullets fly this fast (px/s)...
+  soldier: { every: 2, raise: 0.4, burst: 3, gap: 0.12, spread: 0.2, miss: [30, 90] }, // a burst of 3 every 2 s, rifle raised 0.4 s first; terrible aim: each burst aimed 30-90 px to one side of you (all 3 shots), each shot up to 0.2 rad further off
+  grenade: { every: 3.4, flight: 0.9, fuse: 2, roll: 55, blast: 22, high: 14, gravity: 320, ahead: 70 }, // thrown to land 70 px ahead of where you'll be, bounces, rolls at you, blows 2 s after the throw (22 px; a jump clears it)
+  sniper: { cool: 2.6, glint: 1, hold: 0.4, speed: 700 },    // the glint grows for 1 s; at full (a ping, flashing white) his aim is set on where you'll be if you keep going, and 0.4 s later he fires: stop then. 2.6 s to the next
+  light: { sweep: 3.4, near: 30, far: 170, spot: 12, lock: 1, rest: 7, covers: [60, 125] }, // the beam sweeps 30-170 px before the tower (3.4 s there and back); on you 1 s (not under cover): the truck comes; then it rests 7 s. Cover stands 60 and 125 px before it
+  truck: { speed: 170, stop: 150, stay: 4, men: 3, every: 1.5 }, // drives in from the right, stops 150 px ahead of whoever was seen, 3 soldiers jump out and shoot for 4 s (a burst each every 1.5 s), then it drives off
+  gas: { every: 4.5, flight: 0.9, ahead: 40, life: 4, width: 34, drift: 16, slow: 0.6, blur: 2.6 }, // a canister lobbed at you: a cloud 34 px wide drifting back 16 px/s for 4 s; in it you run at 0.6x and your eyes blur
 };
 
 // The camp's landmines (v8.18, owner's design): a small bump in the dirt, a red light blinking on it. Step on one: CLICK, and
