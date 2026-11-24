@@ -119,6 +119,8 @@ class Level {
     this.saws = [];      // spinning saw blades: sliding along a slot in the ground, or up and down a rail
     this.traps = [];     // bear traps in the prairie grass: { id, x (middle), size, bush }
     this.bushes = [];    // bushes you can hide in: { x0, w, h, gy, seed, berries, tops, torn }
+    this.craters = [];    // where a nuke landed (the camp's red button): { x, gy, t } (a small glowing crater, fallout drifting down)
+    this.nukeButton = null; // the camp's red button (in the middle of a camp you're taken to): { x, gy, state: ready | pressed, t }
     this.crates = [];     // the military camp: crates to smash open for bullets (gas cans alone) { id, x, gy, kind: shared | first | gas, bullets, taken }
     this.lastCrate = -99;
     this.scatterFrom = 0; // traps, bushes and sinkholes have been sprinkled over the course up to here
@@ -928,6 +930,11 @@ class Level {
         return SECTIONS.mortar.call(this);
       }
       if (this.realmEnd === undefined && this.mortarStretch && this.col * TILE >= this.mortarStretch[1]) { this.mortarAt = undefined; this.mortarDone = false; this.mortarStretch = null; } // (on to the next stretch)
+    }
+    if (this.buttonAt !== undefined && !this.nukeButton && this.col >= this.buttonAt) { // the camp's red button, in its middle, with calm ground round it
+      this.flat(6, false);
+      this.nukeButton = { x: this.col * TILE, gy: this.groundRow * TILE, state: "ready", t: 0 };
+      return this.flat(9, false);
     }
     if (this.leg && this.col * TILE < this.realmEnd && this.realmEnd / TILE - this.col < 3) return this.flat(Math.ceil(this.realmEnd / TILE - this.col), false); // (a stretch: dangers right up to its end)
     if (this.realmEnd !== undefined && this.col * TILE >= this.realmEnd) {

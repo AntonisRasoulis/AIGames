@@ -53,6 +53,7 @@ class Player {
     this.ammo = 0;                // the military camp: bullets collected from its crates...
     this.gas = 0;                 // ...(alone: gas cans)...
     this.cratesOpened = new Set(); // ...the shared crates you've smashed (everyone opens their own)...
+    this.rad = null;              // nuked: radiated for the rest of the race { next (s to the next dizzy spell), slow (s of it left) }
     this.gun = null;              // ...and the gun you came out with { kind: m16 | pistol, cap, mag, reserve, reload, cool, flash }
     this.trapState = new Set();   // bear traps that have snapped on *this* player
     this.rescueBlock = 0;         // just got knocked free of a trap: can't knock anyone else in for a moment
@@ -319,7 +320,7 @@ class Player {
       if (Math.sign(this.vx) === -dir && !(this.onGround && this.onIce)) accel *= 2; // turn around quickly (not on ice)
       const fast = this.spores.red > 0 ? SPORES.speed : 1; // a red spore makes you faster
       accel *= fast * TUNING.speed;
-      const top = PHYSICS.runSpeed * fast * TUNING.speed * (this.honey > 0 ? BEAR.honeySpeed : 1) * (skating ? SNOWBALL.skateSpeed : 1); // sticky honey slows you down; skates speed you up on ice
+      const top = PHYSICS.runSpeed * fast * TUNING.speed * (this.honey > 0 ? BEAR.honeySpeed : 1) * (skating ? SNOWBALL.skateSpeed : 1) * (this.rad && this.rad.slow > 0 ? NUKE.slow : 1); // sticky honey slows you down; skates speed you up on ice
       this.vx = clamp(this.vx + dir * accel * dt, -top, top);
       this.facing = dir;
     } else if (this.onGround) {
@@ -1178,11 +1179,11 @@ class Player {
     if (this.safeSpots.length > 300) this.safeSpots.shift();
   }
 
-  die(word) {
-    if (this.dead || this.flood) return; // (nothing can hurt you while it's flooded)
-    if (this.shieldGrace > 0 && this.y < VIEW_H + 4) return; // (the aurora just saved us: a moment to get clear)
+  die(word, force = false) { // (force: a nuke or a crash, which the aurora can't stop)
+    if (this.dead || (this.flood && !force)) return; // (nothing can hurt you while it's flooded)
+    if (!force && this.shieldGrace > 0 && this.y < VIEW_H + 4) return; // (the aurora just saved us: a moment to get clear)
     // The ruins' gift: its lights take the hit instead (anything but a pit), then come back a while later
-    if (this.aurora && this.aurora.back <= 0 && this.y < VIEW_H + 4) {
+    if (!force && this.aurora && this.aurora.back <= 0 && this.y < VIEW_H + 4) {
       this.aurora.back = AURORA.recharge;
       this.floatAway = 0; // (it undoes whatever was killing us: a Lobber's float, its poison)
       if (this.poisonLethal) { this.poisonLethal = false; this.poison = 0; }

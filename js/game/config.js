@@ -1,7 +1,7 @@
 // The game's version, shown left of the logo. The first number goes up for big updates (a new biome, a new
 // secret world...), the second for smaller additions and fixes (back to 0 with each big update): 6.16 means
 // the 6th big update (the enchanted forest), 16 small ones since. (7: the arcane ruins.)
-const GAME_VERSION = "8.14";
+const GAME_VERSION = "8.15";
 
 // Tunable numbers for the game. Change these to adjust how it feels.
 // Distances are in game pixels; one tile is 8 pixels (about "1 meter").
@@ -609,6 +609,31 @@ const HELI = {
 // (the helicopter) a pistol with theirs (6 to a magazine). Shoot with your power key the way you face: a bullet kills
 // ("SHOT!"), flies a screen, then starts to drop. Out of bullets, the next press throws the gun: whoever it hits is stunned
 // 1 s, like a coconut. Alone there's no one to shoot: the crates are gas cans, and the jet takes you further for each.
+// The camp's big red button (v8.15, owner's design; look R2: a control desk behind sandbags, the button under a glass cover
+// you smash to press it). Once per camp, in its middle: press it with your power key and a nuke falls on whoever's furthest on
+// out on the main course (nobody out there: on the camp itself, throwing everyone in it back to the main course). It can't
+// be dodged: a siren and a red target circle for 1.5 s, then the blast, and they're out for 3 s. Where it lands: a small
+// glowing crater, fallout drifting down. Whoever it hits is radiated for the rest of the race: every 15-25 s a Geiger counter
+// crackles, then everything goes foggy and they run slowly for 2 s. And the helicopter taking everyone else back from the
+// camp is shot down by a missile: it crashes, its wreck stays, everyone in it dies (they come back by the wreck). Alone:
+// it nukes the fire, 30 m back.
+const NUKE = {
+  near: 14,            // stand this close to the desk to press it (pixels from its middle)
+  warn: 1.5,           // seconds of siren and red target before the nuke lands (it follows you: no getting away)
+  out: 3,              // seconds before whoever it hit comes back
+  cloud: 3,            // seconds the mushroom cloud takes to rise and fade
+  flash: 0.5,          // seconds of white flash on the screens it's on
+  fallout: 50,         // fallout drifts down this far either side of the crater (pixels)
+  dizzyEvery: [15, 25], // radiated: a dizzy spell every this many seconds (picked at random each time)...
+  geiger: 1,           // ...a Geiger counter crackling this long first...
+  dizzy: 2,            // ...then this long of fog and running slowly...
+  slow: 0.5,           // ...at this much of your speed
+  soloFire: 30,        // alone: it nukes the fire this many meters back
+  shootAt: 260,        // the helicopter coming back is fired on when it's this close to where it'd drop you (pixels)
+  missile: 0.9,        // seconds the missile takes to reach it
+  hoverLow: 4,         // nobody pressed it: the helicopter comes down to hover this far over the ground (its wheels) while you hop out
+};
+
 const CAMP_GUNS = {
   crateEvery: 9,       // at least this many tiles between crates...
   crateChance: 0.16,   // ...and a crate on this many of the spots that fit (about 12 in a camp)

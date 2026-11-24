@@ -58,6 +58,9 @@ const Game = (() => {
       missiles: [], // missiles zooming in, locking on, flying or exploding
       bullets: [],     // the camp's guns: bullets flying (on the main course)
       thrownGuns: [],  // ...and empty guns thrown, spinning
+      nukeOrders: [],  // the camp's red button: pressed, a nuke to launch { presser, camp } ...
+      nukes: [],       // ...nukes falling { level, target, x, t } ...
+      nukeBooms: [],   // ...and their blasts { level, x, gy, t }
       bears: [],    // bears chasing a player (snow only)
       jaguars: [],  // jaguars and black panthers hunting the leader (jungle only)
       decoys: [],   // harmless eyes blinking in the jungle's bushes
@@ -204,11 +207,12 @@ const Game = (() => {
     // The main course's dangers only see who's on it: anyone off in a forest (or on their way) counts as out of the race
     onCourse(level, () => mainCourse(dt, inputs));
     for (const f of forests()) {
-      if (f.biome === "camp") onCourse(f, () => { checkOrbs(); updateBridges(dt); updateCrates(f); updateParkedJet(f, dt); updateParkedHeli(f, dt); levelSounds(); });
+      if (f.biome === "camp") onCourse(f, () => { checkOrbs(); updateBridges(dt); updateCrates(f); updateNukeButton(f, inputs); updateParkedJet(f, dt); updateParkedHeli(f, dt); levelSounds(); });
       else if (f.biome === "ruins") onCourse(f, () => { world.players.forEach((p, i) => { if (inputs[i].firePressed && p.power === "laser") usePower(p, i); }); checkOrbs(); updateBridges(dt); updateRuins(f, dt); updateBiomeGates(f); updateStorms(dt); updateMortars(dt); updateRuneTiles(dt); levelSounds(); });
       else if (f.leg) onCourse(f, () => { updateBridges(dt); updateFlytraps(dt); checkThinIce(); levelSounds(); updateLeg(f); });
       else onCourse(f, () => { world.players.forEach((p, i) => { if (inputs[i].firePressed && p.power === "mushroom") usePower(p, i); }); checkOrbs(); updateBridges(dt); updateLooseSaws(dt); updateLooseMaces(dt); updateSpores(); updateLobbers(dt); updateAliveTrees(dt); updateLeaves(dt); levelSounds(); });
     }
+    updateNukes(dt); // (outside any one course: it reaches from the camp out to the main course)
     checkFire();
   }
 
@@ -1803,6 +1807,7 @@ const Game = (() => {
     const f = new Level(Math.floor(Math.random() * 1e9), "camp", { solo: world.solo, biomes: false, wild: world.wild, easy: world.easy, realmEnd: (c0 + CAMP.arrive + len) * TILE });
     f.flat(Math.max(1, c0 - f.col), false);
     f.flat(CAMP.arrive, false);
+    f.buttonAt = c0 + CAMP.arrive + Math.floor(len / 2); // (its red button, in its middle)
     f.update(world.time);
     return f;
   }
@@ -1827,7 +1832,7 @@ const Game = (() => {
             const H = CAMP_HELI;
             moveTo(p, null, f.from + travelGain(0.6 + H.back / H.speed + 1));
             let dh = world.dropHelis.find((d) => d.group === f.group);
-            if (!dh) { dh = { group: f.group, x: p.x - 3 - H.back, y: HELI.y, to: { x: p.x, y: p.y }, riders: [], state: "fly", t: 0, vx: H.speed, pitch: 0.12, door: 1 }; world.dropHelis.push(dh); }
+            if (!dh) { dh = { group: f.group, x: p.x - 3 - H.back, y: HELI.y, to: { x: p.x, y: p.y }, riders: [], state: "fly", t: 0, vx: H.speed, pitch: 0.12, door: 1, doomed: f.doomed }; world.dropHelis.push(dh); }
             p.drop = { to: { x: dh.to.x, y: dh.to.y } };
             dh.riders.push(p);
           } else { // onto the main course where you'll come out, then into the jet, well behind it
@@ -1888,14 +1893,48 @@ const Game = (() => {
       dh.riders = dh.riders.filter((p) => !p.caught);
       if (dh.state === "fly") {
         dh.x = Math.min(dh.to.x - 3, dh.x + dh.vx * dt);
-        if (dh.x >= dh.to.x - 3) { dh.state = "drop"; dh.t = 0; dh.pitch = -0.08; }
+        if (!dh.doomed) { // (coming down to hover just over the ground where you'll hop out)
+          const g = world.level.groundTop(dh.to.x + HITBOX_W / 2), low = (g ?? dh.to.y + HITBOX_H) - 14 - NUKE.hoverLow, left = dh.to.x - 3 - dh.x;
+          if (left < 160) dh.y += (low - dh.y) * Math.min(1, dt * 5);
+        }
+        if (dh.doomed && !dh.missile && dh.x > dh.to.x - NUKE.shootAt) { dh.missile = { x: dh.x - 220, y: -16, trail: [], t: 0 }; Sound.play("launch"); } // (the red button was pressed: here comes a missile)
+        if (dh.x >= dh.to.x - 3 && !dh.doomed) { dh.state = "drop"; dh.t = 0; dh.pitch = -0.08; }
+      } else if (dh.state === "hit") { // shot down: falling, burning, then the crash (its wreck stays; everyone in it dies)
+        dh.vy += 320 * dt; dh.y += dh.vy * dt; dh.x += 60 * dt; dh.pitch += dt * 1.5;
+        const g = world.level.groundTop(dh.x);
+        if ((g !== null && dh.y + 10 >= g) || dh.y > VIEW_H + 30) {
+          if (g !== null) {
+            world.wrecks.push({ level: world.level, x: dh.x, gy: g, t: 0, dir: -1 });
+            world.quakes.push({ x: dh.x, t: 0.4, level: world.level });
+            for (let i = 0; i < 20; i++) world.sawBits.push({ x: dh.x, y: g - 4, vx: (Math.random() - 0.5) * 200, vy: -60 - Math.random() * 120, t: 0.9, c: ["#ffd040", "#ff7a1a", "#e84a2a", "#3a3a3a", "#b09a64"][i % 5], big: i % 3 === 0, level: world.level });
+            Sound.play("boom");
+          }
+          for (const p of dh.riders) { // (they come back by the wreck, on safe ground)
+            const spot = world.level.safeSpotAfter(dh.x + 10, 400) || world.level.safeSpotBefore(dh.x, 400);
+            Object.assign(p, { held: false, drop: null, vx: 0, vy: 0, inCabin: false });
+            if (spot) { p.x = spot.x + DEATH.respawnBehind; p.y = spot.y; p.safeSpots = [spot]; }
+            p.showHit("CRASHED!", "#ff7a3a");
+            p.die(undefined, true);
+          }
+          dh.riders = []; dh.done = true;
+        }
       } else if (dh.state === "drop") { // out you jump
         dh.pitch += (0 - dh.pitch) * Math.min(1, dt * 4);
         if (dh.t > 0.4) { for (const p of dh.riders) { p.held = false; p.drop = null; p.vy = -70; p.vx = 0; p.onGround = false; p.safeSpots = [{ x: dh.to.x, y: dh.to.y }]; Sound.play("land"); } dh.riders = []; dh.state = "leave"; dh.t = 0; }
       } else { dh.x += 200 * dt; dh.y -= 30 * dt; dh.pitch = 0.12; if (dh.t > 0.3) dh.door = Math.max(0, dh.door - dt / CAMP_HELI.door); }
+      if (dh.missile) { // the prairie's missile, homing in on it
+        const m = dh.missile;
+        m.t += dt;
+        m.angle = Math.atan2(dh.y - m.y, dh.x - m.x);
+        const step = Math.hypot(dh.x - m.x, dh.y - m.y) * Math.min(1, dt / Math.max(0.02, NUKE.missile - m.t + dt));
+        m.x += Math.cos(m.angle) * step; m.y += Math.sin(m.angle) * step;
+        m.trail.push({ x: m.x, y: m.y, t: world.time });
+        if (m.t >= NUKE.missile) { dh.missile = null; dh.state = "hit"; dh.t = 0; dh.vy = -30; dh.boom = { x: dh.x, y: dh.y, t: 0 }; for (const p of dh.riders) p.showHit("SHOT DOWN!", "#ff7a3a"); explodeAt({ x: dh.x, y: dh.y, level: world.level }); }
+      }
+      if (dh.boom) dh.boom.t += dt;
       dh.riders.forEach((p, i) => { p.x = dh.x + 3 - i * 2.5; p.y = dh.y - 6; p.facing = 1; }); // (sitting in the doorway in its middle)
     }
-    world.dropHelis = world.dropHelis.filter((dh) => !(dh.state === "leave" && dh.t > 4));
+    world.dropHelis = world.dropHelis.filter((dh) => !dh.done && !(dh.state === "leave" && dh.t > 4));
     for (const w of world.wrecks) w.t += dt;
   }
 
@@ -1970,7 +2009,7 @@ const Game = (() => {
       if (ph.riders.length && !coming) ph.wait = 0;
       if (ph.riders.length && (ph.wait -= dt) <= 0) { ph.state = "lift"; ph.t = 0; ph.group = Math.random(); Sound.play("heliDoor"); for (const p of ph.riders) p.inCabin = true; } // (they step inside, and the doors slide shut)
     } else if (ph.state === "lift" && ph.t >= H.lift) { // up and away: everyone in it is flown back
-      for (const p of ph.riders) p.flight = { kind: "heli", t: 0, from: p.x, group: ph.group };
+      for (const p of ph.riders) p.flight = { kind: "heli", t: 0, from: p.x, group: ph.group, doomed: !!f.nukeFired }; // (the button was pressed: it'll be shot down)
       ph.riders = [];
       ph.state = "gone"; ph.t = 0;
     } else if (ph.state === "gone" && ph.t >= H.again && left.length) { // back for whoever's left, coming down just ahead of them
@@ -2024,6 +2063,78 @@ const Game = (() => {
         for (let i = 0; i < 10; i++) world.sawBits.push({ x: c.x + 6, y: top + 3, vx: (Math.random() - 0.5) * 150, vy: -50 - Math.random() * 110, t: 0.6, c: cols[i % 3], big: i % 3 === 0, level: f });
         Sound.play("crate");
       }
+    }
+  }
+
+  // The camp's red button: stand at its desk and press your power key: the glass over it smashes, the button goes down and
+  // a nuke is on its way (see updateNukes). Once per camp
+  function updateNukeButton(f, inputs) {
+    const nb = f.nukeButton;
+    if (!nb) return;
+    nb.t += 1 / 120;
+    if (nb.state !== "ready") return;
+    world.players.forEach((p, i) => {
+      if (nb.state !== "ready" || p.realm !== f || !freeRunner(p) || !inputs[i] || !inputs[i].firePressed) return;
+      if (Math.abs(p.x + HITBOX_W / 2 - (nb.x + 10)) > NUKE.near) return;
+      nb.state = "pressed"; nb.t = 0; nb.by = p;
+      f.nukeFired = true;
+      p.showHit("NUKE INCOMING!", "#ff3a2a");
+      for (let k = 0; k < 16; k++) world.sawBits.push({ x: nb.x + 10, y: nb.gy - 18, vx: (Math.random() - 0.5) * 160, vy: -40 - Math.random() * 120, t: 0.7, c: k % 3 ? "#c8e8ff" : "#ffffff", big: k % 4 === 0, level: f }); // (glass flying)
+      Sound.play("glassSmash");
+      world.nukeOrders.push({ presser: p, camp: f }); // (launched from outside the camp's own update: see updateNukes)
+    });
+  }
+
+  // Who it falls on: whoever's furthest on out on the main course; nobody: the camp itself (everyone in it). Alone: the fire
+  function launchNuke(presser, camp) {
+    if (world.solo) { world.fire.x -= NUKE.soloFire * TILE; presser.showHit(`FIRE NUKED! -${NUKE.soloFire}m`, "#6aff5a"); Sound.play("nukeBoom"); return; }
+    const out = world.players.filter((q) => !q.caught && !q.realm && !q.flight && !q.jet && !q.drop && !q.cockpit);
+    if (out.length) {
+      const t = out.reduce((a, q) => (q.x > a.x ? q : a));
+      world.nukes.push({ level: world.level, target: t, x: t.x + HITBOX_W / 2, t: 0 });
+      t.showHit("NUKE INCOMING!", "#ff3a2a");
+    } else world.nukes.push({ level: camp, target: presser, x: presser.x + HITBOX_W / 2, t: 0, camp }); // (on the camp: everyone in it)
+    Sound.play("siren");
+  }
+
+  // Nukes falling: the red target follows whoever it's for (no getting away), then the blast: they're out for 3 s and
+  // radiated for good; a small crater stays, fallout drifting down. On the camp: everyone in it is thrown back to the main
+  // course, nuked. And radiation: now and then a Geiger counter crackles, then fog and slow running
+  function updateNukes(dt) {
+    for (const o of world.nukeOrders) launchNuke(o.presser, o.camp);
+    world.nukeOrders = [];
+    for (const n of world.nukes) {
+      n.t += dt;
+      const t = n.target;
+      if (!t.dead && !t.caught && (t.realm || world.level) === n.level) n.x = t.x + HITBOX_W / 2;
+      if (n.t < NUKE.warn) continue;
+      n.done = true;
+      const gy = n.level.groundTop(n.x);
+      world.nukeBooms.push({ level: n.level, x: n.x, gy: gy ?? VIEW_H - 8, t: 0 });
+      if (gy !== null) n.level.craters.push({ x: n.x, gy, t: 0 });
+      world.quakes.push({ x: n.x, t: 0.8, level: n.level });
+      Sound.play("nukeBoom");
+      const hit = n.camp ? world.players.filter((q) => q.realm === n.camp && !q.caught && !q.flight && !q.cockpit) : [t];
+      for (const q of hit) {
+        if (q.caught) continue;
+        if (n.camp) { moveTo(q, null, q.x); Object.assign(q, { held: false, hop: null, inCabin: false }); } // (thrown back out to the main course)
+        q.showHit("NUKED!", "#6aff5a");
+        q.die(undefined, true);
+        q.deadTimer = NUKE.out;
+        if (!q.rad) q.rad = { next: NUKE.dizzyEvery[0] + Math.random() * (NUKE.dizzyEvery[1] - NUKE.dizzyEvery[0]), slow: 0 };
+      }
+    }
+    world.nukes = world.nukes.filter((n) => !n.done);
+    for (const b of world.nukeBooms) b.t += dt;
+    world.nukeBooms = world.nukeBooms.filter((b) => b.t < NUKE.cloud + 0.5);
+    for (const p of world.players) { // radiation
+      const r = p.rad;
+      if (!r || p.caught) continue;
+      if (r.slow > 0) { r.slow -= dt; continue; }
+      const was = r.next;
+      r.next -= dt;
+      if (was > NUKE.geiger && r.next <= NUKE.geiger) Sound.play("geiger");
+      if (r.next <= 0) { r.slow = NUKE.dizzy; r.next = NUKE.dizzyEvery[0] + Math.random() * (NUKE.dizzyEvery[1] - NUKE.dizzyEvery[0]); p.showHit("DIZZY!", "#9aff7a"); }
     }
   }
 

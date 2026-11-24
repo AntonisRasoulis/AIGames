@@ -63,10 +63,11 @@ const Renderer = (() => {
       // Each player sees their own course: the main one, or the enchanted forest they're in
       const course = p.realm || world.level;
       const mine = (list) => list.filter((e) => (e.level || world.level) === course);
-      const view = Object.assign(Object.create(world), { level: course, sawBits: mine(world.sawBits), wisps: mine(world.wisps), quakes: mine(world.quakes), builtPortals: mine(world.builtPortals), stormBalls: mine(world.stormBalls), blasts: mine(world.blasts), mortarBombs: mine(world.mortarBombs), booms: mine(world.booms), mushroomThrows: world.mushroomThrows.filter((m) => (m.p.realm || world.level) === course), laserShots: mine(world.laserShots) });
+      const view = Object.assign(Object.create(world), { level: course, sawBits: mine(world.sawBits), wisps: mine(world.wisps), quakes: mine(world.quakes), builtPortals: mine(world.builtPortals), stormBalls: mine(world.stormBalls), blasts: mine(world.blasts), mortarBombs: mine(world.mortarBombs), booms: mine(world.booms), mushroomThrows: world.mushroomThrows.filter((m) => (m.p.realm || world.level) === course), laserShots: mine(world.laserShots), nukes: mine(world.nukes), nukeBooms: mine(world.nukeBooms) });
       if (p.realm) Object.assign(view, { inForest: true, monsoon: null, bullets: [], thrownGuns: [], missiles: [], bears: [], jaguars: [], decoys: [], arrows: [], vultures: [], hawks: [], sticks: [], burns: [], drones: [], hands: [], roots: [], bolts: [], monkeys: [], thrownSnowballs: [], grapples: [], vines: [], warps: [] });
       drawView(view, p, world.players.filter((q) => q !== p && q.realm === p.realm && !q.dream), camX); // (everyone else on this course shows as a ghost)
       drawDream(p, camX, world.time);
+      drawNukeFlash(view, p, camX); // (a nuke going off on this screen: a white flash; radiated and dizzy: fog)
       if (Game.blackoutDark(course, world.time)) drawBlackout(r.x, r.y, camX, world, course); // (the ruins' power cut: pitch black)
       const dark = Math.max(Game.tripDark(p), Game.flightDark(p)); // (the aurora taking you across, or flying into or out of the camp: the screen fading out and back)
       if (dark > 0) { b.fillStyle = `rgba(6, 14, 18, ${dark})`; b.fillRect(0, 0, VIEW_W, VIEW_H); }
@@ -206,6 +207,8 @@ const Renderer = (() => {
     if (world.heli && world.heli.level === world.level) drawHeli(world.heli, camX, world.time); // (the military camp's helicopter, its rope behind whoever's on it)
     drawCampHelis(world, camX, world.time); // (its wreck; the helicopter at the camp's end; and bringing people back)
     drawCrates(world.level, player, camX); // (the camp's crates: the shared ones as this runner sees them)
+    drawNukeButton(world.level, player, camX, world.time); // (the camp's red button)
+    drawCraters(world.level, camX, world.time); // (where a nuke landed: a small glowing crater, fallout drifting down)
     drawFlood(world, camX, world.time);
     for (const w of world.warps) drawWarp(w, camX, world.time); // (behind the runner going in or coming out)
 
@@ -245,6 +248,7 @@ const Renderer = (() => {
     drawLeaveFront(world.level, camX, world.time); // (its roots' spikes, its flying leaves and seeds, whoever it's grabbed)
     if (world.level === Game.world.level) drawJets(Game.world, camX, world.time); // (coming back from the camp: the jet, its bombs, the parachute)
     drawBullets(world, camX, world.time); // (the camp's guns: bullets and thrown guns, on the main course)
+    drawNukes(world, camX, world.time); // (the camp's red button: nukes falling onto their red target, mushroom clouds)
     drawStones(world.level, camX);
     drawGearLasers(world.level, camX, world.time, true);
     drawStormBalls(world, camX, world.time);
@@ -542,7 +546,16 @@ const Renderer = (() => {
     if (world.level.parkedJet) drawParkedJet(world.level.parkedJet, camX, time);
     if (world.level !== Game.world.level) return;
     for (const w of world.wrecks) if (w.level === world.level) drawWreck(w, camX, time);
-    for (const dh of world.dropHelis) drawHeliBody(dh.x - camX, dh.y, dh.pitch, -1, time, 26, dh.door);
+    for (const dh of world.dropHelis) {
+      drawHeliBody(dh.x - camX, dh.y, dh.pitch, -1, time, dh.state === "hit" ? 6 : 26, dh.door);
+      if (dh.state === "hit") { drawGlowAt("fire", 3, dh.x - camX, dh.y, 0.8); for (let i = 0; i < 6; i++) P(i % 2 ? "#ffb040" : "#e84a2a", dh.x - camX - 8 + hash(i, Math.floor(time * 20)) * 16, dh.y - 6 + hash(Math.floor(time * 20), i) * 10, 2, 2); }
+      if (dh.missile) { // (the prairie's missile: the red button was pressed)
+        const m = dh.missile;
+        for (const q of m.trail) { const fade = Math.max(0, 1 - (time - q.t) * 3); if (fade > 0) { b.fillStyle = `rgba(150, 150, 160, ${0.6 * fade})`; b.fillRect(Math.round(q.x - camX), Math.round(q.y), 2, 2); } }
+        b.save(); b.translate(Math.round(m.x - camX), Math.round(m.y)); b.rotate(m.angle || 0); b.drawImage(sprites.missile, -Math.floor(sprites.missile.width / 2), -Math.floor(sprites.missile.height / 2)); b.restore();
+      }
+      if (dh.boom && dh.boom.t < 1.2) drawExplosion(dh.boom.x - camX, dh.boom.y, dh.boom.t);
+    }
   }
 
   // The jet at the camp's end: canopy open, a yellow ladder hooked on, an arrow bobbing over the cockpit; then shut with
@@ -600,6 +613,95 @@ const Renderer = (() => {
         for (const d of [-6, 6]) for (let k = 0; k < 12; k++) P("#d8c89a", x + 3 + Math.round(d * (1 - k / 12)), y - 13 + k, 1, 1, 0.8);
       }
     }
+  }
+
+  // The camp's red button (design R2): a grey control desk on sandbags, two dials, a row of lamps, the button on a striped
+  // stand under a glass cover. Pressed: the glass smashed (shards left round its edge), the button down, the lamps flashing.
+  // A key hint over it when you're close enough to press it
+  function drawNukeButton(level, viewer, camX, time) {
+    const nb = level.nukeButton;
+    if (!nb) return;
+    const x = Math.round(nb.x - camX), gy = nb.gy, on = nb.state === "pressed";
+    if (x < -30 || x > VIEW_W + 30) return;
+    for (let i = 0; i < 3; i++) { P("#8a7a5a", x - 4 + i * 9, gy - 4, 9, 4); P("#a8986e", x - 4 + i * 9, gy - 4, 9, 1); P("#5a4e36", x - 4 + i * 9 + 8, gy - 4, 1, 4); }
+    P("#1a1e12", x, gy - 13, 20, 9); P("#7a7e72", x + 1, gy - 12, 18, 8); P("#9a9e90", x + 1, gy - 12, 18, 1);
+    for (let i = 0; i < 18; i++) P((i + 1) % 4 < 2 ? "#e8c030" : "#1a1a10", x + 1 + i, gy - 6, 1, 1);
+    P("#1a1e12", x + 6, gy - 16, 8, 3); for (let i = 0; i < 8; i++) P(i % 4 < 2 ? "#e8c030" : "#1a1a10", x + 6 + i, gy - 16, 1, 1);
+    const by = gy - 19 + (on ? 1 : 0);
+    P("#2a0606", x + 7, by, 6, 3); P(on ? "#ff6a4a" : "#d02a1a", x + 8, by, 4, 2); P("#ffc0b0", x + 8, by);
+    for (const dx of [2, 16]) { P("#1a1e12", x + dx - 1, gy - 11, 3, 3); P("#e8e8d8", x + dx, gy - 10); P("#1a1e12", x + dx, gy - 11 + (on ? 2 : 0)); }
+    for (let i = 0; i < 4; i++) P(on ? (Math.floor(time * 6 + i) % 2 ? "#ff3a2a" : "#ffd040") : "#2a3a2a", x + 6 + i * 2, gy - 9);
+    if (!on) { // the glass cover, catching the light
+      P("#c8e8ff", x + 6, gy - 21, 8, 1, 0.6); P("#c8e8ff", x + 6, gy - 20, 1, 3, 0.4); P("#c8e8ff", x + 13, gy - 20, 1, 3, 0.4); P("#ffffff", x + 8, gy - 21, 2, 1, 0.7);
+      const near = viewer.realm === level && !viewer.dead && Math.abs(viewer.x + HITBOX_W / 2 - (nb.x + 10)) <= NUKE.near;
+      if (near) { const k = ["S", "DOWN", "G", "K"][Game.world.players.indexOf(viewer)] || "S", w = k.length * 4 + 4, bob = Math.round(Math.sin(time * 6)); P("#1a1a10", x + 10 - w / 2, gy - 31 + bob, w, 7); P("#ff3a2a", x + 11 - w / 2, gy - 30 + bob, w - 2, 5); drawTinyText(k, x + 12 - w / 2, gy - 29 + bob); }
+    } else { // smashed: jagged shards left round the rim, a crack or two
+      P("#c8e8ff", x + 6, gy - 20, 1, 2, 0.5); P("#c8e8ff", x + 7, gy - 21, 1, 1, 0.5); P("#c8e8ff", x + 13, gy - 20, 1, 2, 0.5); P("#c8e8ff", x + 12, gy - 21, 1, 1, 0.4);
+      P("#e8f4ff", x + 3, gy - 13, 1, 1, 0.7); P("#e8f4ff", x + 17, gy - 13, 1, 1, 0.7); P("#e8f4ff", x - 2, gy - 4, 1, 1, 0.6); P("#e8f4ff", x + 22, gy - 4, 1, 1, 0.6); // (bits of glass on the desk and the sandbags)
+      if (Math.floor(time * 3) % 2) drawGlowAt("red", 0, x + 10, gy - 18, 0.6);
+    }
+  }
+
+  // A few tiny letters (the red button's key hint): 3 x 5 pixel letters, white
+  function drawTinyText(s, x, y) {
+    const F = { S: ["111", "100", "111", "001", "111"], D: ["110", "101", "101", "101", "110"], O: ["111", "101", "101", "101", "111"], W: ["101", "101", "101", "111", "101"], N: ["101", "111", "111", "111", "101"], G: ["111", "100", "101", "101", "111"], K: ["101", "110", "100", "110", "101"] };
+    [...s].forEach((ch, k) => (F[ch] || []).forEach((row, j) => [...row].forEach((v, i) => { if (v === "1") P("#ffffff", x + k * 4 + i, y + j); })));
+  }
+
+  // Where a nuke landed: a small crater sunk into the ground, glowing a faint green, and fallout drifting down round it
+  function drawCraters(level, camX, time) {
+    for (const c of level.craters || []) {
+      const x = c.x - camX, gy = c.gy;
+      if (x < -NUKE.fallout - 10 || x > VIEW_W + NUKE.fallout + 10) continue;
+      drawGlowAt("green", 1, x, gy - 1, 0.35 + 0.1 * Math.sin(time * 2));
+      P("#2a1e12", x - 8, gy, 16, 2); P("#1a120a", x - 6, gy + 2, 12, 2); P("#3a2a1a", x - 10, gy - 1, 3, 1); P("#3a2a1a", x + 7, gy - 1, 3, 1);
+      for (let k = -8; k <= 8; k += 3) P("#6aff5a", x + k, gy + (k % 2 ? 0 : 1), 1, 1, 0.5 + 0.4 * Math.abs(Math.sin(time * 3 + k)));
+      for (let i = 0; i < 18; i++) { // fallout: specks of ash drifting down, round and round
+        const u = (time * 0.12 + hash(i, 7)) % 1, fx = x + (hash(i, 3) - 0.5) * 2 * NUKE.fallout + Math.sin(time + i) * 3, fy = gy - 70 + u * 70;
+        P(i % 3 ? "#8a9a72" : "#b8ff9a", fx, fy, 1, 1, 0.7 * Math.min(1, (1 - u) * 4));
+      }
+    }
+  }
+
+  // Nukes falling (a fat olive bomb with a yellow band, a smoke trail) onto a red target circle round whoever it's for; then
+  // the blast: a fireball rising into a mushroom cloud on its stem, a dust surge along the ground, fading
+  function drawNukes(world, camX, time) {
+    for (const n of world.nukes || []) {
+      const x = n.x - camX, gy = n.level.groundTop(n.x) ?? VIEW_H - 8, k = Math.min(1, n.t / NUKE.warn), y = -20 + (gy - 8 + 20) * k * k;
+      if (x < -30 || x > VIEW_W + 30) continue;
+      const blink = Math.floor(time * 8) % 2;
+      for (let a = 0; a < 28; a++) { const t = a / 28 * Math.PI * 2; P("#ff2a2a", x + Math.cos(t) * 10, gy - 1 + Math.sin(t) * 2.5, 1, 1, blink ? 1 : 0.5); }
+      P("#ff2a2a", x - 12, gy - 1, 24, 1, 0.35); P("#ff2a2a", x, gy - 5, 1, 8, 0.35);
+      for (let i = 1; i < 10; i++) P("#e8e8e0", x - 1, y - 8 - i * 3, 2, 2, 0.55 - i * 0.05);
+      P("#1a1c14", x - 3, y - 7, 6, 12); P("#4a5a2a", x - 2, y - 6, 4, 10); P("#e8c030", x - 2, y - 2, 4, 2); P("#1a1a10", x - 1, y - 2, 2, 1); P("#1a1c14", x - 4, y - 9, 8, 2); P("#2a2e1e", x - 1, y + 5, 2, 2);
+    }
+    for (const bm of world.nukeBooms || []) {
+      const x = bm.x - camX, gy = bm.gy, t = bm.t, fade = Math.max(0, Math.min(1, (NUKE.cloud + 0.5 - t) / 1));
+      if (x < -60 || x > VIEW_W + 60) continue;
+      const grow = Math.min(1, t / 1.2), stemH = 10 + 30 * grow, capY = gy - 8 - stemH, sc = 0.5 + 0.6 * grow;
+      for (let i = 0; i < stemH; i++) { const w = 4 + (i > stemH - 4 ? 2 : 0); P(i % 3 ? "#8a6a4a" : "#a8805a", x - w / 2, gy - 4 - i, w, 1, fade); }
+      for (const [dx, dy, r, col] of [[0, 0, 14, "#7a5a3a"], [-8, 2, 9, "#a07050"], [8, 2, 9, "#a07050"], [0, -3, 10, "#d89a50"], [0, 1, 6, "#ffd070"], [0, 2, 3, "#fff0b0"]]) {
+        const R = r * sc;
+        for (let yy = -R; yy <= R; yy++) for (let xx = -R; xx <= R; xx++) if (xx * xx + yy * yy * 2.2 <= R * R) P(t < 0.8 && r < 7 ? "#ffffff" : col, x + dx * sc + xx, capY + dy * sc + yy, 1, 1, fade);
+      }
+      for (let xx = -22; xx <= 22; xx++) { const h = 4 - Math.abs(xx) / 6; if (h > 0) P(Math.abs(xx) % 3 ? "#a8805a" : "#d89a50", x + xx * Math.min(1, t * 2), gy - h, 1, h, fade); }
+      if (t < 1) drawGlowAt("fire", 5, x, capY, (1 - t) * 0.9);
+    }
+  }
+
+  // A nuke going off on this screen: a white flash. Radiated and having a dizzy spell: a green-grey fog over everything
+  function drawNukeFlash(view, p, camX) {
+    for (const bm of view.nukeBooms || []) {
+      if (bm.t > NUKE.flash || Math.abs(bm.x - camX - VIEW_W / 2) > VIEW_W) continue;
+      b.fillStyle = `rgba(255, 255, 250, ${0.95 * (1 - bm.t / NUKE.flash)})`; b.fillRect(0, 0, VIEW_W, VIEW_H);
+    }
+    const r = p.rad;
+    if (!r || p.caught) return;
+    const fog = r.slow > 0 ? Math.min(1, r.slow / 0.3, (NUKE.dizzy - r.slow) / 0.3 + 0.2) : r.next < NUKE.geiger ? 0.15 * (1 - r.next / NUKE.geiger) : 0;
+    if (fog <= 0) return;
+    const t = Game.world.time;
+    b.fillStyle = `rgba(184, 208, 168, ${0.45 * fog})`; b.fillRect(0, 0, VIEW_W, VIEW_H);
+    for (let i = 0; i < 12; i++) drawGlowAt("white", 4, ((hash(i, 1) * VIEW_W + t * (8 + i * 2)) % (VIEW_W + 80)) - 40, 15 + hash(i, 2) * 90 + Math.sin(t + i) * 6, 0.35 * fog);
   }
 
   // The camp's crates (design B): a wooden crate every runner opens for themselves (smashed: gone, for whoever smashed it),
@@ -4997,6 +5099,7 @@ const Renderer = (() => {
       const effects = [["red", "FAST"], ["blue", "HIGH JUMP"], ["pink", "FLOAT"]].filter(([k]) => p.spores[k] > 0);
       if (p.poison > 0 && (p.poisonMax === SPORES.time || p.poisonLethal)) effects.push(["green", "POISON"]); // (a spore's, or a Lobber's deadly one)
       if (p.rootGuard) effects.unshift(["roots", "ROOTS"]);       // (alone: the roots guarding you from the fire, till they're used)
+      if (p.rad) effects.unshift(["rad", p.rad.slow > 0 ? "DIZZY" : "RADIATED"]); // (nuked: for the rest of the race)
       if (p.iceWalker) effects.unshift(["ice", "SKATES"]); // (won a snowstorm: for good, till someone wins one from you)
       if (p.magicFeet) effects.unshift(["magic", "MAGIC FEET"]); // (the enchanted forest's gift: for good, so no countdown)
       if (p.aurora) effects.unshift(["aurora", p.aurora.back > 0 ? `AURORA ${Math.ceil(p.aurora.back)}` : "AURORA"]); // (the ruins' gift)
@@ -5015,8 +5118,8 @@ const Renderer = (() => {
       let ex = 12;
       for (const [k, name] of effects) {
         const left = k === "green" ? p.poison : p.spores[k];
-        const label = k === "magic" || k === "roots" || k === "aurora" || k === "ice" ? name : `${name} ${Math.ceil(left)}`;
-        text(ctx, label, ex, top + (p.power || p.gun ? 52 : 36), k === "magic" ? "#e2a6ff" : k === "roots" ? "#a898b8" : k === "aurora" ? "#7af0d8" : k === "ice" ? "#a8e0ff" : SPORE_COLORS[k].spore, 10);
+        const label = k === "magic" || k === "roots" || k === "aurora" || k === "ice" || k === "rad" ? name : `${name} ${Math.ceil(left)}`;
+        text(ctx, label, ex, top + (p.power || p.gun ? 52 : 36), k === "rad" ? "#8aff6a" : k === "magic" ? "#e2a6ff" : k === "roots" ? "#a898b8" : k === "aurora" ? "#7af0d8" : k === "ice" ? "#a8e0ff" : SPORE_COLORS[k].spore, 10);
         ex += (label.length + 2) * 10;
       }
       if (p.flash > 0) {
