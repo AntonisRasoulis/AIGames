@@ -2260,7 +2260,7 @@ const Game = (() => {
         if (tw.locked) {
           tw.spotX = mid(tw.locked).x; tw.lit += dt;
           if (tw.lit >= L.lock) {
-            if (!world.trucks.some((k) => k.level === level)) callTruck(tw.locked);
+            if (!world.trucks.some((k) => k.level === level && k.target === tw.locked)) callTruck(tw.locked); // (a truck for whoever was seen: one each)
             tw.locked.showHit("SPOTTED!", "#fff2a0");
             tw.locked = null; tw.lit = 0; tw.rest = L.rest;
           }
@@ -2352,9 +2352,10 @@ const Game = (() => {
         if (Math.abs(m.x - dest) > 1) { m.x += Math.sign(dest - m.x) * Math.min(70 * dt, Math.abs(dest - m.x)); m.face = Math.sign(dest - m.x); m.run = true; continue; }
         m.run = false;
         if (k.state === "back") { m.gone = true; continue; }
+        // they've come for whoever was seen: they shoot at them (anyone else only while they're out of reach)
         const near = here.filter((q) => Math.abs(q.x - m.x) < TOWERS.wake);
         if (!near.length) continue;
-        const q = near.reduce((a, b) => (Math.abs(b.x - m.x) < Math.abs(a.x - m.x) ? b : a)), c = mid(q);
+        const q = near.includes(k.target) ? k.target : near.reduce((a, b) => (Math.abs(b.x - m.x) < Math.abs(a.x - m.x) ? b : a)), c = mid(q);
         m.face = Math.sign(c.x - m.x) || -1;
         if ((m.cool -= dt) <= 0) { m.cool = K.every; m.burst = 3; m.next = 0.3; m.aiming = 0.3; m.err = badAim(); }
         if (m.burst > 0 && (m.next -= dt) <= 0) { shoot(m.x + 3 + m.face * 6, k.gy - 7, c.x + m.err, c.y, TOWERS.soldier.spread); m.burst--; m.next = TOWERS.soldier.gap; m.flash = 0.05; Sound.play("rifle"); }
