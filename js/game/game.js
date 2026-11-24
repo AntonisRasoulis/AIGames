@@ -2112,7 +2112,7 @@ const Game = (() => {
       const gy = n.level.groundTop(n.x);
       world.nukeBooms.push({ level: n.level, x: n.x, gy: gy ?? VIEW_H - 8, t: 0 });
       if (gy !== null) n.level.craters.push({ x: n.x, gy, t: 0 });
-      world.quakes.push({ x: n.x, t: 0.8, level: n.level });
+      world.quakes.push({ x: n.x, t: 1.5, level: n.level });
       Sound.play("nukeBoom");
       const hit = n.camp ? world.players.filter((q) => q.realm === n.camp && !q.caught && !q.flight && !q.cockpit) : [t];
       for (const q of hit) {
@@ -2126,7 +2126,7 @@ const Game = (() => {
     }
     world.nukes = world.nukes.filter((n) => !n.done);
     for (const b of world.nukeBooms) b.t += dt;
-    world.nukeBooms = world.nukeBooms.filter((b) => b.t < NUKE.cloud + 0.5);
+    world.nukeBooms = world.nukeBooms.filter((b) => b.t < NUKE.cloud);
     for (const p of world.players) { // radiation
       const r = p.rad;
       if (!r || p.caught) continue;

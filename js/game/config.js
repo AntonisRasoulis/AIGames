@@ -1,7 +1,7 @@
 // The game's version, shown left of the logo. The first number goes up for big updates (a new biome, a new
 // secret world...), the second for smaller additions and fixes (back to 0 with each big update): 6.16 means
 // the 6th big update (the enchanted forest), 16 small ones since. (7: the arcane ruins.)
-const GAME_VERSION = "8.15";
+const GAME_VERSION = "8.16";
 
 // Tunable numbers for the game. Change these to adjust how it feels.
 // Distances are in game pixels; one tile is 8 pixels (about "1 meter").
@@ -621,12 +621,18 @@ const NUKE = {
   near: 14,            // stand this close to the desk to press it (pixels from its middle)
   warn: 1.5,           // seconds of siren and red target before the nuke lands (it follows you: no getting away)
   out: 3,              // seconds before whoever it hit comes back
-  cloud: 3,            // seconds the mushroom cloud takes to rise and fade
-  flash: 0.5,          // seconds of white flash on the screens it's on
+  plunge: 0.35,        // the warhead plunges in for the last this many seconds of the warning (very fast)
+  cloud: 6,            // seconds the blast lasts: fireball, shockwave, the mushroom cloud towering up, fading
+  flash: 0.9,          // seconds of blinding white flash...
+  reach: 2.5,          // ...on every screen within this many screens of it (they shake too)
+  shake: 2.5,          // seconds the screens shake...
+  shakeAmp: 7,         // ...this hard at first (pixels)
   fallout: 50,         // fallout drifts down this far either side of the crater (pixels)
   dizzyEvery: [15, 25], // radiated: a dizzy spell every this many seconds (picked at random each time)...
   geiger: 1,           // ...a Geiger counter crackling this long first...
-  dizzy: 2,            // ...then this long of fog and running slowly...
+  dizzy: 2,            // ...then this long of blurry vision and running slowly...
+  blur: 3.2,           // (how blurry: pixels)
+  double: 6,           // (and a doubled image swaying this far beside it)
   slow: 0.5,           // ...at this much of your speed
   soloFire: 30,        // alone: it nukes the fire this many meters back
   shootAt: 260,        // the helicopter coming back is fired on when it's this close to where it'd drop you (pixels)

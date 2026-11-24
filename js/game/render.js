@@ -50,6 +50,10 @@ const Renderer = (() => {
       let camX = Math.round(Math.max(-8, cams[i]));
       // the ground shaking where a saw slams down (only if it's on this screen)
       if (world.quakes.some((q) => (q.level || world.level) === (p.realm || world.level) && Math.abs(q.x - (camX + VIEW_W / 2)) < VIEW_W * 0.6)) camX += (Math.random() < 0.5 ? -1 : 1) * (2 + Math.floor(Math.random() * 2));
+      for (const bm of world.nukeBooms) { // a nuke going off: the whole screen shaking hard, two screens round it
+        const d = Math.abs(bm.x - (camX + VIEW_W / 2));
+        if (bm.level === (p.realm || world.level) && d < VIEW_W * NUKE.reach && bm.t < NUKE.shake) camX += Math.round((Math.random() - 0.5) * 2 * NUKE.shakeAmp * (1 - bm.t / NUKE.shake) * (1 - d / (VIEW_W * NUKE.reach) * 0.5));
+      }
       if (p.realm && p.realm.biome === "ruins") { // the ruins shaking as they come down
         const left = Game.ruinsLeft(p.realm, p);
         if (left <= RUINS.collapse[2] || (left <= RUINS.collapse[1] && Math.random() < 0.08)) camX += Math.random() < 0.5 ? -1 : 1;
@@ -67,7 +71,7 @@ const Renderer = (() => {
       if (p.realm) Object.assign(view, { inForest: true, monsoon: null, bullets: [], thrownGuns: [], missiles: [], bears: [], jaguars: [], decoys: [], arrows: [], vultures: [], hawks: [], sticks: [], burns: [], drones: [], hands: [], roots: [], bolts: [], monkeys: [], thrownSnowballs: [], grapples: [], vines: [], warps: [] });
       drawView(view, p, world.players.filter((q) => q !== p && q.realm === p.realm && !q.dream), camX); // (everyone else on this course shows as a ghost)
       drawDream(p, camX, world.time);
-      drawNukeFlash(view, p, camX); // (a nuke going off on this screen: a white flash; radiated and dizzy: fog)
+      drawNukeFlash(view, p, camX, r); // (a nuke going off on this screen: a white flash; radiated and dizzy: fog)
       if (Game.blackoutDark(course, world.time)) drawBlackout(r.x, r.y, camX, world, course); // (the ruins' power cut: pitch black)
       const dark = Math.max(Game.tripDark(p), Game.flightDark(p)); // (the aurora taking you across, or flying into or out of the camp: the screen fading out and back)
       if (dark > 0) { b.fillStyle = `rgba(6, 14, 18, ${dark})`; b.fillRect(0, 0, VIEW_W, VIEW_H); }
@@ -663,45 +667,85 @@ const Renderer = (() => {
     }
   }
 
-  // Nukes falling (a fat olive bomb with a yellow band, a smoke trail) onto a red target circle round whoever it's for; then
-  // the blast: a fireball rising into a mushroom cloud on its stem, a dust surge along the ground, fading
+  // Nukes. The warning: a red target circle round whoever it's for, a siren; in the last moments the warhead plunges in from
+  // high above, fast (a sleek white-grey warhead, black nose band, tail fins), a bright streak and heat shimmer behind it.
+  // The blast is massive: a blinding flash, a fireball swelling bigger than the screen, a shockwave racing along the ground,
+  // the sky burning orange, then a mushroom cloud towering up past the top of the screen, its cap churning, glowing from below
   function drawNukes(world, camX, time) {
     for (const n of world.nukes || []) {
-      const x = n.x - camX, gy = n.level.groundTop(n.x) ?? VIEW_H - 8, k = Math.min(1, n.t / NUKE.warn), y = -20 + (gy - 8 + 20) * k * k;
-      if (x < -30 || x > VIEW_W + 30) continue;
+      const x = n.x - camX, gy = n.level.groundTop(n.x) ?? VIEW_H - 8;
+      if (x < -40 || x > VIEW_W + 40) continue;
       const blink = Math.floor(time * 8) % 2;
-      for (let a = 0; a < 28; a++) { const t = a / 28 * Math.PI * 2; P("#ff2a2a", x + Math.cos(t) * 10, gy - 1 + Math.sin(t) * 2.5, 1, 1, blink ? 1 : 0.5); }
-      P("#ff2a2a", x - 12, gy - 1, 24, 1, 0.35); P("#ff2a2a", x, gy - 5, 1, 8, 0.35);
-      for (let i = 1; i < 10; i++) P("#e8e8e0", x - 1, y - 8 - i * 3, 2, 2, 0.55 - i * 0.05);
-      P("#1a1c14", x - 3, y - 7, 6, 12); P("#4a5a2a", x - 2, y - 6, 4, 10); P("#e8c030", x - 2, y - 2, 4, 2); P("#1a1a10", x - 1, y - 2, 2, 1); P("#1a1c14", x - 4, y - 9, 8, 2); P("#2a2e1e", x - 1, y + 5, 2, 2);
+      for (let a = 0; a < 32; a++) { const t = a / 32 * Math.PI * 2; P("#ff2a2a", x + Math.cos(t) * 12, gy - 1 + Math.sin(t) * 3, 1, 1, blink ? 1 : 0.5); }
+      P("#ff2a2a", x - 14, gy - 1, 28, 1, 0.35); P("#ff2a2a", x, gy - 8, 1, 10, 0.35);
+      const fallT = NUKE.warn - n.t; // (it comes in for the last NUKE.plunge seconds, very fast)
+      if (fallT > NUKE.plunge) continue;
+      const k = 1 - fallT / NUKE.plunge, y = -60 + (gy + 60) * k * k;
+      for (let i = 1; i < 26; i++) P(i < 6 ? "#fff8e0" : "#e8e4d8", x - 0.5 + Math.sin(time * 40 + i) * (i > 8 ? 1 : 0), y - 16 - i * 4, i < 6 ? 2 : 1, 4, Math.max(0, 0.8 - i * 0.03)); // (its streak)
+      // the warhead, nose down: a fat dark-grey body, a yellow band, a pointed nose, flared tail fins in a ring
+      const W = [5, 6, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 6, 6, 5, 4, 3, 2, 1]; // (its width, row by row from the tail down to the nose)
+      W.forEach((w, j) => { const yy = y - 20 + j, x0 = x - Math.floor(w / 2); P("#16181c", x0 - 1, yy, w + 2, 1); P(j >= 7 && j <= 8 ? "#e8c030" : j >= 16 ? "#3a3e44" : "#5a626a", x0, yy, w, 1); if (w > 2) P("#9aa2aa", x0 + 1, yy, 1, 1); });
+      P("#16181c", x - 6, y - 23, 13, 1); P("#16181c", x - 6, y - 23, 1, 6); P("#16181c", x + 6, y - 23, 1, 6); P("#4a5258", x - 5, y - 22, 2, 4); P("#4a5258", x + 4, y - 22, 2, 4); // (the fins and their ring)
+      drawGlowAt("white", 1, x, y - 8, 0.2);
     }
     for (const bm of world.nukeBooms || []) {
-      const x = bm.x - camX, gy = bm.gy, t = bm.t, fade = Math.max(0, Math.min(1, (NUKE.cloud + 0.5 - t) / 1));
-      if (x < -60 || x > VIEW_W + 60) continue;
-      const grow = Math.min(1, t / 1.2), stemH = 10 + 30 * grow, capY = gy - 8 - stemH, sc = 0.5 + 0.6 * grow;
-      for (let i = 0; i < stemH; i++) { const w = 4 + (i > stemH - 4 ? 2 : 0); P(i % 3 ? "#8a6a4a" : "#a8805a", x - w / 2, gy - 4 - i, w, 1, fade); }
-      for (const [dx, dy, r, col] of [[0, 0, 14, "#7a5a3a"], [-8, 2, 9, "#a07050"], [8, 2, 9, "#a07050"], [0, -3, 10, "#d89a50"], [0, 1, 6, "#ffd070"], [0, 2, 3, "#fff0b0"]]) {
-        const R = r * sc;
-        for (let yy = -R; yy <= R; yy++) for (let xx = -R; xx <= R; xx++) if (xx * xx + yy * yy * 2.2 <= R * R) P(t < 0.8 && r < 7 ? "#ffffff" : col, x + dx * sc + xx, capY + dy * sc + yy, 1, 1, fade);
+      const x = bm.x - camX, gy = bm.gy, t = bm.t;
+      if (x < -VIEW_W * 1.5 || x > VIEW_W * 2.5) continue;
+      const end = NUKE.cloud, fade = Math.max(0, Math.min(1, (end - t) / 1.5));
+      // the sky burning orange behind it all
+      if (t > 0.1) { b.fillStyle = `rgba(255, 120, 40, ${0.35 * Math.min(1, (t - 0.1) * 3) * fade})`; b.fillRect(0, 0, VIEW_W, VIEW_H); }
+      // the shockwave: a ring racing out, and a wall of dust rolling along the ground both ways
+      if (t < 1.4) {
+        const R = 30 + t * 420, a = Math.max(0, 1 - t / 1.4);
+        b.strokeStyle = `rgba(255, 255, 240, ${0.7 * a})`; b.lineWidth = 3; b.beginPath(); b.ellipse(x, gy - 4, R, R * 0.55, 0, Math.PI, 2 * Math.PI); b.stroke();
+        const reach = Math.min(VIEW_W * 1.5, t * 380);
+        for (let dx = -reach; dx <= reach; dx += 3) { const h = 10 * (1 - Math.abs(dx) / (reach + 1)) + 4 * Math.sin(dx * 0.3 + t * 9); if (h > 0) P(Math.abs(dx) % 6 < 3 ? "#b08a60" : "#d8a868", x + dx, gy - h, 3, h, 0.8 * a + 0.2); }
       }
-      for (let xx = -22; xx <= 22; xx++) { const h = 4 - Math.abs(xx) / 6; if (h > 0) P(Math.abs(xx) % 3 ? "#a8805a" : "#d89a50", x + xx * Math.min(1, t * 2), gy - h, 1, h, fade); }
-      if (t < 1) drawGlowAt("fire", 5, x, capY, (1 - t) * 0.9);
+      // the fireball, swelling, then rising into the cap; the stem climbing up to it. Both built of churning billows: white-hot
+      // and yellow at the heart, orange, then dark brown smoke at the edges and on top; cooling as it rises
+      const grow = 1 - Math.pow(1 - Math.min(1, t / 1.1), 3), rise = Math.min(1, Math.max(0, (t - 0.4) / 2.2));
+      const capY = gy - 20 - rise * (VIEW_H + 10), capR = 40 + 75 * grow, fy = rise > 0 ? capY : gy - 10 - capR * 0.5;
+      const heat = Math.max(0, 1 - t / 3); // (1 just after: white-hot; 0: cold smoke)
+      const shade = (u, v) => { // u: how far out from the heart (0..1), v: how high up in it (-1 top .. 1 bottom)
+        const hot = heat * (1 - u) * 1.6 + (v > 0.2 ? 0.35 * heat : 0);
+        if (hot > 1.1) return [255, 250, 225]; if (hot > 0.8) return [255, 214, 110]; if (hot > 0.5) return [250, 150, 50]; if (hot > 0.28) return [200, 92, 36];
+        return v > 0.3 ? [150, 92, 60] : [104 + v * 20, 78 + v * 10, 62];
+      };
+      const billow = (bx, by, br, u, v) => { const [cr, cg, cb] = shade(u, v); b.fillStyle = `rgba(${cr | 0}, ${cg | 0}, ${cb | 0}, ${fade})`; b.beginPath(); b.arc(Math.round(bx), Math.round(by), Math.max(1, br), 0, Math.PI * 2); b.fill(); };
+      if (rise > 0) { // the stem, churning upward
+        const top = fy + capR * 0.3;
+        for (let yy = gy - 6, k = 0; yy > top; yy -= 5, k++) { const u = (gy - yy) / (gy - top + 1), w = 9 + (1 - u) * 9; for (const side of [-1, 1]) billow(x + side * w * 0.45 + Math.sin(k * 1.7 + time * 5) * 2, yy, w * 0.55, 0.6 + 0.3 * u, 0.5); }
+        const ringY = gy - (gy - top) * 0.45; for (let k = 0; k < 9; k++) billow(x + (k - 4) * 8, ringY + Math.sin(k + time * 3) * 2, 6, 0.9, 0.2); // (the collar of cloud round it)
+      }
+      const N = 46;
+      for (let i = 0; i < N; i++) { // back to front: the outer, darker billows first, the hot heart on top
+        const j = N - 1 - i, ang = hash(j, 11) * Math.PI * 2 + time * (0.4 + hash(j, 12) * 0.6) * (j % 2 ? 1 : -1), rr = Math.sqrt(hash(j, 13)) * (j < 8 ? 0.35 : 0.95);
+        const bx = x + Math.cos(ang) * capR * rr, by = fy + Math.sin(ang) * capR * rr * 0.62, br = capR * (0.16 + 0.14 * hash(j, 14)) * (1 - rr * 0.35);
+        billow(bx, by, br, rr, Math.sin(ang) * rr);
+      }
+      if (t < 1.5) drawGlowAt("fire", 5, x, fy, 0.9 * (1 - t / 1.5));
     }
   }
 
-  // A nuke going off on this screen: a white flash. Radiated and having a dizzy spell: a green-grey fog over everything
-  function drawNukeFlash(view, p, camX) {
+  // A nuke going off: a blinding white flash on every screen it's near. Radiated and having a dizzy spell: your vision goes
+  // blurry, a doubled image swaying beside it
+  const blurCanvas = makeCanvas(VIEW_W, VIEW_H), blurCtx = blurCanvas.getContext("2d");
+  function drawNukeFlash(view, p, camX, r) {
     for (const bm of view.nukeBooms || []) {
-      if (bm.t > NUKE.flash || Math.abs(bm.x - camX - VIEW_W / 2) > VIEW_W) continue;
-      b.fillStyle = `rgba(255, 255, 250, ${0.95 * (1 - bm.t / NUKE.flash)})`; b.fillRect(0, 0, VIEW_W, VIEW_H);
+      const d = Math.abs(bm.x - camX - VIEW_W / 2);
+      if (bm.t > NUKE.flash || d > VIEW_W * NUKE.reach) continue;
+      const a = bm.t < NUKE.flash * 0.35 ? 1 : 1 - (bm.t - NUKE.flash * 0.35) / (NUKE.flash * 0.65);
+      b.fillStyle = `rgba(255, 255, 250, ${a * (1 - d / (VIEW_W * NUKE.reach) * 0.4)})`; b.fillRect(0, 0, VIEW_W, VIEW_H);
     }
-    const r = p.rad;
-    if (!r || p.caught) return;
-    const fog = r.slow > 0 ? Math.min(1, r.slow / 0.3, (NUKE.dizzy - r.slow) / 0.3 + 0.2) : r.next < NUKE.geiger ? 0.15 * (1 - r.next / NUKE.geiger) : 0;
-    if (fog <= 0) return;
-    const t = Game.world.time;
-    b.fillStyle = `rgba(184, 208, 168, ${0.45 * fog})`; b.fillRect(0, 0, VIEW_W, VIEW_H);
-    for (let i = 0; i < 12; i++) drawGlowAt("white", 4, ((hash(i, 1) * VIEW_W + t * (8 + i * 2)) % (VIEW_W + 80)) - 40, 15 + hash(i, 2) * 90 + Math.sin(t + i) * 6, 0.35 * fog);
+    const rad = p.rad;
+    if (!rad || p.caught || rad.slow <= 0) return;
+    const k = Math.min(1, rad.slow / 0.3, (NUKE.dizzy - rad.slow) / 0.3), t = Game.world.time;
+    blurCtx.clearRect(0, 0, VIEW_W, VIEW_H);
+    blurCtx.drawImage(buffer, r.x, r.y, VIEW_W, VIEW_H, 0, 0, VIEW_W, VIEW_H);
+    b.filter = `blur(${(NUKE.blur * k).toFixed(2)}px)`;
+    b.drawImage(blurCanvas, 0, 0);
+    b.filter = "none";
+    b.globalAlpha = 0.4 * k; b.drawImage(blurCanvas, Math.round(Math.sin(t * 4) * NUKE.double * k), Math.round(Math.cos(t * 3) * 1.5 * k)); b.globalAlpha = 1;
   }
 
   // The camp's crates (design B): a wooden crate every runner opens for themselves (smashed: gone, for whoever smashed it),
