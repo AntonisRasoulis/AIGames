@@ -1,7 +1,7 @@
 // The game's version, shown left of the logo. The first number goes up for big updates (a new biome, a new
 // secret world...), the second for smaller additions and fixes (back to 0 with each big update): 6.16 means
 // the 6th big update (the enchanted forest), 16 small ones since. (7: the arcane ruins.)
-const GAME_VERSION = "8.26";
+const GAME_VERSION = "8.27";
 
 // Tunable numbers for the game. Change these to adjust how it feels.
 // Distances are in game pixels; one tile is 8 pixels (about "1 meter").
@@ -655,6 +655,7 @@ const NUKE = {
 // where the camp begins, frantic soon after. Muted and hazy so the course and its dangers stand out. Just for show
 const CAMP_CHAOS = {
   depth: 0.7,          // how fast it scrolls by compared to the course (the hills: 0.15-0.3, the fence 0.55)
+  ground: 88,          // its ground line (a tile above the course's usual ground, so more of the action shows over it)
   slot: 110,           // one building or yard every this many pixels of it
   ramp: 260,           // pixels into the camp until it's at full chaos (about 2.7 s of running)
   calm: 0.3,           // ...how busy it is at the very start (0-1)
@@ -673,7 +674,7 @@ const TOWERS = {
   wildEvery: [17, 22], // ...in Wild mode (twice as many). Easy: none
   calm: 14,            // none in the first tiles of a camp
   front: 0.5,          // the chance a tower stands on the course (where the ground under it is flat), not behind the fence (snipers: always behind)
-  backBase: 96,        // towers behind the fence stand on this line, the same as the camp's tents (the background's ground, behind the course)
+  backBase: 88,        // towers behind the fence stand on this line, the same as the camp's tents (the background's ground, behind the course)
   wake: 230,           // a tower acts while a runner is this close to it (pixels, either side)
   grace: 1.5,          // just back to life, the towers and the truck's soldiers leave you be this long (no aiming at you, their shots pass through)
   shot: 210,           // the soldiers' bullets fly this fast (px/s)...

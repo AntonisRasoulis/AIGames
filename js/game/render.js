@@ -474,21 +474,21 @@ const Renderer = (() => {
     const start = campStart(level, Math.floor((camX + VIEW_W / 2) / TILE)) * TILE;
     const busy = K.calm + (1 - K.calm) * Math.max(0, Math.min(1, (camX + VIEW_W / 2 - start) / K.ramp));
     const on = (...k) => hash(...k) < busy; // (is this one out yet? more of everything the busier it gets)
-    const lx0 = camX * K.depth, gy = 96;
+    const lx0 = camX * K.depth, gy = K.ground;
     const sx = (lx) => Math.round(lx - lx0);
     // the sky: searchlights sweeping, smoke plumes, tracers, helicopters, jets, parachutes
     for (let i = 0; i < 2; i++) if (on(i, 501)) {
       const bx = ((i * 230 - camX * 0.25) % 520 + 520) % 520 - 60, a = -Math.PI / 2 + Math.sin(time * (0.4 + i * 0.15) + i * 2) * 0.6;
-      b.fillStyle = "rgba(255,252,225,0.12)"; b.beginPath(); b.moveTo(bx - 1, 92); b.lineTo(bx + Math.cos(a - 0.06) * 160, 92 + Math.sin(a - 0.06) * 160); b.lineTo(bx + Math.cos(a + 0.06) * 160, 92 + Math.sin(a + 0.06) * 160); b.lineTo(bx + 1, 92); b.fill();
+      b.fillStyle = "rgba(255,252,225,0.12)"; b.beginPath(); b.moveTo(bx - 1, gy - 4); b.lineTo(bx + Math.cos(a - 0.06) * 160, gy - 4 + Math.sin(a - 0.06) * 160); b.lineTo(bx + Math.cos(a + 0.06) * 160, gy - 4 + Math.sin(a + 0.06) * 160); b.lineTo(bx + 1, gy - 4); b.fill();
     }
     for (let i = 0; i < 3; i++) if (on(i, 502)) { // big smoke plumes from fires somewhere in the base, leaning in the wind
       const bx = ((i * 170 + 60 - camX * 0.35) % 560 + 560) % 560 - 80;
-      for (let j = 0; j < 14; j++) { const u = ((time * 0.12 + j / 14) % 1), r = 3 + u * 12; drawPuffAt(bx + u * 40 + Math.sin(time + j) * 2, 90 - u * 80, r, j % 2 ? "#4a4a48" : "#5a5a56", 0.55 * (1 - u)); }
-      drawGlowAt("fire", 2, bx, 90, 0.4 + 0.2 * Math.sin(time * 9 + i));
+      for (let j = 0; j < 14; j++) { const u = ((time * 0.12 + j / 14) % 1), r = 3 + u * 12; drawPuffAt(bx + u * 40 + Math.sin(time + j) * 2, gy - 6 - u * 80, r, j % 2 ? "#4a4a48" : "#5a5a56", 0.55 * (1 - u)); }
+      drawGlowAt("fire", 2, bx, gy - 6, 0.4 + 0.2 * Math.sin(time * 9 + i));
     }
     for (let i = 0; i < 4; i++) if (on(i, 503)) { // tracers arcing up into the sky
       const cyc = 1.3 + i * 0.3, u = ((time + i * 0.37) / cyc) % 1, ox = ((i * 97 + Math.floor((time + i * 0.37) / cyc) * 61) % 400), dir = i % 2 ? 1 : -1;
-      for (let d = 0; d < 5; d++) { const v = u - d * 0.04; if (v < 0) continue; P(d ? "#ffb040" : "#fff0a0", ox + dir * v * 120, 88 - v * 90 + v * v * 30, 1, 1, 1 - d * 0.2); }
+      for (let d = 0; d < 5; d++) { const v = u - d * 0.04; if (v < 0) continue; P(d ? "#ffb040" : "#fff0a0", ox + dir * v * 120, gy - 8 - v * 90 + v * v * 30, 1, 1, 1 - d * 0.2); }
     }
     for (let i = 0; i < 2; i++) if (on(i, 504)) { // helicopters crossing
       const x = ((time * (28 + i * 12) + i * 300 - camX * 0.2) % 640 + 640) % 640 - 120, y = 16 + i * 14 + Math.sin(time * 1.5 + i) * 2, d = i ? -1 : 1, X = d > 0 ? x : VIEW_W - x;
@@ -508,7 +508,7 @@ const Renderer = (() => {
     const every = K.boomEvery / busy;
     for (let n = Math.floor(time / every) - 6; n <= Math.floor(time / every); n++) {
       const age = time - n * every; if (age < 0 || age > 4) continue;
-      const x = hash(n, 507) * (VIEW_W + 100) - 50, y = 84 - hash(n, 508) * 10;
+      const x = hash(n, 507) * (VIEW_W + 100) - 50, y = gy - 12 - hash(n, 508) * 10;
       if (age < 0.12) drawGlowAt("white", 3, x, y, 0.5 * (1 - age / 0.12));
       if (age < 0.6) { const r = 3 + age * 14; drawPuffAt(x, y - r * 0.4, r * 0.7, age < 0.25 ? "#ffd070" : "#e86a2a", 0.8 - age); }
       for (let j = 0; j < 5; j++) { const v = Math.min(1, age / 4), r = 3 + v * 9 + j; drawPuffAt(x + Math.sin(j + n) * 4 * v, y - v * 40 - j * 4, r, "#6a6a64", 0.45 * (1 - v)); }
