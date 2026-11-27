@@ -513,7 +513,16 @@ const Renderer = (() => {
       if (age < 0.6) { const r = 3 + age * 14; drawPuffAt(x, y - r * 0.4, r * 0.7, age < 0.25 ? "#ffd070" : "#e86a2a", 0.8 - age); }
       for (let j = 0; j < 5; j++) { const v = Math.min(1, age / 4), r = 3 + v * 9 + j; drawPuffAt(x + Math.sin(j + n) * 4 * v, y - v * 40 - j * 4, r, "#6a6a64", 0.45 * (1 - v)); }
     }
-    // the ground layer, slot by slot: buildings and yards, then vehicles, then soldiers
+    // its own ground, so nothing back there floats (you see it through the course's gaps): packed dirt down to the bottom of
+    // the screen, a grassy edge, tyre ruts and stones, all scrolling with the layer
+    P("#6e6244", 0, gy - 3, VIEW_W, VIEW_H - gy + 3); P("#5e6a3e", 0, gy - 4, VIEW_W, 2); P("#7a8650", 0, gy - 4, VIEW_W, 1);
+    for (let lx = Math.floor(lx0 / 6) * 6; lx < lx0 + VIEW_W + 6; lx += 6) {
+      const x = sx(lx), h1 = hash(lx, 541), h2 = hash(lx, 542);
+      if (h1 < 0.45) P("#7a8650", x + Math.floor(h2 * 5), gy - 5, 1, 1); // (tufts of grass on the edge)
+      P(h1 < 0.5 ? "#5a5038" : "#82765a", x + Math.floor(h2 * 6), gy + 2 + Math.floor(h1 * (VIEW_H - gy - 4)), 2, 1); // (stones and lighter dirt)
+    }
+    for (const [ry, c] of [[gy + 5, "#5a5038"], [gy + 9, "#5e543a"]]) for (let lx = Math.floor(lx0 / 14) * 14; lx < lx0 + VIEW_W + 14; lx += 14) P(c, sx(lx) + Math.floor(hash(lx, ry) * 3), ry, 9, 1); // (tyre ruts)
+    // the buildings, vehicles and soldiers on it, slot by slot
     const s0 = Math.floor((lx0 - 160) / K.slot), s1 = Math.floor((lx0 + VIEW_W + 160) / K.slot);
     for (let s = s0; s <= s1; s++) drawChaosSlot(s, sx(s * K.slot), gy, time, on);
     for (let s = s0 - 2; s <= s1 + 2; s++) if (on(s, 520)) drawChaosVehicle(s, lx0, gy, time);
@@ -528,6 +537,8 @@ const Renderer = (() => {
   function drawChaosSlot(s, x, gy, time, on) {
     const k = hash(s, 510), bx = x + 12 + Math.round(hash(s, 511) * 30);
     const wall = "#7a7a68", dark = "#3a3a30", roof = "#55604a";
+    const foot = (w) => { P("#4a4232", bx - 3, gy - 1, w + 6, 2); P("#5a5038", bx - 5, gy + 1, w + 10, 1); }; // (its shadow on the ground)
+    foot(k < 0.24 ? 60 : k < 0.4 ? 44 : k < 0.52 ? 74 : k < 0.62 ? 30 : k < 0.72 ? 60 : 84);
     const door = (dx, w, h, period) => { const u = ((time + hash(s, 512) * period) / period) % 1, open = u < 0.35 ? Math.min(1, u * 8) : Math.max(0, 1 - (u - 0.35) * 8); P(dark, dx, gy - h, w, h); P("#6a5a3a", dx + Math.round(w * open), gy - h, w - Math.round(w * open), h); };
     if (k < 0.24) { // barracks: long, windows, a door, a siren light on the roof
       P(dark, bx - 1, gy - 27, 62, 27); P(wall, bx, gy - 26, 60, 26); P(roof, bx - 3, gy - 30, 66, 4); P("#46503c", bx - 2, gy - 31, 64, 1);
@@ -562,7 +573,9 @@ const Renderer = (() => {
     const u = ((time + hash(s, 523) * per * 2) / per) % 2, fwd = u < 1, p = fwd ? u : 2 - u, d = fwd ? 1 : -1;
     const x = Math.round(s * CAMP_CHAOS.slot - 60 + p * span - lx0), fade = Math.min(1, Math.min(p, 1 - p) * 8);
     if (x < -70 || x > VIEW_W + 70) return;
-    const a = fade, X = (dx, w = 1) => (d > 0 ? x + dx : x - dx - w + 1), wheel = (dx) => { P("#1a1a18", X(dx, 5), gy - 5, 5, 5, a); P("#5a5a56", X(dx + 1 + (Math.floor(time * 8) % 2), 2), gy - 3, 2, 1, a); };
+    const a = fade, X = (dx, w = 1) => (d > 0 ? x + dx : x - dx - w + 1);
+    P("#4a4232", X(kind === 1 ? -30 : kind === 2 ? -15 : -1, kind === 1 ? 46 : kind === 2 ? 36 : 24), gy - 1, kind === 1 ? 46 : kind === 2 ? 36 : 24, 2, a * 0.8); // (its shadow)
+    const wheel = (dx) => { P("#1a1a18", X(dx, 5), gy - 5, 5, 5, a); P("#5a5a56", X(dx + 1 + (Math.floor(time * 8) % 2), 2), gy - 3, 2, 1, a); };
     if (kind === 0) { P("#4e5a30", X(0, 22), gy - 10, 22, 6, a); P("#4e5a30", X(6, 8), gy - 14, 8, 4, a); P("#2a3038", X(10, 4), gy - 13, 4, 2, a); wheel(2); wheel(15); P("#3a3a30", X(3, 1), gy - 16, 1, 6, a); }
     else if (kind === 1) { P("#56603a", X(0, 14), gy - 16, 14, 11, a); P("#2a3038", X(9, 4), gy - 14, 4, 4, a); P("#6a704a", X(-30, 30), gy - 20, 30, 15, a); wheel(2); wheel(-12); wheel(-26); }
     else if (kind === 2) { // the tank: treads, a hull, a turret turning its gun
@@ -576,6 +589,7 @@ const Renderer = (() => {
     const kind = Math.floor(hash(s, i, 531) * 5), base = s * CAMP_CHAOS.slot + hash(s, i, 532) * CAMP_CHAOS.slot, set = sprites.soldiers.plain;
     const draw = (x, pose, face, extra) => {
       if (x < -12 || x > VIEW_W + 12) return;
+      P("#4a4232", x, gy - 1, 8, 2, extra ? 0.4 : 0.8); // (a shadow at their feet)
       const fr = pose === "run" ? (Math.floor(time * 10 + i) % 2 ? set.run1 : set.run2) : pose === "dive" ? set.jump : set.idle;
       b.save(); if (face < 0) { b.translate(x * 2 + 8, 0); b.scale(-1, 1); } b.drawImage(fr, x, gy - 12 - (extra || 0)); b.restore();
     };

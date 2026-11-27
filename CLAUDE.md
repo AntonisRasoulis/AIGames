@@ -18,7 +18,7 @@ costs ground to the fire. 1 Player: one big view, race the fire for distance (be
 - Repo: `AntonisRasoulis/AIGames` (renamed from VibeCodingPractice; the local folder may still have the old name). Development branch: `claude/nice-meitner-muga6l`
   (a fresh chat may be given a different branch: use the one you're told).
 - Published as a claude.ai Artifact (a single bundled HTML file):
-  **https://claude.ai/artifact/Uh5CKSPymdWERadhojnY7P** (Version 197 at the time of writing). Always
+  **https://claude.ai/artifact/Uh5CKSPymdWERadhojnY7P** (Version 198 at the time of writing). Always
   republish to this same URL (pass it as `url`); never create a new artifact for the game.
 
 ## Style
@@ -219,6 +219,9 @@ Scripts load in this order (all globals, no modules), each with a `?v=` cache-bu
   v8.24: the camp nuked (nobody out): those in it watch the blast 2.2 s before being thrown out (`NUKE.campShow`, `world.campNuked`).
   v8.25 (owner): background towers on one ground line (`TOWERS.backBase`, the tents'), snipers only in background towers, no red
   sniper aim line and no red grenade blast ring (owner didn't want them).
+  v8.26 the camp at war (`CAMP_CHAOS`, `drawCampChaos` ...): a busy hazy layer just behind the course (buildings, soldiers, vehicles,
+  aircraft, explosions, smoke, tracers, searchlights; calm at the camp's start, full chaos 260 px in), on its own ground (dirt, ruts,
+  shadows) so nothing floats over the course's gaps; faint far-off sounds (`campAmbience`). Just for show.
   Still to come: tripwires (and anything else the owner wants in the towers).
 - **The arcane ruins** (the second secret world; **a first, playable version is built**, v7.0): a portal on the
   main course (one per race after 400 m) with a button under it; inside, a 20 s race (v7.6; it was 60 s) to an exit portal past fire
