@@ -538,7 +538,7 @@ const Renderer = (() => {
     const k = hash(s, 510), bx = x + 12 + Math.round(hash(s, 511) * 30);
     const wall = "#7a7a68", dark = "#3a3a30", roof = "#55604a";
     const foot = (w) => { P("#4a4232", bx - 3, gy - 1, w + 6, 2); P("#5a5038", bx - 5, gy + 1, w + 10, 1); }; // (its shadow on the ground)
-    foot(k < 0.24 ? 60 : k < 0.4 ? 44 : k < 0.52 ? 74 : k < 0.62 ? 30 : k < 0.72 ? 60 : 84);
+    foot(k < 0.24 ? 60 : k < 0.4 ? 44 : k < 0.52 ? 74 : k < 0.62 ? 30 : k < 0.72 ? 60 : k < 0.86 ? 52 : 84);
     const door = (dx, w, h, period) => { const u = ((time + hash(s, 512) * period) / period) % 1, open = u < 0.35 ? Math.min(1, u * 8) : Math.max(0, 1 - (u - 0.35) * 8); P(dark, dx, gy - h, w, h); P("#6a5a3a", dx + Math.round(w * open), gy - h, w - Math.round(w * open), h); };
     if (k < 0.24) { // barracks: long, windows, a door, a siren light on the roof
       P(dark, bx - 1, gy - 27, 62, 27); P(wall, bx, gy - 26, 60, 26); P(roof, bx - 3, gy - 30, 66, 4); P("#46503c", bx - 2, gy - 31, 64, 1);
@@ -559,6 +559,22 @@ const Renderer = (() => {
     } else if (k < 0.72) { // the mess tent: big, its flap open, soldiers in and out
       for (let j = 0; j < 22; j++) { const half = Math.round((j + 1) / 22 * 30); P(j % 4 ? "#7e8a52" : "#6e7a46", bx + 30 - half, gy - 22 + j, half * 2, 1); }
       door(bx + 25, 10, 12, 3.5);
+    } else if (k < 0.86) { // the command headquarters (v8.28): two storeys, lit windows with people hurrying past them, a
+      // sandbagged double door swinging open and shut, a radio mast with a blinking light, a small dish on the roof
+      P(dark, bx - 1, gy - 41, 54, 41); P("#8a8672", bx, gy - 40, 52, 40); P("#6e6a58", bx, gy - 21, 52, 2); // (walls, the floor line between storeys)
+      P(roof, bx - 3, gy - 44, 58, 4); P("#46503c", bx - 2, gy - 45, 56, 1);
+      for (const [wy, n] of [[gy - 36, 5], [gy - 16, 4]]) for (let i = 0; i < n; i++) {
+        const wx = n === 5 ? bx + 4 + i * 10 : bx + 3 + i * 14 + (i > 1 ? 10 : 0);
+        P("#2a3038", wx, wy, 6, 6); P("#d8c890", wx + 1, wy + 1, 4, 4, 0.55 + 0.25 * Math.sin(time * 3 + i + wy)); // (lamplight)
+        const pass = ((time * 0.8 + hash(s, i, wy) * 5) % 2.5); if (pass < 0.9) P("#3a3a30", wx + Math.floor(pass / 0.9 * 6) - 1, wy + 2, 2, 4); // (someone hurrying past inside)
+      }
+      const u = ((time + hash(s, 518) * 3) / 2.6) % 1, open = u < 0.4 ? Math.min(1, u * 8) : Math.max(0, 1 - (u - 0.4) * 8); // (the double door)
+      P(dark, bx + 20, gy - 14, 12, 14); P("#5a4a30", bx + 20, gy - 14, Math.round(6 * (1 - open)), 14); P("#5a4a30", bx + 32 - Math.round(6 * (1 - open)), gy - 14, Math.round(6 * (1 - open)), 14);
+      P("#c8a030", bx + 21, gy - 18, 10, 3); P("#3a3020", bx + 23, gy - 17, 6, 1); // (the sign over it)
+      for (const sx0 of [bx + 6, bx + 35]) for (let r = 0; r < 2; r++) for (let i = 0; i < 2 - r; i++) { P("#7a6e50", sx0 + i * 6 + r * 3, gy - 4 - r * 4, 6, 4); P("#a89a72", sx0 + 1 + i * 6 + r * 3, gy - 4 - r * 4, 4, 2); }
+      P(dark, bx + 44, gy - 66, 1, 22); for (let i = 0; i < 3; i++) { P(dark, bx + 41 + i, gy - 50 + i * 6, 7 - i * 2, 1); } // (the radio mast)
+      const blink = Math.floor(time * 2) % 2; P(blink ? "#ff3a2a" : "#6a2a22", bx + 44, gy - 67, 1, 1); if (blink) drawGlowAt("red", 0, bx + 44.5, gy - 66.5, 0.8);
+      const w = Math.round(Math.abs(Math.cos(time * 0.9 + s)) * 4) + 1; P(dark, bx + 10, gy - 48, 1, 4); P("#a8aca4", bx + 10 - w, gy - 51, w * 2 + 1, 3); // (the dish, turning)
     } else { // a yard: a sandbag wall and a trench, the odd crate stack
       for (let r = 0; r < 2; r++) for (let i = 0; i < 6 - r; i++) { P("#7a6e50", bx + i * 7 + r * 3, gy - 6 - r * 4, 7, 4); P("#a89a72", bx + 1 + i * 7 + r * 3, gy - 6 - r * 4, 5, 2); }
       P("#2a2418", bx + 48, gy - 2, 22, 2);
