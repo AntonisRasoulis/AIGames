@@ -18,7 +18,7 @@ costs ground to the fire. 1 Player: one big view, race the fire for distance (be
 - Repo: `AntonisRasoulis/AIGames` (renamed from VibeCodingPractice; the local folder may still have the old name). Development branch: `claude/nice-meitner-muga6l`
   (a fresh chat may be given a different branch: use the one you're told).
 - Published as a claude.ai Artifact (a single bundled HTML file):
-  **https://claude.ai/artifact/Uh5CKSPymdWERadhojnY7P** (Version 200 at the time of writing). Always
+  **https://claude.ai/artifact/Uh5CKSPymdWERadhojnY7P** (Version 201 at the time of writing). Always
   republish to this same URL (pass it as `url`); never create a new artifact for the game.
 
 ## Style
@@ -224,6 +224,7 @@ Scripts load in this order (all globals, no modules), each with a `?v=` cache-bu
   shadows) so nothing floats over the course's gaps; faint far-off sounds (`campAmbience`). Just for show.
   v8.27: raised a tile (`CAMP_CHAOS.ground` 88, `TOWERS.backBase` 88) so the action shows above the course.
   v8.28: one more building in it, the command headquarters (in `drawChaosSlot`).
+  v8.29: no maces or saws in the camp (dropped from its section weights in `addSection`).
   Still to come: tripwires (and anything else the owner wants in the towers).
 - **The arcane ruins** (the second secret world; **a first, playable version is built**, v7.0): a portal on the
   main course (one per race after 400 m) with a button under it; inside, a 20 s race (v7.6; it was 60 s) to an exit portal past fire

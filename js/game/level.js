@@ -1052,6 +1052,7 @@ class Level {
       if (this.col <= 40) for (const k of ["bouncy", "lobber", "aliveTree"]) delete weights[k];
     }
 
+    if (this.biome === "camp") { delete weights.mace; delete weights.saw; } // (v8.29, owner: no maces or saws in the camp)
     if (this.easy) for (const k of EASY.noSections) delete weights[k]; // (Easy: none of the special dangers)
     let type = this.pickWeighted(weights);
     // Snow: make sure this biome gets its thin ice before it ends
